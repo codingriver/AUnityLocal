@@ -7,32 +7,51 @@ using System.Linq;
 
 public class SpriteToolExEditor : EditorWindow
 {
+    // 原有字段保持不变...
     private Sprite originalSprite;
     private Sprite replacementSprite;
-    private string searchPath = "Assets/C";
+    private string searchPath = "Assets";
     private bool dryRun = true;
     private bool useNewSpriteSize = false;
+    private bool includeInactiveObjects = true;
     private Vector2 scrollPosition;
     private List<string> processedPrefabs = new List<string>();
     private List<string> modifiedPrefabs = new List<string>();
     private string resultText = "";
     private string logFilePath = "";
+    private Vector2Int progressBarSize = new Vector2Int(400, 20);
+    private float progress = 0f;
+    private string progressMessage = "";
+    private bool isProcessing = false;
+    private bool isFindingReferences = false;
 
-    [MenuItem("AUnityLocalEditor/Sprite替换工具")]
+    [MenuItem("AUnityLocal/Sprite替换工具")]
     public static void ShowWindow()
     {
-        GetWindow<SpriteToolExEditor>("Sprite替换工具");
+        var window = GetWindow<SpriteToolExEditor>("Sprite替换工具");
+        window.Init();
+    }
+
+    private void Init()
+    {
+        searchPath = PlayerPrefs.GetString("SpriteToolExSearchPath", searchPath);
     }
 
     private void OnGUI()
     {
-        GUILayout.Label("Sprite批量替换工具\n 替换Sprite,或者查询Sprite引用的prefab", EditorStyles.boldLabel);
+        // GUI界面保持不变...
+        GUILayout.Label("Sprite批量替换工具\n 1.替换 prefab上的Sprite \n2.查询Sprite引用的prefab", EditorStyles.boldLabel);
         EditorGUILayout.Space();
 
         originalSprite = (Sprite)EditorGUILayout.ObjectField("原始Sprite (A)", originalSprite, typeof(Sprite), false);
         replacementSprite = (Sprite)EditorGUILayout.ObjectField("替换Sprite (B)", replacementSprite, typeof(Sprite), false);
         
-        searchPath = EditorGUILayout.TextField("搜索路径", searchPath);
+        var searchPath1 = EditorGUILayout.TextField("搜索路径", searchPath);
+        if (searchPath1 != searchPath)
+        {
+            searchPath = searchPath1;
+            PlayerPrefs.SetString("SpriteToolExSearchPath", searchPath);
+        }
         
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("选择路径"))
@@ -43,6 +62,7 @@ public class SpriteToolExEditor : EditorWindow
                 if (selectedPath.StartsWith(Application.dataPath))
                 {
                     searchPath = "Assets" + selectedPath.Substring(Application.dataPath.Length);
+                    PlayerPrefs.SetString("SpriteToolExSearchPath", searchPath);
                 }
                 else
                 {
@@ -54,8 +74,28 @@ public class SpriteToolExEditor : EditorWindow
 
         dryRun = EditorGUILayout.Toggle("仅预览（不保存修改）", dryRun);
         useNewSpriteSize = EditorGUILayout.Toggle("使用新Sprite的尺寸", useNewSpriteSize);
+        includeInactiveObjects = EditorGUILayout.Toggle("包含非激活对象", includeInactiveObjects);
 
         EditorGUILayout.Space();
+        
+        EditorGUI.BeginDisabledGroup(isProcessing || isFindingReferences);
+        
+        if (GUILayout.Button("查找引用", GUILayout.Height(30)))
+        {
+            if (originalSprite == null)
+            {
+                EditorUtility.DisplayDialog("错误", "请指定原始Sprite", "确定");
+                return;
+            }
+
+            if (!Directory.Exists(Path.Combine(Application.dataPath, searchPath.Substring(7))))
+            {
+                EditorUtility.DisplayDialog("错误", "指定的搜索路径不存在: " + searchPath, "确定");
+                return;
+            }
+
+            EditorApplication.delayCall += FindSpriteReferences;
+        }
         
         if (GUILayout.Button("开始替换", GUILayout.Height(30)))
         {
@@ -65,13 +105,22 @@ public class SpriteToolExEditor : EditorWindow
                 return;
             }
 
-            if (!Directory.Exists(searchPath))
+            if (!Directory.Exists(Path.Combine(Application.dataPath, searchPath.Substring(7))))
             {
                 EditorUtility.DisplayDialog("错误", "指定的搜索路径不存在: " + searchPath, "确定");
                 return;
             }
 
-            ReplaceSpritesInPrefabs();
+            EditorApplication.delayCall += ReplaceSpritesInPrefabs;
+        }
+        EditorGUI.EndDisabledGroup();
+
+        if (isProcessing || isFindingReferences)
+        {
+            EditorGUILayout.Space();
+            Rect progressRect = GUILayoutUtility.GetRect(progressBarSize.x, progressBarSize.y);
+            EditorGUI.ProgressBar(progressRect, progress, progressMessage);
+            Repaint();
         }
 
         EditorGUILayout.Space();
@@ -92,7 +141,7 @@ public class SpriteToolExEditor : EditorWindow
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
         
         EditorGUILayout.LabelField($"处理的Prefab数量: {processedPrefabs.Count}");
-        EditorGUILayout.LabelField($"修改的Prefab数量: {modifiedPrefabs.Count}");
+        EditorGUILayout.LabelField($"引用的Prefab数量: {modifiedPrefabs.Count}");
         
         if (!string.IsNullOrEmpty(logFilePath))
         {
@@ -106,9 +155,9 @@ public class SpriteToolExEditor : EditorWindow
             GUILayout.Label("处理的Prefabs:", EditorStyles.miniBoldLabel);
             foreach (string prefabPath in processedPrefabs)
             {
-                bool modified = modifiedPrefabs.Contains(prefabPath);
-                EditorGUILayout.LabelField($"{"● " + (modified ? "<color=green>已修改</color>" : "<color=grey>未修改</color>") + " " + prefabPath}", 
-                    modified ? EditorStyles.boldLabel : EditorStyles.miniLabel);
+                bool hasReference = modifiedPrefabs.Contains(prefabPath);
+                EditorGUILayout.LabelField($"{"● " + (hasReference ? "<color=green>有引用</color>" : "<color=grey>无引用</color>") + " " + prefabPath}", 
+                    hasReference ? EditorStyles.boldLabel : EditorStyles.miniLabel);
             }
         }
         
@@ -117,6 +166,7 @@ public class SpriteToolExEditor : EditorWindow
 
     private void ReplaceSpritesInPrefabs()
     {
+        isProcessing = true;
         processedPrefabs.Clear();
         modifiedPrefabs.Clear();
         StringBuilder logBuilder = new StringBuilder();
@@ -128,24 +178,53 @@ public class SpriteToolExEditor : EditorWindow
         logBuilder.AppendLine($"搜索路径: {searchPath}");
         logBuilder.AppendLine($"仅预览模式: {dryRun}");
         logBuilder.AppendLine($"使用新Sprite尺寸: {useNewSpriteSize}");
+        logBuilder.AppendLine($"包含非激活对象: {includeInactiveObjects}");
         logBuilder.AppendLine("----------------------------------");
+        logBuilder.AppendLine("替换成功的记录:");
         
-        string[] prefabPaths = Directory.GetFiles(searchPath, "*.prefab", SearchOption.AllDirectories);
+        string[] prefabPaths = Directory.GetFiles(Path.Combine(Application.dataPath, searchPath.Substring(7)), "*.prefab", SearchOption.AllDirectories)
+            .Select(p => NormalizePath("Assets" + p.Substring(Application.dataPath.Length))).ToArray(); // 规范化路径格式
+        
+        int totalPrefabs = prefabPaths.Length;
+        int processedCount = 0;
         
         AssetDatabase.StartAssetEditing();
         try
         {
             foreach (string prefabPath in prefabPaths)
             {
-                ProcessPrefab(prefabPath, logBuilder);
+                processedCount++;
+                progress = (float)processedCount / totalPrefabs;
+                progressMessage = $"处理中 ({processedCount}/{totalPrefabs}): {Path.GetFileName(prefabPath)}";
+                
+                if (ProcessPrefabAndLog(prefabPath, logBuilder))
+                {
+                    processedPrefabs.Add(prefabPath);
+                    if (!dryRun || modifiedPrefabs.Contains(prefabPath))
+                    {
+                        modifiedPrefabs.Add(prefabPath);
+                    }
+                }
+                
+                if (processedCount % 10 == 0)
+                {
+                    Repaint();
+                    System.Threading.Thread.Sleep(10);
+                }
             }
+        }
+        catch (System.Exception e)
+        {
+            logBuilder.AppendLine($"错误: {e.Message}");
+            logBuilder.AppendLine($"堆栈跟踪: {e.StackTrace}");
+            Debug.LogError($"处理过程中发生错误: {e.Message}");
         }
         finally
         {
             AssetDatabase.StopAssetEditing();
+            isProcessing = false;
         }
         
-        // 构建结果文本
         resultText = BuildResultText();
         
         logBuilder.AppendLine("----------------------------------");
@@ -155,141 +234,350 @@ public class SpriteToolExEditor : EditorWindow
         logBuilder.AppendLine($"结束时间: {System.DateTime.Now}");
         logBuilder.AppendLine("===== 处理完成 =====");
         
-        // 保存日志到文件
         SaveLogToFile(logBuilder.ToString());
-        
-        // 合并输出一条日志
         Debug.Log(logBuilder.ToString());
         
         EditorUtility.DisplayDialog("完成", 
             $"处理完成!\n处理的Prefab数量: {processedPrefabs.Count}\n修改的Prefab数量: {modifiedPrefabs.Count}\n日志已保存到: {logFilePath}", 
             "确定");
     }
-
-    private void ProcessPrefab(string prefabPath, StringBuilder logBuilder)
+    
+    private void FindSpriteReferences()
     {
+        isFindingReferences = true;
+        processedPrefabs.Clear();
+        modifiedPrefabs.Clear();
+        StringBuilder logBuilder = new StringBuilder();
+        
+        logBuilder.AppendLine("===== Sprite引用查找工具执行日志 =====");
+        logBuilder.AppendLine($"开始时间: {System.DateTime.Now}");
+        logBuilder.AppendLine($"查找的Sprite: {GetSpriteInfo(originalSprite)}");
+        logBuilder.AppendLine($"搜索路径: {searchPath}");
+        logBuilder.AppendLine($"包含非激活对象: {includeInactiveObjects}");
+        logBuilder.AppendLine("----------------------------------");
+        logBuilder.AppendLine("找到引用的记录:");
+        
+        string[] prefabPaths = Directory.GetFiles(Path.Combine(Application.dataPath, searchPath.Substring(7)), "*.prefab", SearchOption.AllDirectories)
+            .Select(p => NormalizePath("Assets" + p.Substring(Application.dataPath.Length))).ToArray(); // 规范化路径格式
+        
+        int totalPrefabs = prefabPaths.Length;
+        int processedCount = 0;
+        
+        try
+        {
+            foreach (string prefabPath in prefabPaths)
+            {
+                processedCount++;
+                progress = (float)processedCount / totalPrefabs;
+                progressMessage = $"查找中 ({processedCount}/{totalPrefabs}): {Path.GetFileName(prefabPath)}";
+                
+                if (FindReferencesInPrefabAndLog(prefabPath, logBuilder))
+                {
+                    processedPrefabs.Add(prefabPath);
+                    modifiedPrefabs.Add(prefabPath);
+                }
+                
+                if (processedCount % 10 == 0)
+                {
+                    Repaint();
+                    System.Threading.Thread.Sleep(10);
+                }
+            }
+        }
+        catch (System.Exception e)
+        {
+            logBuilder.AppendLine($"错误: {e.Message}");
+            logBuilder.AppendLine($"堆栈跟踪: {e.StackTrace}");
+            Debug.LogError($"查找过程中发生错误: {e.Message}");
+        }
+        finally
+        {
+            isFindingReferences = false;
+        }
+        
+        resultText = BuildReferenceResultText();
+        
+        logBuilder.AppendLine("----------------------------------");
+        logBuilder.AppendLine($"查找完成!");
+        logBuilder.AppendLine($"处理的Prefab数量: {processedPrefabs.Count}");
+        logBuilder.AppendLine($"找到引用的Prefab数量: {modifiedPrefabs.Count}");
+        logBuilder.AppendLine($"结束时间: {System.DateTime.Now}");
+        logBuilder.AppendLine("===== 查找完成 =====");
+        
+        SaveLogToFile(logBuilder.ToString());
+        Debug.Log(logBuilder.ToString());
+        
+        EditorUtility.DisplayDialog("完成", 
+            $"查找完成!\n处理的Prefab数量: {processedPrefabs.Count}\n找到引用的Prefab数量: {modifiedPrefabs.Count}\n日志已保存到: {logFilePath}", 
+            "确定");
+    }
+
+    // 修改：在替换日志中添加层次结构
+    private bool ProcessPrefabAndLog(string prefabPath, StringBuilder logBuilder)
+    {
+        prefabPath = NormalizePath(prefabPath); // 规范化路径格式
+        
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
         if (prefab == null)
         {
-            logBuilder.AppendLine($"警告: 无法加载Prefab: {prefabPath}");
-            return;
+            return false;
         }
 
-        processedPrefabs.Add(prefabPath);
         bool prefabModified = false;
         int spriteRendererCount = 0;
         int imageCount = 0;
+        List<string> spriteRendererPaths = new List<string>(); // 存储层次结构
+        List<string> imagePaths = new List<string>(); // 存储层次结构
 
-        logBuilder.AppendLine($"处理Prefab: {prefabPath}");
-
-        // 创建Prefab实例用于检查和修改
         GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
         if (instance == null)
         {
-            logBuilder.AppendLine($"警告: 无法实例化Prefab: {prefabPath}");
-            return;
+            return false;
         }
 
         try
         {
-            // 获取所有SpriteRenderer组件
-            SpriteRenderer[] spriteRenderers = instance.GetComponentsInChildren<SpriteRenderer>(true);
+            SpriteRenderer[] spriteRenderers = instance.GetComponentsInChildren<SpriteRenderer>(includeInactiveObjects);
             foreach (SpriteRenderer renderer in spriteRenderers)
             {
                 if (renderer.sprite == originalSprite)
                 {
-                    Vector3 originalScale = renderer.transform.localScale;
-                    renderer.sprite = replacementSprite;
-                    spriteRendererCount++;
-                    
-                    // 如果启用了使用新尺寸选项，调整SpriteRenderer的大小
-                    if (useNewSpriteSize && replacementSprite != null)
-                    {
-                        // 计算原始和替换Sprite的大小比例
-                        Vector2 originalSize = originalSprite.rect.size;
-                        Vector2 newSize = replacementSprite.rect.size;
-                        Vector2 sizeRatio = new Vector2(newSize.x / originalSize.x, newSize.y / originalSize.y);
-                        
-                        // 应用比例到localScale
-                        Vector3 currentScale = renderer.transform.localScale;
-                        renderer.transform.localScale = new Vector3(
-                            currentScale.x * sizeRatio.x,
-                            currentScale.y * sizeRatio.y,
-                            currentScale.z
-                        );
-                        
-                        logBuilder.AppendLine($"  - 修改SpriteRenderer: {renderer.name}, 调整尺寸: {originalScale} -> {renderer.transform.localScale}");
-                    }
-                    else
-                    {
-                        logBuilder.AppendLine($"  - 修改SpriteRenderer: {renderer.name}, 保持原尺寸");
-                    }
-                    
                     prefabModified = true;
+                    spriteRendererCount++;
+                    string path = GetTransformPath(renderer.transform); // 获取层次结构
+                    spriteRendererPaths.Add(path);
                 }
             }
 
-            // 获取所有Image组件（UI）
-            UnityEngine.UI.Image[] images = instance.GetComponentsInChildren<UnityEngine.UI.Image>(true);
+            UnityEngine.UI.Image[] images = instance.GetComponentsInChildren<UnityEngine.UI.Image>(includeInactiveObjects);
             foreach (UnityEngine.UI.Image image in images)
             {
                 if (image.sprite == originalSprite)
                 {
-                    Vector2 originalSizeDelta = image.rectTransform.sizeDelta;
-                    image.sprite = replacementSprite;
-                    imageCount++;
-                    
-                    // 如果启用了使用新尺寸选项，调整UI Image的大小
-                    if (useNewSpriteSize && replacementSprite != null)
-                    {
-                        Vector2 newSizeDelta = replacementSprite.rect.size;
-                        image.SetNativeSize();
-                        
-                        logBuilder.AppendLine($"  - 修改UI Image: {image.name}, 调整尺寸: {originalSizeDelta} -> {image.rectTransform.sizeDelta}");
-                    }
-                    else
-                    {
-                        logBuilder.AppendLine($"  - 修改UI Image: {image.name}, 保持原尺寸");
-                    }
-                    
                     prefabModified = true;
+                    imageCount++;
+                    string path = GetTransformPath(image.transform); // 获取层次结构
+                    imagePaths.Add(path);
                 }
             }
 
-            // 如果有修改，则应用到Prefab
             if (prefabModified)
             {
+                logBuilder.AppendLine($"");
+                logBuilder.AppendLine($"【替换成功】Prefab: {prefabPath}"); // 输出规范化后的路径
+                
+                DestroyImmediate(instance);
+                instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+                
+                spriteRendererCount = 0;
+                imageCount = 0;
+                
+                spriteRenderers = instance.GetComponentsInChildren<SpriteRenderer>(includeInactiveObjects);
+                foreach (SpriteRenderer renderer in spriteRenderers)
+                {
+                    if (renderer.sprite == originalSprite)
+                    {
+                        Vector3 originalScale = renderer.transform.localScale;
+                        renderer.sprite = replacementSprite;
+                        spriteRendererCount++;
+                        
+                        if (useNewSpriteSize && replacementSprite != null)
+                        {
+                            Vector2 originalSize = originalSprite.rect.size;
+                            Vector2 newSize = replacementSprite.rect.size;
+                            Vector2 sizeRatio = new Vector2(newSize.x / originalSize.x, newSize.y / originalSize.y);
+                            renderer.transform.localScale = new Vector3(
+                                originalScale.x * sizeRatio.x,
+                                originalScale.y * sizeRatio.y,
+                                originalScale.z
+                            );
+                            
+                            string path = GetTransformPath(renderer.transform); // 获取层次结构
+                            logBuilder.AppendLine($"  - 修改SpriteRenderer: {renderer.name}, 路径: {path}, 调整尺寸: {originalScale} -> {renderer.transform.localScale}");
+                        }
+                        else
+                        {
+                            string path = GetTransformPath(renderer.transform); // 获取层次结构
+                            logBuilder.AppendLine($"  - 修改SpriteRenderer: {renderer.name}, 路径: {path}, 保持原尺寸");
+                        }
+                    }
+                }
+
+                images = instance.GetComponentsInChildren<UnityEngine.UI.Image>(includeInactiveObjects);
+                foreach (UnityEngine.UI.Image image in images)
+                {
+                    if (image.sprite == originalSprite)
+                    {
+                        Vector2 originalSizeDelta = image.rectTransform.sizeDelta;
+                        image.sprite = replacementSprite;
+                        imageCount++;
+                        
+                        if (useNewSpriteSize && replacementSprite != null)
+                        {
+                            image.SetNativeSize();
+                            string path = GetTransformPath(image.transform); // 获取层次结构
+                            logBuilder.AppendLine($"  - 修改UI Image: {image.name}, 路径: {path}, 调整尺寸: {originalSizeDelta} -> {image.rectTransform.sizeDelta}");
+                        }
+                        else
+                        {
+                            string path = GetTransformPath(image.transform); // 获取层次结构
+                            logBuilder.AppendLine($"  - 修改UI Image: {image.name}, 路径: {path}, 保持原尺寸");
+                        }
+                    }
+                }
+
                 if (!dryRun)
                 {
                     PrefabUtility.ApplyPrefabInstance(instance, InteractionMode.UserAction);
-                    modifiedPrefabs.Add(prefabPath);
-                    logBuilder.AppendLine($"  ✔ 已保存修改");
+                    logBuilder.AppendLine($"  ✔ 已保存修改 (实际替换)");
                 }
                 else
                 {
-                    // 仅预览模式下不保存修改
-                    modifiedPrefabs.Add(prefabPath + " (预览模式下不保存)");
-                    logBuilder.AppendLine($"  ⚠ 预览模式: 未保存修改");
+                    logBuilder.AppendLine($"  ⚠ 预览模式: 未保存修改 (测试替换)");
                 }
                 
                 logBuilder.AppendLine($"  共修改: {spriteRendererCount}个SpriteRenderer, {imageCount}个UI Image");
-            }
-            else
-            {
-                logBuilder.AppendLine($"  ❌ 未找到需要替换的Sprite");
+                return true;
             }
         }
         finally
         {
-            // 清理实例
             DestroyImmediate(instance);
         }
+        
+        return false;
+    }
+    
+    // 修改：在引用查找日志中添加层次结构
+    private bool FindReferencesInPrefabAndLog(string prefabPath, StringBuilder logBuilder)
+    {
+        prefabPath = NormalizePath(prefabPath); // 规范化路径格式
+        
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (prefab == null)
+        {
+            return false;
+        }
+
+        bool hasReference = false;
+        int spriteRendererCount = 0;
+        int imageCount = 0;
+        List<string> spriteRendererPaths = new List<string>(); // 存储层次结构
+        List<string> imagePaths = new List<string>(); // 存储层次结构
+
+        GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        if (instance == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            SpriteRenderer[] spriteRenderers = instance.GetComponentsInChildren<SpriteRenderer>(includeInactiveObjects);
+            foreach (SpriteRenderer renderer in spriteRenderers)
+            {
+                if (renderer.sprite == originalSprite)
+                {
+                    hasReference = true;
+                    spriteRendererCount++;
+                    string path = GetTransformPath(renderer.transform); // 获取层次结构
+                    spriteRendererPaths.Add(path);
+                }
+            }
+
+            UnityEngine.UI.Image[] images = instance.GetComponentsInChildren<UnityEngine.UI.Image>(includeInactiveObjects);
+            foreach (UnityEngine.UI.Image image in images)
+            {
+                if (image.sprite == originalSprite)
+                {
+                    hasReference = true;
+                    imageCount++;
+                    string path = GetTransformPath(image.transform); // 获取层次结构
+                    imagePaths.Add(path);
+                }
+            }
+
+            if (hasReference)
+            {
+                logBuilder.AppendLine($"");
+                logBuilder.AppendLine($"【找到引用】Prefab: {prefabPath}"); // 输出规范化后的路径
+                logBuilder.AppendLine($"  引用位置:");
+                
+                if (spriteRendererCount > 0)
+                {
+                    logBuilder.AppendLine($"  - SpriteRenderer: {spriteRendererCount}个");
+                    foreach (string path in spriteRendererPaths)
+                    {
+                        logBuilder.AppendLine($"    - {path}"); // 输出层次结构
+                    }
+                }
+                
+                if (imageCount > 0)
+                {
+                    logBuilder.AppendLine($"  - UI Image: {imageCount}个");
+                    foreach (string path in imagePaths)
+                    {
+                        logBuilder.AppendLine($"    - {path}"); // 输出层次结构
+                    }
+                }
+                
+                logBuilder.AppendLine($"  总计: {spriteRendererCount + imageCount}个引用");
+                return true;
+            }
+        }
+        finally
+        {
+            DestroyImmediate(instance);
+        }
+        
+        return false;
+    }
+
+    // 新增：获取Transform的层次结构路径
+    private string GetTransformPath(Transform transform)
+    {
+        if (transform == null)
+            return "null";
+            
+        StringBuilder path = new StringBuilder(transform.name);
+        Transform parent = transform.parent;
+        
+        while (parent != null && parent != transform.root)
+        {
+            path.Insert(0, parent.name + "/");
+            parent = parent.parent;
+        }
+        
+        return path.ToString();
+    }
+
+    // 新增：路径规范化方法，确保使用正斜杠
+    private string NormalizePath(string path)
+    {
+        return path.Replace('\\', '/');
     }
 
     private string GetSpriteInfo(Sprite sprite)
     {
         if (sprite == null) return "null";
         return $"{sprite.name} ({sprite.rect.width}x{sprite.rect.height}px)";
+    }
+    
+    private string BuildReferenceResultText()
+    {
+        StringBuilder resultBuilder = new StringBuilder();
+        resultBuilder.AppendLine("===== Sprite引用查找工具处理结果 =====");
+        resultBuilder.AppendLine($"处理的Prefab数量: {processedPrefabs.Count}");
+        resultBuilder.AppendLine($"找到引用的Prefab数量: {modifiedPrefabs.Count}");
+        resultBuilder.AppendLine("----------------------------------");
+        resultBuilder.AppendLine("找到引用的Prefabs:");
+        
+        foreach (string prefabPath in modifiedPrefabs)
+        {
+            resultBuilder.AppendLine(prefabPath);
+        }
+        
+        return resultBuilder.ToString();
     }
 
     private string BuildResultText()
@@ -329,21 +617,16 @@ public class SpriteToolExEditor : EditorWindow
     {
         try
         {
-            // 创建日志文件夹（如果不存在）
-            string logFolder = Path.Combine(Application.dataPath, "..", "SpriteReplacementLogs");
+            string logFolder = Path.Combine(Application.dataPath, "..", "AUnityLocal");
             if (!Directory.Exists(logFolder))
             {
                 Directory.CreateDirectory(logFolder);
             }
             
-            // 生成带时间戳的日志文件名
             string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            logFilePath = Path.Combine(logFolder, $"SpriteReplacement_{timestamp}.log");
+            logFilePath = Path.Combine(logFolder, $"SpriteToolEx_{timestamp}.log");
             
-            // 写入日志内容
             File.WriteAllText(logFilePath, logContent);
-            
-            // 在控制台输出日志位置
             Debug.Log($"日志已保存到: {logFilePath}");
         }
         catch (System.Exception e)
@@ -352,4 +635,4 @@ public class SpriteToolExEditor : EditorWindow
             logFilePath = "";
         }
     }
-}    
+}
