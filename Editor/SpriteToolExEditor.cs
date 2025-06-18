@@ -5,7 +5,9 @@ using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 
-public class SpriteToolExEditor : EditorWindow
+namespace AUnityLocal.Editor
+{
+    public class SpriteToolExEditor : EditorWindow
 {
     // 原有字段保持不变...
     private Sprite originalSprite;
@@ -635,4 +637,5 @@ public class SpriteToolExEditor : EditorWindow
             logFilePath = "";
         }
     }
+}
 }
