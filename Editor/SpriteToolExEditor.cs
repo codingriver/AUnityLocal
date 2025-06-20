@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEditor;
 using System.IO;
@@ -485,14 +486,14 @@ namespace AUnityLocal.Editor
         {
             try
             {
-                string logDirectory = Path.Combine(Application.dataPath, "../Logs");
+                string logDirectory = Path.Combine(Application.dataPath, "../AUnityLocal");
                 if (!Directory.Exists(logDirectory))
                 {
                     Directory.CreateDirectory(logDirectory);
                 }
                 
                 string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string fileName = $"{logType}_{timestamp}.txt";
+                string fileName = $"{timestamp}_{logType}.txt";
                 logFilePath = Path.Combine(logDirectory, fileName);
                 
                 File.WriteAllText(logFilePath, content, Encoding.UTF8);
@@ -513,12 +514,12 @@ namespace AUnityLocal.Editor
         private void OnInspectorUpdate()
         {
             // 在处理过程中更新进度条
-            if (isProcessing || isFindingReferences)
-            {
-                EditorUtility.DisplayProgressBar(progressMessage, 
-                    $"{progressMessage} {(progress * 100):F1}%", progress);
-                Repaint();
-            }
+            // if (isProcessing || isFindingReferences)
+            // {
+            //     EditorUtility.DisplayProgressBar(progressMessage, 
+            //         $"{progressMessage} {(progress * 100):F1}%", progress);
+            //     Repaint();
+            // }
         }
 
         // 工具栏菜单项
@@ -717,7 +718,7 @@ namespace AUnityLocal.Editor
             progress = 0f;
             progressMessage = "正在查找Sprite引用...";
             failedPrefabs.Clear(); // 重置失败列表
-
+            DateTime startTime = DateTime.Now;
             try
             {
                 string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { searchPath });
@@ -728,7 +729,7 @@ namespace AUnityLocal.Editor
                 {
                     progress = (float)i / prefabGuids.Length;
                     progressMessage = $"正在查找引用... ({i + 1}/{prefabGuids.Length})";
-                    
+                    EditorUtility.DisplayProgressBar(progressMessage, $"{progressMessage} {(progress * 100):F1}%", progress);
                     string prefabPath = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
                     
                     try
@@ -787,6 +788,8 @@ namespace AUnityLocal.Editor
                     }
                 }
                 
+                TimeSpan elapsedTime = DateTime.Now - startTime;
+                sb.AppendLine($"替换完成完成，总耗时: {elapsedTime.TotalSeconds:F2} 秒");
                 resultText = sb.ToString();
                 processedPrefabs = new List<string>(referencingPrefabs);
                 modifiedPrefabs.Clear();
@@ -857,10 +860,12 @@ namespace AUnityLocal.Editor
             progress = 0f;
             progressMessage = "正在搜索Prefab...";
             failedPrefabs.Clear(); // 重置失败列表
-
+            DateTime startTime = DateTime.Now;
             try
             {
                 string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { searchPath });
+                int max = prefabGuids.Length;
+                Dictionary<int, List<string>> layeredPrefabs=PrefabToolEx.StartAnalysisPrefabsdependencys(searchPath);
                 processedPrefabs.Clear();
                 modifiedPrefabs.Clear();
                 
@@ -877,44 +882,55 @@ namespace AUnityLocal.Editor
                 sb.AppendLine($"包含非激活对象: {(includeInactiveObjects ? "是" : "否")}");
                 sb.AppendLine($"模式: {(dryRun ? "仅预览" : "实际替换")}");
                 sb.AppendLine();
-                
-                for (int i = 0; i < prefabGuids.Length; i++)
+                var sortedKeys= layeredPrefabs.Keys.ToList();
+                sortedKeys.Sort();
+                sortedKeys.Reverse();
+                int count = 0;
+                for (int i = 0; i < sortedKeys.Count; i++)
                 {
-                    progress = (float)i / prefabGuids.Length;
-                    progressMessage = $"正在处理Prefab... ({i + 1}/{prefabGuids.Length})";
-                    
-                    string prefabPath = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
-                    
-                    try
+                    var key= sortedKeys[i];
+                    var ls= layeredPrefabs[key];
+                    sb.AppendLine($"Prefab依赖层级 {key}: {ls.Count} 个Prefab");
+                    foreach (var prefabPath in ls)
                     {
-                        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-                        
-                        if (prefab != null)
+                        count++;
+                        progress = (float)count / max;
+                        progressMessage = $"正在处理Prefab... ({count}/{max})";
+                        EditorUtility.DisplayProgressBar(progressMessage, $"{progressMessage} {(progress * 100):F1}%", progress);
+                        try
                         {
-                            int instanceId = prefab.GetInstanceID();
-                            if (processedPrefabInstanceIds.Contains(instanceId))
-                                continue;
+                            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                        
+                            if (prefab != null)
+                            {
+                                int instanceId = prefab.GetInstanceID();
+                                if (processedPrefabInstanceIds.Contains(instanceId))
+                                    continue;
                                 
-                            processedPrefabInstanceIds.Add(instanceId);
-                            processedPrefabs.Add(prefabPath);
-                            bool modified = ProcessPrefab(prefab, prefabPath, sb);
+                                processedPrefabInstanceIds.Add(instanceId);
+                                processedPrefabs.Add(prefabPath);
+                                bool modified = ProcessPrefab(prefab, prefabPath, sb);
                             
-                            if (modified)
-                            {
-                                modifiedPrefabs.Add(prefabPath);
-                                prefabModificationState[prefabPath] = true;
-                            }
-                            else
-                            {
-                                prefabModificationState[prefabPath] = false;
+                                if (modified)
+                                {
+                                    modifiedPrefabs.Add(prefabPath);
+                                    prefabModificationState[prefabPath] = true;
+                                }
+                                else
+                                {
+                                    prefabModificationState[prefabPath] = false;
+                                }
                             }
                         }
+                        catch
+                        {
+                            failedPrefabs.Add(prefabPath);
+                        }
                     }
-                    catch
-                    {
-                        failedPrefabs.Add(prefabPath);
-                    }
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
                 }
+
                 
                 sb.AppendLine();
                 sb.AppendLine($"总计处理: {processedPrefabs.Count} 个Prefab");
@@ -923,7 +939,6 @@ namespace AUnityLocal.Editor
                 
                 if (!dryRun && modifiedPrefabs.Count > 0)
                 {
-                    AssetDatabase.Refresh();
                     AssetDatabase.SaveAssets();
                     AssetDatabase.Refresh();
                     sb.AppendLine("所有修改已保存。");
@@ -931,6 +946,8 @@ namespace AUnityLocal.Editor
                 
                 resultText = sb.ToString();
                 string logType = dryRun ? "SpriteReplacePreview" : "SpriteReplace";
+                TimeSpan elapsedTime = DateTime.Now - startTime;
+                sb.AppendLine($"替换完成完成，总耗时: {elapsedTime.TotalSeconds:F2} 秒");
                 SaveLogFile(logType, sb.ToString());
                 progress = 1f;
                 progressMessage = "处理完成";
