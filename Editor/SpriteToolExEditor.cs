@@ -948,6 +948,7 @@ namespace AUnityLocal.Editor
                 string logType = dryRun ? "SpriteReplacePreview" : "SpriteReplace";
                 TimeSpan elapsedTime = DateTime.Now - startTime;
                 sb.AppendLine($"替换完成完成，总耗时: {elapsedTime.TotalSeconds:F2} 秒");
+                Debug.Log($"{logType}，总耗时: {elapsedTime.TotalSeconds:F2} 秒");
                 SaveLogFile(logType, sb.ToString());
                 progress = 1f;
                 progressMessage = "处理完成";

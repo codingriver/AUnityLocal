@@ -58,7 +58,7 @@ namespace AUnityLocal.Editor
 
                 // 计算耗时
                 TimeSpan elapsedTime = DateTime.Now - startTime;
-                Debug.Log($"分析完成，总耗时: {elapsedTime.TotalSeconds:F2} 秒");
+                Debug.Log($"分析完成，耗时: {elapsedTime.TotalSeconds:F2} 秒");
                 Debug.Log($"已将Prefab分为 {layeredPrefabs.Count} 层");
             }
             catch (Exception e)
