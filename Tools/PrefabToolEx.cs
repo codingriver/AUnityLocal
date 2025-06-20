@@ -4,8 +4,11 @@ using UnityEditor;
 using System.IO;
 using System.Text;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using UnityEngine.UIElements;
+using Debug = UnityEngine.Debug;
+using Object = UnityEngine.Object;
 
 namespace AUnityLocal.Editor
 {
@@ -25,7 +28,7 @@ namespace AUnityLocal.Editor
         {
             // 记录开始时间
             DateTime startTime = DateTime.Now;
-            
+
 
             try
             {
@@ -203,6 +206,246 @@ namespace AUnityLocal.Editor
             }
 
             return null;
+        }
+
+
+        // 日志文件保存路径
+
+        // 记录检查时间
+        private static Stopwatch stopwatch = new Stopwatch();
+
+        // 存储检查结果
+        private static List<string> prefabPathsWithMissingSprites = new List<string>();
+
+        private static Dictionary<string, List<string>> missingSpritePathsInPrefabs =
+            new Dictionary<string, List<string>>();
+
+        public static void CheckAllPrefabsForMissingSprites(string searchPath)
+        {
+            // 初始化
+            prefabPathsWithMissingSprites.Clear();
+            missingSpritePathsInPrefabs.Clear();
+            stopwatch.Restart();
+
+            // 获取所有Prefab
+            string[] allPrefabs = AssetDatabase.FindAssets("t:Prefab",new[] { searchPath });
+
+            // 处理每个Prefab
+            int processedCount = 0;
+            int totalCount = allPrefabs.Length;
+
+            foreach (string guid in allPrefabs)
+            {
+                string prefabPath = AssetDatabase.GUIDToAssetPath(guid);
+                CheckPrefabForMissingSprites(prefabPath);
+
+                // 更新进度条
+                processedCount++;
+                if (processedCount % 100 == 0 || processedCount == totalCount)
+                {
+                    float progress = (float)processedCount / totalCount;
+                    EditorUtility.DisplayProgressBar("检查缺失的Sprite", $"处理中: {processedCount}/{totalCount}", progress);
+                }
+            }
+
+            // 清除进度条
+            EditorUtility.ClearProgressBar();
+
+            // 停止计时器并保存日志
+            stopwatch.Stop();
+            SaveResultsToLog(totalCount);
+
+            // 显示结果摘要
+            string summary = $"检查完成!\n" +
+                             $"总Prefab数: {totalCount}\n" +
+                             $"包含缺失Sprite的Prefab数: {prefabPathsWithMissingSprites.Count}\n" +
+                             $"耗时: {stopwatch.ElapsedMilliseconds} ms\n\n";
+
+            EditorUtility.DisplayDialog("检查完成", summary, "确定");
+        }
+
+        private static void CheckPrefabForMissingSprites(string prefabPath)
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (prefab == null)
+                return;
+
+            // 实例化Prefab用于检查
+            GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+            if (instance == null)
+                return;
+
+            List<string> objectPathsWithMissingSprites = new List<string>();
+
+            // 检查所有SpriteRenderer组件
+            SpriteRenderer[] renderers = instance.GetComponentsInChildren<SpriteRenderer>(true);
+            foreach (var renderer in renderers)
+            {
+                if (IsSpriteReferenceMissing(renderer, "m_Sprite"))
+                {
+                    string objectPath = GetTransformPath(renderer.transform);
+                    objectPathsWithMissingSprites.Add(objectPath);
+                }
+            }
+
+            // 检查所有Image组件（UI）
+            UnityEngine.UI.Image[] images = instance.GetComponentsInChildren<UnityEngine.UI.Image>(true);
+            foreach (var image in images)
+            {
+                if (IsSpriteReferenceMissing(image, "m_Sprite"))
+                {
+                    string objectPath = GetTransformPath(image.transform);
+                    objectPathsWithMissingSprites.Add(objectPath);
+                }
+            }
+
+            // 检查所有Button组件（UI）
+            UnityEngine.UI.Button[] buttons = instance.GetComponentsInChildren<UnityEngine.UI.Button>(true);
+            foreach (var button in buttons)
+            {
+                // 检查normalSprite
+                if (button.image != null && IsSpriteReferenceMissing(button.image, "m_Sprite"))
+                {
+                    string objectPath = GetTransformPath(button.transform) + "/Image";
+                    objectPathsWithMissingSprites.Add(objectPath);
+                }
+
+                // 检查其他状态的sprite
+                SerializedObject serializedButton = new SerializedObject(button);
+
+                // 高亮状态
+                SerializedProperty highlightedProp = serializedButton.FindProperty("m_SpriteState.m_HighlightedSprite");
+                if (highlightedProp != null && highlightedProp.objectReferenceValue == null &&
+                    highlightedProp.objectReferenceInstanceIDValue == 0)
+                {
+                    string objectPath = GetTransformPath(button.transform) + " (Highlighted Sprite)";
+                    objectPathsWithMissingSprites.Add(objectPath);
+                }
+
+                // 按下状态
+                SerializedProperty pressedProp = serializedButton.FindProperty("m_SpriteState.m_PressedSprite");
+                if (pressedProp != null && pressedProp.objectReferenceValue == null &&
+                    pressedProp.objectReferenceInstanceIDValue == 0)
+                {
+                    string objectPath = GetTransformPath(button.transform) + " (Pressed Sprite)";
+                    objectPathsWithMissingSprites.Add(objectPath);
+                }
+
+                // 禁用状态
+                SerializedProperty disabledProp = serializedButton.FindProperty("m_SpriteState.m_DisabledSprite");
+                if (disabledProp != null && disabledProp.objectReferenceValue == null &&
+                    disabledProp.objectReferenceInstanceIDValue == 0)
+                {
+                    string objectPath = GetTransformPath(button.transform) + " (Disabled Sprite)";
+                    objectPathsWithMissingSprites.Add(objectPath);
+                }
+            }
+
+            // 如果找到缺失的Sprite，记录结果
+            if (objectPathsWithMissingSprites.Count > 0)
+            {
+                prefabPathsWithMissingSprites.Add(prefabPath);
+                missingSpritePathsInPrefabs[prefabPath] = objectPathsWithMissingSprites;
+            }
+
+            // 销毁实例
+            Object.DestroyImmediate(instance);
+        }
+
+        // 检查Sprite引用是否缺失
+        private static bool IsSpriteReferenceMissing(Object target, string fieldName)
+        {
+            SerializedObject serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(fieldName);
+
+            if (property != null && property.propertyType == SerializedPropertyType.ObjectReference)
+            {
+                // 检查引用是否为null且instanceID为0（表示引用缺失）
+                return property.objectReferenceValue == null && property.objectReferenceInstanceIDValue == 0;
+            }
+
+            return false;
+        }
+
+        // 获取Transform在Prefab中的路径
+        private static string GetTransformPath(Transform transform)
+        {
+            string path = transform.name;
+            Transform parent = transform.parent;
+
+            while (parent != null)
+            {
+                path = parent.name + "/" + path;
+                parent = parent.parent;
+            }
+
+            return path;
+        }
+
+        // 保存结果到日志文件
+        private static void SaveResultsToLog(long totalCount = 0)
+        {
+            string logDirectory = Path.Combine(Application.dataPath, "../AUnityLocal");
+            if (!Directory.Exists(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+                
+            string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string fileName = $"{timestamp}_MissingSprites.txt";
+            string logFilePath = Path.Combine(logDirectory, fileName);            
+
+            try
+            {
+                using (StreamWriter writer = new StreamWriter(logFilePath, false, Encoding.UTF8))
+                {
+                    writer.WriteLine("============================================================");
+                    writer.WriteLine($"缺失Sprite引用检查结果 - {System.DateTime.Now}");
+                    writer.WriteLine($"总Prefab数: {AssetDatabase.FindAssets("t:Prefab").Length}");
+                    writer.WriteLine($"包含缺失Sprite的Prefab数: {prefabPathsWithMissingSprites.Count}");
+                    writer.WriteLine($"检查耗时: {stopwatch.ElapsedMilliseconds} ms");
+                    writer.WriteLine("============================================================");
+                    writer.WriteLine();
+
+                    if (prefabPathsWithMissingSprites.Count > 0)
+                    {
+                        writer.WriteLine("以下Prefab包含缺失的Sprite引用:");
+                        writer.WriteLine();
+
+                        foreach (string prefabPath in prefabPathsWithMissingSprites)
+                        {
+                            writer.WriteLine($"Prefab: {prefabPath}");
+
+                            if (missingSpritePathsInPrefabs.TryGetValue(prefabPath, out List<string> objectPaths))
+                            {
+                                foreach (string objectPath in objectPaths)
+                                {
+                                    writer.WriteLine($"  - 物体路径: {objectPath}");
+                                }
+                            }
+
+                            writer.WriteLine();
+                        }
+                    }
+                    else
+                    {
+                        writer.WriteLine("恭喜！未发现引用缺失Sprite的Prefab。");
+                    }
+                    
+                    string summon= $"检查完成!\n" +
+                                   $"总Prefab数: {totalCount}\n" +
+                                   $"包含缺失Sprite的Prefab数: {prefabPathsWithMissingSprites.Count}\n" +
+                                   $"耗时: {stopwatch.ElapsedMilliseconds} ms\n\n";
+                    writer.WriteLine(summon);
+                }
+
+                
+                Debug.Log($"缺失Sprite检查完成，日志已保存到: {logFilePath}");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"保存日志失败: {e.Message}");
+            }
         }
     }
 }

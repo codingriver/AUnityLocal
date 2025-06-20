@@ -292,6 +292,18 @@ namespace AUnityLocal.Editor
             
             EditorGUILayout.BeginHorizontal();
             
+            // 查找missing
+            GUIStyle findButtonStyle1 = new GUIStyle(buttonStyle);
+            findButtonStyle1.normal.textColor = new Color(1f, 0.2f, 0.2f);
+            GUIContent findContent1 = new GUIContent("统计Sprite Missing", EditorGUIUtility.IconContent("Search Icon").image);
+            if (GUILayout.Button(findContent1, findButtonStyle1))
+            {
+
+                EditorApplication.delayCall += FindSpriteMissingReferences;
+            }
+            
+            GUILayout.Space(10);            
+            
             // 查找引用按钮
             GUIStyle findButtonStyle = new GUIStyle(buttonStyle);
             findButtonStyle.normal.textColor = new Color(0.3f, 0.7f, 1f);
@@ -463,7 +475,11 @@ namespace AUnityLocal.Editor
                 EditorUtility.DisplayDialog("提示", "结果已复制到剪贴板", "确定");
             }
         }
-        
+
+        void FindSpriteMissingReferences()
+        {
+            PrefabToolEx.CheckAllPrefabsForMissingSprites(searchPath);
+        }
         private string GetGameObjectPath(GameObject obj, GameObject root)
         {
             if (obj == root)
