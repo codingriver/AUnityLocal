@@ -895,7 +895,7 @@ namespace AUnityLocal.Editor
                     {
                         count++;
                         progress = (float)count / max;
-                        progressMessage = $"正在处理Prefab... ({count}/{max})";
+                        progressMessage = $"正在处理Prefab(layer:{key})... ({count}/{max})";
                         EditorUtility.DisplayProgressBar(progressMessage, $"{progressMessage} {(progress * 100):F1}%", progress);
                         try
                         {
