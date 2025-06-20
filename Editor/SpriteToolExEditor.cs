@@ -19,6 +19,7 @@ namespace AUnityLocal.Editor
         private Vector2 scrollPosition;
         private List<string> processedPrefabs = new List<string>();
         private List<string> modifiedPrefabs = new List<string>();
+        private List<string> failedPrefabs = new List<string>(); // 新增：记录失败项
         private string resultText = "";
         private string logFilePath = "";
         private Vector2Int progressBarSize = new Vector2Int(400, 20);
@@ -31,22 +32,19 @@ namespace AUnityLocal.Editor
         private GUIStyle headerStyle;
         private GUIStyle boxStyle;
         private GUIStyle buttonStyle;
-        private GUIStyle toggleStyle;
         private GUIStyle labelStyle;
         private GUIStyle pathLabelStyle;
         private bool stylesInitialized = false;
 
-        // 新增：缓存已处理的Prefab实例ID，避免重复处理
+        // 缓存已处理的Prefab实例ID
         private HashSet<int> processedPrefabInstanceIds = new HashSet<int>();
 
-        // 新增：缓存Prefab的修改状态
+        // 缓存Prefab的修改状态
         private Dictionary<string, bool> prefabModificationState = new Dictionary<string, bool>();
 
         private void Init()
         {
             searchPath = PlayerPrefs.GetString("SpriteToolExSearchPath", searchPath);
-            
-            // 初始化缓存集合
             processedPrefabInstanceIds.Clear();
             prefabModificationState.Clear();
         }
@@ -71,10 +69,6 @@ namespace AUnityLocal.Editor
             buttonStyle.fontSize = 12;
             buttonStyle.fontStyle = FontStyle.Bold;
             buttonStyle.fixedHeight = 35;
-
-            // 切换样式
-            toggleStyle = new GUIStyle(EditorStyles.toggle);
-            toggleStyle.fontSize = 11;
 
             // 标签样式
             labelStyle = new GUIStyle(EditorStyles.label);
@@ -162,8 +156,7 @@ namespace AUnityLocal.Editor
             
             // 原始Sprite
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("原始 Sprite (A):", GUILayout.Width(100));
-            originalSprite = (Sprite)EditorGUILayout.ObjectField(originalSprite, typeof(Sprite), false);
+            originalSprite = (Sprite)EditorGUILayout.ObjectField("原始 Sprite (A):",originalSprite, typeof(Sprite), false);
             EditorGUILayout.EndHorizontal();
             
             if (originalSprite != null)
@@ -184,8 +177,7 @@ namespace AUnityLocal.Editor
             
             // 替换Sprite
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("替换 Sprite (B):", GUILayout.Width(100));
-            replacementSprite = (Sprite)EditorGUILayout.ObjectField(replacementSprite, typeof(Sprite), false);
+            replacementSprite = (Sprite)EditorGUILayout.ObjectField("替换 Sprite (B):",replacementSprite, typeof(Sprite), false);
             EditorGUILayout.EndHorizontal();
             
             if (replacementSprite != null)
@@ -242,7 +234,7 @@ namespace AUnityLocal.Editor
             EditorGUILayout.EndHorizontal();
             
             // 显示路径状态
-            if (Directory.Exists(Path.Combine(Application.dataPath, searchPath.Substring(7))))
+            if (searchPath.Length>=7&&Directory.Exists(Path.Combine(Application.dataPath, searchPath.Substring(7))))
             {
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Space(45);
@@ -266,15 +258,15 @@ namespace AUnityLocal.Editor
         {
             EditorGUILayout.BeginVertical(boxStyle);
             
-            GUILayout.Label("⚙️ 选项设置", EditorStyles.boldLabel);
+            GUILayout.Label("选项设置", EditorStyles.boldLabel);
             EditorGUILayout.Space(5);
             
             // 使用网格布局来组织选项
             EditorGUILayout.BeginVertical();
             
-            dryRun = EditorGUILayout.ToggleLeft(new GUIContent("🔍 仅预览（不保存修改）", "启用后只会显示将要修改的内容，不会实际保存"), dryRun, toggleStyle);
-            useNewSpriteSize = EditorGUILayout.ToggleLeft(new GUIContent("📏 使用新Sprite的尺寸", "替换时自动调整为新Sprite的尺寸"), useNewSpriteSize, toggleStyle);
-            includeInactiveObjects = EditorGUILayout.ToggleLeft(new GUIContent("👁️ 包含非激活对象", "搜索时包括被禁用的GameObject"), includeInactiveObjects, toggleStyle);
+            dryRun = EditorGUILayout.ToggleLeft(new GUIContent("仅预览（不保存修改）", "启用后只会显示将要修改的内容，不会实际保存"), dryRun);
+            useNewSpriteSize = EditorGUILayout.ToggleLeft(new GUIContent("使用新Sprite的尺寸", "替换时自动调整为新Sprite的尺寸"), useNewSpriteSize);
+            includeInactiveObjects = EditorGUILayout.ToggleLeft(new GUIContent("包含非激活对象", "搜索时包括被禁用的GameObject"), includeInactiveObjects);
             
             // 新增：显示详细的处理信息
             bool showDetails = processedPrefabs.Count > 0 || modifiedPrefabs.Count > 0;
@@ -303,7 +295,7 @@ namespace AUnityLocal.Editor
             GUIStyle findButtonStyle = new GUIStyle(buttonStyle);
             findButtonStyle.normal.textColor = new Color(0.3f, 0.7f, 1f);
             
-            GUIContent findContent = new GUIContent("🔍 查找引用", EditorGUIUtility.IconContent("Search Icon").image);
+            GUIContent findContent = new GUIContent("查找引用", EditorGUIUtility.IconContent("Search Icon").image);
             if (GUILayout.Button(findContent, findButtonStyle))
             {
                 if (originalSprite == null)
@@ -327,7 +319,7 @@ namespace AUnityLocal.Editor
             GUIStyle replaceButtonStyle = new GUIStyle(buttonStyle);
             replaceButtonStyle.normal.textColor = dryRun ? new Color(1f, 0.8f, 0.3f) : new Color(0.3f, 1f, 0.3f);
             
-            string buttonText = dryRun ? "🔍 预览替换" : "✨ 开始替换";
+            string buttonText = dryRun ? "预览替换" : "开始替换";
             GUIContent replaceContent = new GUIContent(buttonText, EditorGUIUtility.IconContent("Refresh").image);
             if (GUILayout.Button(replaceContent, replaceButtonStyle))
             {
@@ -350,7 +342,7 @@ namespace AUnityLocal.Editor
             
             // 新增：重置按钮
             EditorGUILayout.Space(10);
-            if (GUILayout.Button("🔄 重置工具", buttonStyle))
+            if (GUILayout.Button("重置工具", buttonStyle))
             {
                 ResetTool();
             }
@@ -380,7 +372,7 @@ namespace AUnityLocal.Editor
             {
                 EditorGUILayout.BeginVertical(boxStyle);
                 
-                GUILayout.Label("⏳ 处理进度", EditorStyles.boldLabel);
+                GUILayout.Label("处理进度", EditorStyles.boldLabel);
                 EditorGUILayout.Space(5);
                 
                 Rect progressRect = GUILayoutUtility.GetRect(0, 20, GUILayout.ExpandWidth(true));
@@ -397,16 +389,16 @@ namespace AUnityLocal.Editor
             
             // 结果标题
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("📊 处理结果", EditorStyles.boldLabel);
+            GUILayout.Label("处理结果", EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
             
             // 操作按钮
-            if (GUILayout.Button(new GUIContent("📋 复制结果", "复制结果到剪贴板"), GUILayout.Width(100), GUILayout.Height(20)))
+            if (GUILayout.Button(new GUIContent("复制结果", "复制结果到剪贴板"), GUILayout.Width(100), GUILayout.Height(20)))
             {
                 CopyResultToClipboard();
             }
             
-            if (!string.IsNullOrEmpty(logFilePath) && GUILayout.Button(new GUIContent("📄 打开日志", "打开日志文件"), GUILayout.Width(100), GUILayout.Height(20)))
+            if (!string.IsNullOrEmpty(logFilePath) && GUILayout.Button(new GUIContent("打开日志", "打开日志文件"), GUILayout.Width(100), GUILayout.Height(20)))
             {
                 System.Diagnostics.Process.Start(logFilePath);
             }
@@ -470,293 +462,7 @@ namespace AUnityLocal.Editor
                 EditorUtility.DisplayDialog("提示", "结果已复制到剪贴板", "确定");
             }
         }
-
-        private void FindSpriteReferences()
-        {
-            isFindingReferences = true;
-            progress = 0f;
-            progressMessage = "正在查找Sprite引用...";
-            
-            try
-            {
-                string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { searchPath });
-                List<string> referencingPrefabs = new List<string>();
-                
-                // 获取原始Sprite的完整名称
-                string originalSpriteFullName = GetSpriteFullName(originalSprite);
-                
-                for (int i = 0; i < prefabGuids.Length; i++)
-                {
-                    progress = (float)i / prefabGuids.Length;
-                    progressMessage = $"正在查找引用... ({i + 1}/{prefabGuids.Length})";
-                    
-                    string prefabPath = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
-                    GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-                    
-                    if (prefab != null)
-                    {
-                        // 使用实例ID检查是否已处理过该Prefab
-                        int instanceId = prefab.GetInstanceID();
-                        if (processedPrefabInstanceIds.Contains(instanceId))
-                            continue;
-                            
-                        processedPrefabInstanceIds.Add(instanceId);
-                        
-                        var spriteRenderers = prefab.GetComponentsInChildren<SpriteRenderer>(includeInactiveObjects);
-                        var images = prefab.GetComponentsInChildren<UnityEngine.UI.Image>(includeInactiveObjects);
-                        
-                        bool hasReference = false;
-                        
-                        foreach (var sr in spriteRenderers)
-                        {
-                            if (sr.sprite == originalSprite)
-                            {
-                                hasReference = true;
-                                break;
-                            }
-                        }
-                        
-                        if (!hasReference)
-                        {
-                            foreach (var img in images)
-                            {
-                                if (img.sprite == originalSprite)
-                                {
-                                    hasReference = true;
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if (hasReference)
-                        {
-                            referencingPrefabs.Add(prefabPath);
-                        }
-                    }
-                }
-                
-                // 生成查找结果
-                StringBuilder sb = new StringBuilder();
-                sb.AppendLine($"=== Sprite引用查找结果 ===");
-                sb.AppendLine($"查找时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"原始Sprite: {originalSpriteFullName}");
-                sb.AppendLine($"搜索路径: {searchPath}");
-                sb.AppendLine($"包含非激活对象: {(includeInactiveObjects ? "是" : "否")}");
-                sb.AppendLine($"总计扫描: {prefabGuids.Length} 个Prefab");
-                sb.AppendLine($"找到引用: {referencingPrefabs.Count} 个Prefab");
-                sb.AppendLine();
-                
-                if (referencingPrefabs.Count > 0)
-                {
-                    sb.AppendLine("引用此Sprite的Prefab列表:");
-                    for (int i = 0; i < referencingPrefabs.Count; i++)
-                    {
-                        sb.AppendLine($"{i + 1}. {referencingPrefabs[i]}");
-                    }
-                }
-                else
-                {
-                    sb.AppendLine("未找到任何引用此Sprite的Prefab。");
-                }
-                
-                resultText = sb.ToString();
-                processedPrefabs = new List<string>(referencingPrefabs);
-                modifiedPrefabs.Clear();
-                
-                // 保存日志文件
-                SaveLogFile("SpriteReferenceSearch", sb.ToString());
-                
-                progress = 1f;
-                progressMessage = "查找完成";
-                
-                EditorUtility.DisplayDialog("查找完成", 
-                    $"扫描了 {prefabGuids.Length} 个Prefab，找到 {referencingPrefabs.Count} 个引用。", 
-                    "确定");
-            }
-            catch (System.Exception e)
-            {
-                EditorUtility.DisplayDialog("错误", "查找过程中出现错误: " + e.Message, "确定");
-                Debug.LogError("FindSpriteReferences Error: " + e);
-            }
-            finally
-            {
-                isFindingReferences = false;
-                EditorUtility.ClearProgressBar();
-                
-                // 重置缓存
-                processedPrefabInstanceIds.Clear();
-            }
-        }
-
-        private void ReplaceSpritesInPrefabs()
-        {
-            isProcessing = true;
-            progress = 0f;
-            progressMessage = "正在搜索Prefab...";
-            
-            try
-            {
-                string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { searchPath });
-                processedPrefabs.Clear();
-                modifiedPrefabs.Clear();
-                
-                // 获取原始和替换Sprite的完整名称
-                string originalSpriteFullName = GetSpriteFullName(originalSprite);
-                string replacementSpriteFullName = GetSpriteFullName(replacementSprite);
-                
-                StringBuilder sb = new StringBuilder();
-                sb.AppendLine($"=== Sprite替换{(dryRun ? "预览" : "执行")}结果 ===");
-                sb.AppendLine($"处理时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"原始Sprite: {originalSpriteFullName}");
-                sb.AppendLine($"替换Sprite: {replacementSpriteFullName}");
-                sb.AppendLine($"搜索路径: {searchPath}");
-                sb.AppendLine($"使用新尺寸: {(useNewSpriteSize ? "是" : "否")}");
-                sb.AppendLine($"包含非激活对象: {(includeInactiveObjects ? "是" : "否")}");
-                sb.AppendLine($"模式: {(dryRun ? "仅预览" : "实际替换")}");
-                sb.AppendLine();
-                
-                for (int i = 0; i < prefabGuids.Length; i++)
-                {
-                    progress = (float)i / prefabGuids.Length;
-                    progressMessage = $"正在处理Prefab... ({i + 1}/{prefabGuids.Length})";
-                    
-                    string prefabPath = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
-                    GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-                    
-                    if (prefab != null)
-                    {
-                        // 使用实例ID检查是否已处理过该Prefab
-                        int instanceId = prefab.GetInstanceID();
-                        if (processedPrefabInstanceIds.Contains(instanceId))
-                            continue;
-                            
-                        processedPrefabInstanceIds.Add(instanceId);
-                        
-                        processedPrefabs.Add(prefabPath);
-                        bool modified = ProcessPrefab(prefab, prefabPath, sb);
-                        
-                        if (modified)
-                        {
-                            modifiedPrefabs.Add(prefabPath);
-                            prefabModificationState[prefabPath] = true;
-                        }
-                        else
-                        {
-                            prefabModificationState[prefabPath] = false;
-                        }
-                    }
-                }
-                
-                sb.AppendLine();
-                sb.AppendLine($"总计处理: {processedPrefabs.Count} 个Prefab");
-                sb.AppendLine($"发现修改: {modifiedPrefabs.Count} 个Prefab");
-                
-                if (!dryRun && modifiedPrefabs.Count > 0)
-                {
-                    // 保存前刷新AssetDatabase
-                    AssetDatabase.Refresh();
-                    AssetDatabase.SaveAssets();
-                    AssetDatabase.Refresh();
-                    sb.AppendLine("所有修改已保存。");
-                }
-                
-                resultText = sb.ToString();
-                
-                // 保存日志文件
-                string logType = dryRun ? "SpriteReplacePreview" : "SpriteReplace";
-                SaveLogFile(logType, sb.ToString());
-                
-                progress = 1f;
-                progressMessage = "处理完成";
-                
-                string dialogTitle = dryRun ? "预览完成" : "替换完成";
-                string dialogMessage = $"处理了 {processedPrefabs.Count} 个Prefab，{(dryRun ? "发现" : "修改了")} {modifiedPrefabs.Count} 个Prefab。";
-                
-                EditorUtility.DisplayDialog(dialogTitle, dialogMessage, "确定");
-            }
-            catch (System.Exception e)
-            {
-                EditorUtility.DisplayDialog("错误", "处理过程中出现错误: " + e.Message, "确定");
-                Debug.LogError("ReplaceSpritesInPrefabs Error: " + e);
-            }
-            finally
-            {
-                isProcessing = false;
-                EditorUtility.ClearProgressBar();
-                
-                // 重置缓存
-                processedPrefabInstanceIds.Clear();
-            }
-        }
-
-        private bool ProcessPrefab(GameObject prefab, string prefabPath, StringBuilder logBuilder)
-        {
-            bool modified = false;
-            List<string> modifications = new List<string>();
-            
-            // 处理SpriteRenderer组件
-            var spriteRenderers = prefab.GetComponentsInChildren<SpriteRenderer>(includeInactiveObjects);
-            foreach (var sr in spriteRenderers)
-            {
-                if (sr.sprite == originalSprite)
-                {
-                    if (!dryRun)
-                    {
-                        sr.sprite = replacementSprite;
-                        
-                        if (useNewSpriteSize && replacementSprite != null)
-                        {
-                            sr.size = new Vector2(replacementSprite.rect.width / replacementSprite.pixelsPerUnit,
-                                                replacementSprite.rect.height / replacementSprite.pixelsPerUnit);
-                        }
-                        
-                        EditorUtility.SetDirty(prefab);
-                    }
-                    
-                    string objPath = GetGameObjectPath(sr.gameObject, prefab);
-                    modifications.Add($"  - SpriteRenderer: {objPath}");
-                    modified = true;
-                }
-            }
-            
-            // 处理UI Image组件
-            var images = prefab.GetComponentsInChildren<UnityEngine.UI.Image>(includeInactiveObjects);
-            foreach (var img in images)
-            {
-                if (img.sprite == originalSprite)
-                {
-                    if (!dryRun)
-                    {
-                        img.sprite = replacementSprite;
-                        
-                        if (useNewSpriteSize && replacementSprite != null)
-                        {
-                            img.SetNativeSize();
-                        }
-                        
-                        EditorUtility.SetDirty(prefab);
-                    }
-                    
-                    string objPath = GetGameObjectPath(img.gameObject, prefab);
-                    modifications.Add($"  - UI Image: {objPath}");
-                    modified = true;
-                }
-            }
-            
-            // 记录修改日志
-            if (modified)
-            {
-                logBuilder.AppendLine($"Prefab: {prefabPath}");
-                foreach (string mod in modifications)
-                {
-                    logBuilder.AppendLine(mod);
-                }
-                logBuilder.AppendLine();
-            }
-            
-            return modified;
-        }
-
+        
         private string GetGameObjectPath(GameObject obj, GameObject root)
         {
             if (obj == root)
@@ -836,6 +542,7 @@ namespace AUnityLocal.Editor
                 window.originalSprite = sprite;
                 window.titleContent = new GUIContent("Sprite替换工具");
                 window.minSize = new Vector2(450, 600);
+                window.Init();
                 window.Show();
                 window.Focus();
             }
@@ -850,6 +557,7 @@ namespace AUnityLocal.Editor
                 window.replacementSprite = sprite;
                 window.titleContent = new GUIContent("Sprite替换工具");
                 window.minSize = new Vector2(450, 600);
+                window.Init();
                 window.Show();
                 window.Focus();
             }
@@ -961,5 +669,425 @@ namespace AUnityLocal.Editor
                 
             return $"{fileName}#{spriteName}";
         }
+        
+
+        // 新增：重试失败项功能
+        private void RetryFailedPrefabs()
+        {
+            if (failedPrefabs.Count == 0) return;
+
+            StringBuilder sb = new StringBuilder(resultText);
+            sb.AppendLine("\n=== 重试失败项 ===");
+            
+            List<string> retrySuccess = new List<string>();
+            List<string> stillFailed = new List<string>();
+
+            for (int i = 0; i < failedPrefabs.Count; i++)
+            {
+                progress = (float)i / failedPrefabs.Count;
+                progressMessage = $"重试失败项 ({i + 1}/{failedPrefabs.Count})";
+                
+                try
+                {
+                    GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(failedPrefabs[i]);
+                    if (prefab != null)
+                    {
+                        bool modified = ProcessPrefab(prefab, failedPrefabs[i], sb);
+                        if (modified)
+                        {
+                            modifiedPrefabs.Add(failedPrefabs[i]);
+                            retrySuccess.Add(failedPrefabs[i]);
+                        }
+                    }
+                }
+                catch
+                {
+                    stillFailed.Add(failedPrefabs[i]);
+                }
+            }
+
+            failedPrefabs = stillFailed;
+            sb.AppendLine($"成功重试: {retrySuccess.Count} 个, 仍然失败: {stillFailed.Count} 个");
+            resultText = sb.ToString();
+        }
+
+        private void FindSpriteReferences()
+        {
+            isFindingReferences = true;
+            progress = 0f;
+            progressMessage = "正在查找Sprite引用...";
+            failedPrefabs.Clear(); // 重置失败列表
+
+            try
+            {
+                string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { searchPath });
+                List<string> referencingPrefabs = new List<string>();
+                string originalSpriteFullName = GetSpriteFullName(originalSprite);
+                
+                for (int i = 0; i < prefabGuids.Length; i++)
+                {
+                    progress = (float)i / prefabGuids.Length;
+                    progressMessage = $"正在查找引用... ({i + 1}/{prefabGuids.Length})";
+                    
+                    string prefabPath = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
+                    
+                    try
+                    {
+                        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                        
+                        if (prefab != null)
+                        {
+                            int instanceId = prefab.GetInstanceID();
+                            if (processedPrefabInstanceIds.Contains(instanceId))
+                                continue;
+                                
+                            processedPrefabInstanceIds.Add(instanceId);
+                            
+                            // 扩展检测组件类型
+                            bool hasReference = CheckSpriteReferences(prefab);
+                            
+                            if (hasReference)
+                            {
+                                referencingPrefabs.Add(prefabPath);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        failedPrefabs.Add(prefabPath);
+                    }
+                }
+                
+                // 生成结果（添加失败项统计）
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine($"=== Sprite引用查找结果 ===");
+                sb.AppendLine($"查找时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"原始Sprite: {originalSpriteFullName}");
+                sb.AppendLine($"搜索路径: {searchPath}");
+                sb.AppendLine($"包含非激活对象: {(includeInactiveObjects ? "是" : "否")}");
+                sb.AppendLine($"总计扫描: {prefabGuids.Length} 个Prefab");
+                sb.AppendLine($"找到引用: {referencingPrefabs.Count} 个Prefab");
+                sb.AppendLine($"加载失败: {failedPrefabs.Count} 个Prefab");
+                
+                if (referencingPrefabs.Count > 0)
+                {
+                    sb.AppendLine("\n引用此Sprite的Prefab列表:");
+                    for (int i = 0; i < referencingPrefabs.Count; i++)
+                    {
+                        sb.AppendLine($"{i + 1}. {referencingPrefabs[i]}");
+                    }
+                }
+                
+                if (failedPrefabs.Count > 0)
+                {
+                    sb.AppendLine("\n加载失败的Prefab:");
+                    for (int i = 0; i < failedPrefabs.Count; i++)
+                    {
+                        sb.AppendLine($"{i + 1}. {failedPrefabs[i]}");
+                    }
+                }
+                
+                resultText = sb.ToString();
+                processedPrefabs = new List<string>(referencingPrefabs);
+                modifiedPrefabs.Clear();
+                SaveLogFile("SpriteReferenceSearch", sb.ToString());
+                progress = 1f;
+                progressMessage = "查找完成";
+                
+                EditorUtility.DisplayDialog("查找完成", 
+                    $"扫描了 {prefabGuids.Length} 个Prefab\n找到 {referencingPrefabs.Count} 个引用\n失败 {failedPrefabs.Count} 个", 
+                    "确定");
+            }
+            catch (System.Exception e)
+            {
+                EditorUtility.DisplayDialog("错误", "查找过程中出现错误: " + e.Message, "确定");
+                Debug.LogError("FindSpriteReferences Error: " + e);
+            }
+            finally
+            {
+                isFindingReferences = false;
+                EditorUtility.ClearProgressBar();
+                processedPrefabInstanceIds.Clear();
+            }
+        }
+
+        // 扩展组件检测范围
+        private bool CheckSpriteReferences(GameObject prefab)
+        {
+            bool hasReference = false;
+            
+            // 1. 检测标准组件
+            var spriteRenderers = prefab.GetComponentsInChildren<SpriteRenderer>(includeInactiveObjects);
+            var images = prefab.GetComponentsInChildren<UnityEngine.UI.Image>(includeInactiveObjects);
+            
+            hasReference |= spriteRenderers.Any(sr => sr.sprite == originalSprite);
+            hasReference |= images.Any(img => img.sprite == originalSprite);
+            
+            // 2. 检测Tilemap组件
+            var tilemaps = prefab.GetComponentsInChildren<UnityEngine.Tilemaps.Tilemap>(includeInactiveObjects);
+            foreach (var tilemap in tilemaps)
+            {
+                // 只检查已使用的Tile位置
+                for (int x = tilemap.cellBounds.xMin; x < tilemap.cellBounds.xMax; x++)
+                {
+                    for (int y = tilemap.cellBounds.yMin; y < tilemap.cellBounds.yMax; y++)
+                    {
+                        Vector3Int pos = new Vector3Int(x, y, 0);
+                        var tile = tilemap.GetTile<UnityEngine.Tilemaps.Tile>(pos);
+                        if (tile != null && tile.sprite == originalSprite)
+                        {
+                            hasReference = true;
+                            break;
+                        }
+                    }
+                    if (hasReference) break;
+                }
+            }
+            
+            // 3. 检测自定义组件（需要用户自行实现接口）
+            var customSpriteHolders = prefab.GetComponentsInChildren<ICustomSpriteHolder>(includeInactiveObjects);
+            hasReference |= customSpriteHolders.Any(holder => holder.GetSprite() == originalSprite);
+            
+            return hasReference;
+        }
+
+        private void ReplaceSpritesInPrefabs()
+        {
+            isProcessing = true;
+            progress = 0f;
+            progressMessage = "正在搜索Prefab...";
+            failedPrefabs.Clear(); // 重置失败列表
+
+            try
+            {
+                string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { searchPath });
+                processedPrefabs.Clear();
+                modifiedPrefabs.Clear();
+                
+                string originalSpriteFullName = GetSpriteFullName(originalSprite);
+                string replacementSpriteFullName = GetSpriteFullName(replacementSprite);
+                
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine($"=== Sprite替换{(dryRun ? "预览" : "执行")}结果 ===");
+                sb.AppendLine($"处理时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"原始Sprite: {originalSpriteFullName}");
+                sb.AppendLine($"替换Sprite: {replacementSpriteFullName}");
+                sb.AppendLine($"搜索路径: {searchPath}");
+                sb.AppendLine($"使用新尺寸: {(useNewSpriteSize ? "是" : "否")}");
+                sb.AppendLine($"包含非激活对象: {(includeInactiveObjects ? "是" : "否")}");
+                sb.AppendLine($"模式: {(dryRun ? "仅预览" : "实际替换")}");
+                sb.AppendLine();
+                
+                for (int i = 0; i < prefabGuids.Length; i++)
+                {
+                    progress = (float)i / prefabGuids.Length;
+                    progressMessage = $"正在处理Prefab... ({i + 1}/{prefabGuids.Length})";
+                    
+                    string prefabPath = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
+                    
+                    try
+                    {
+                        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                        
+                        if (prefab != null)
+                        {
+                            int instanceId = prefab.GetInstanceID();
+                            if (processedPrefabInstanceIds.Contains(instanceId))
+                                continue;
+                                
+                            processedPrefabInstanceIds.Add(instanceId);
+                            processedPrefabs.Add(prefabPath);
+                            bool modified = ProcessPrefab(prefab, prefabPath, sb);
+                            
+                            if (modified)
+                            {
+                                modifiedPrefabs.Add(prefabPath);
+                                prefabModificationState[prefabPath] = true;
+                            }
+                            else
+                            {
+                                prefabModificationState[prefabPath] = false;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        failedPrefabs.Add(prefabPath);
+                    }
+                }
+                
+                sb.AppendLine();
+                sb.AppendLine($"总计处理: {processedPrefabs.Count} 个Prefab");
+                sb.AppendLine($"发现修改: {modifiedPrefabs.Count} 个Prefab");
+                sb.AppendLine($"处理失败: {failedPrefabs.Count} 个Prefab");
+                
+                if (!dryRun && modifiedPrefabs.Count > 0)
+                {
+                    AssetDatabase.Refresh();
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                    sb.AppendLine("所有修改已保存。");
+                }
+                
+                resultText = sb.ToString();
+                string logType = dryRun ? "SpriteReplacePreview" : "SpriteReplace";
+                SaveLogFile(logType, sb.ToString());
+                progress = 1f;
+                progressMessage = "处理完成";
+                
+                string dialogTitle = dryRun ? "预览完成" : "替换完成";
+                string dialogMessage = $"处理了 {processedPrefabs.Count} 个Prefab\n" +
+                                      $"{(dryRun ? "发现" : "修改了")} {modifiedPrefabs.Count} 个Prefab\n" +
+                                      $"失败 {failedPrefabs.Count} 个";
+                
+                EditorUtility.DisplayDialog(dialogTitle, dialogMessage, "确定");
+            }
+            catch (System.Exception e)
+            {
+                EditorUtility.DisplayDialog("错误", "处理过程中出现错误: " + e.Message, "确定");
+                Debug.LogError("ReplaceSpritesInPrefabs Error: " + e);
+            }
+            finally
+            {
+                isProcessing = false;
+                EditorUtility.ClearProgressBar();
+                processedPrefabInstanceIds.Clear();
+            }
+        }
+
+        private bool ProcessPrefab(GameObject prefab, string prefabPath, StringBuilder logBuilder)
+        {
+            bool modified = false;
+            List<string> modifications = new List<string>();
+            
+            // 处理SpriteRenderer组件
+            var spriteRenderers = prefab.GetComponentsInChildren<SpriteRenderer>(includeInactiveObjects);
+            foreach (var sr in spriteRenderers)
+            {
+                if (sr.sprite == originalSprite)
+                {
+                    if (!dryRun)
+                    {
+                        sr.sprite = replacementSprite;
+                        
+                        if (useNewSpriteSize && replacementSprite != null)
+                        {
+                            sr.size = new Vector2(
+                                replacementSprite.rect.width / replacementSprite.pixelsPerUnit,
+                                replacementSprite.rect.height / replacementSprite.pixelsPerUnit
+                            );
+                        }
+                        
+                        // 修复材质引用残留问题
+                        if (sr.material != null && 
+                            sr.material.mainTexture == originalSprite.texture)
+                        {
+                            sr.material.mainTexture = replacementSprite.texture;
+                        }
+                        
+                        EditorUtility.SetDirty(prefab);
+                    }
+                    
+                    string objPath = GetGameObjectPath(sr.gameObject, prefab);
+                    modifications.Add($"  - SpriteRenderer: {objPath}");
+                    modified = true;
+                }
+            }
+            
+            // 处理UI Image组件
+            var images = prefab.GetComponentsInChildren<UnityEngine.UI.Image>(includeInactiveObjects);
+            foreach (var img in images)
+            {
+                if (img.sprite == originalSprite)
+                {
+                    if (!dryRun)
+                    {
+                        img.sprite = replacementSprite;
+                        
+                        if (useNewSpriteSize && replacementSprite != null)
+                        {
+                            img.SetNativeSize();
+                        }
+                        
+                        // 修复材质引用残留问题
+                        // if (img.material != null && 
+                        //     img.material.mainTexture == originalSprite.texture)
+                        // {
+                        //     img.material.mainTexture = replacementSprite.texture;
+                        // }
+                        
+                        EditorUtility.SetDirty(prefab);
+                    }
+                    
+                    string objPath = GetGameObjectPath(img.gameObject, prefab);
+                    modifications.Add($"  - UI Image: {objPath}");
+                    modified = true;
+                }
+            }
+            
+            // 处理Tilemap组件
+            var tilemaps = prefab.GetComponentsInChildren<UnityEngine.Tilemaps.Tilemap>(includeInactiveObjects);
+            foreach (var tilemap in tilemaps)
+            {
+                bool tilemapModified = false;
+                List<Vector3Int> modifiedPositions = new List<Vector3Int>();
+                
+                for (int x = tilemap.cellBounds.xMin; x < tilemap.cellBounds.xMax; x++)
+                {
+                    for (int y = tilemap.cellBounds.yMin; y < tilemap.cellBounds.yMax; y++)
+                    {
+                        Vector3Int pos = new Vector3Int(x, y, 0);
+                        var tile = tilemap.GetTile<UnityEngine.Tilemaps.Tile>(pos);
+                        if (tile != null && tile.sprite == originalSprite)
+                        {
+                            if (!dryRun)
+                            {
+                                // 创建新Tile实例避免修改原始资源
+                                var newTile = ScriptableObject.CreateInstance<UnityEngine.Tilemaps.Tile>();
+                                newTile.sprite = replacementSprite;
+                                newTile.color = tile.color;
+                                newTile.transform = tile.transform;
+                                newTile.gameObject = tile.gameObject;
+                                newTile.flags = tile.flags;
+                                newTile.colliderType = tile.colliderType;
+                                
+                                tilemap.SetTile(pos, newTile);
+                                EditorUtility.SetDirty(tilemap);
+                            }
+                            
+                            modifiedPositions.Add(pos);
+                            tilemapModified = true;
+                        }
+                    }
+                }
+                
+                if (tilemapModified)
+                {
+                    modifications.Add($"  - Tilemap: {tilemap.name} (修改位置: {modifiedPositions.Count})");
+                    modified = true;
+                }
+            }
+            
+            // 记录修改日志
+            if (modified)
+            {
+                logBuilder.AppendLine($"Prefab: {prefabPath}");
+                foreach (string mod in modifications)
+                {
+                    logBuilder.AppendLine(mod);
+                }
+                logBuilder.AppendLine();
+            }
+            
+            return modified;
+        }
+        // 新增接口：支持自定义Sprite组件
+        public interface ICustomSpriteHolder
+        {
+            Sprite GetSprite();
+            void SetSprite(Sprite newSprite);
+        }
+        
     }
 }
+
