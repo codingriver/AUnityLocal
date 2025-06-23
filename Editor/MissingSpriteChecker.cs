@@ -301,7 +301,7 @@ namespace AUnityLocal.Editor
         {
             try
             {
-                logFilePath = Path.Combine(Application.dataPath, $"MissingSpritesLog_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                logFilePath = Path.Combine(Application.dataPath, $"MissingSprites_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
                 File.WriteAllText(logFilePath, logBuilder.ToString());
                 
                 AssetDatabase.Refresh();

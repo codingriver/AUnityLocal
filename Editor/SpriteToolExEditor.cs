@@ -229,6 +229,7 @@ namespace AUnityLocal.Editor
                     else
                     {
                         EditorUtility.DisplayDialog("错误", "请选择项目内的Assets目录下的文件夹", "确定");
+                        Repaint();
                     }
                 }
             }
@@ -292,17 +293,6 @@ namespace AUnityLocal.Editor
             
             EditorGUILayout.BeginHorizontal();
             
-            // 查找missing
-            // GUIStyle findButtonStyle1 = new GUIStyle(buttonStyle);
-            // findButtonStyle1.normal.textColor = new Color(1f, 0.2f, 0.2f);
-            // GUIContent findContent1 = new GUIContent("统计Sprite Missing", EditorGUIUtility.IconContent("Search Icon").image);
-            // if (GUILayout.Button(findContent1, findButtonStyle1))
-            // {
-            //
-            //     EditorApplication.delayCall += FindSpriteMissingReferences;
-            // }
-            //
-            // GUILayout.Space(10);            
             
             // 查找引用按钮
             GUIStyle findButtonStyle = new GUIStyle(buttonStyle);
@@ -314,16 +304,16 @@ namespace AUnityLocal.Editor
                 if (originalSprite == null)
                 {
                     EditorUtility.DisplayDialog("错误", "请指定原始Sprite", "确定");
-                    return;
                 }
-
-                if (!Directory.Exists(Path.Combine(Application.dataPath, searchPath.Substring(7))))
+                else if (searchPath.Length<7||!Directory.Exists(Path.Combine(Application.dataPath, searchPath.Substring(7))))
                 {
-                    EditorUtility.DisplayDialog("错误", "指定的搜索路径不存在: " + searchPath, "确定");
-                    return;
+                    EditorUtility.DisplayDialog("错误", "指定的搜索路径不存在或者是根目录: " + searchPath, "确定");
+                }
+                else
+                {
+                    EditorApplication.delayCall += FindSpriteReferences;    
                 }
 
-                EditorApplication.delayCall += FindSpriteReferences;
             }
             
             GUILayout.Space(10);
@@ -339,16 +329,16 @@ namespace AUnityLocal.Editor
                 if (originalSprite == null || replacementSprite == null)
                 {
                     EditorUtility.DisplayDialog("错误", "请指定原始Sprite和替换Sprite", "确定");
-                    return;
                 }
-
-                if (!Directory.Exists(Path.Combine(Application.dataPath, searchPath.Substring(7))))
+                else if (!Directory.Exists(Path.Combine(Application.dataPath, searchPath.Substring(7))))
                 {
                     EditorUtility.DisplayDialog("错误", "指定的搜索路径不存在: " + searchPath, "确定");
-                    return;
                 }
-
-                EditorApplication.delayCall += ReplaceSpritesInPrefabs;
+                else
+                {
+                    EditorApplication.delayCall += ReplaceSpritesInPrefabs;    
+                }
+                
             }
             
             EditorGUILayout.EndHorizontal();
@@ -473,6 +463,7 @@ namespace AUnityLocal.Editor
             {
                 EditorGUIUtility.systemCopyBuffer = resultText;
                 EditorUtility.DisplayDialog("提示", "结果已复制到剪贴板", "确定");
+                Repaint();
             }
         }
 
@@ -619,18 +610,21 @@ namespace AUnityLocal.Editor
             if (originalSprite == null)
             {
                 EditorUtility.DisplayDialog("错误", "请选择原始Sprite", "确定");
+                Repaint();
                 return false;
             }
 
             if (string.IsNullOrEmpty(searchPath))
             {
                 EditorUtility.DisplayDialog("错误", "请选择搜索路径", "确定");
+                Repaint();
                 return false;
             }
 
             if (!AssetDatabase.IsValidFolder(searchPath))
             {
                 EditorUtility.DisplayDialog("错误", "搜索路径无效", "确定");
+                Repaint();
                 return false;
             }
 
@@ -645,12 +639,14 @@ namespace AUnityLocal.Editor
             if (replacementSprite == null)
             {
                 EditorUtility.DisplayDialog("错误", "请选择替换Sprite", "确定");
+                Repaint();
                 return false;
             }
 
             if (originalSprite == replacementSprite)
             {
                 EditorUtility.DisplayDialog("错误", "原始Sprite和替换Sprite不能相同", "确定");
+                Repaint();
                 return false;
             }
 
@@ -810,10 +806,12 @@ namespace AUnityLocal.Editor
                 EditorUtility.DisplayDialog("查找完成", 
                     $"扫描了 {prefabGuids.Length} 个Prefab\n找到 {referencingPrefabs.Count} 个引用\n失败 {failedPrefabs.Count} 个", 
                     "确定");
+                Repaint();
             }
             catch (System.Exception e)
             {
                 EditorUtility.DisplayDialog("错误", "查找过程中出现错误: " + e.Message, "确定");
+                Repaint();
                 Debug.LogError("FindSpriteReferences Error: " + e);
             }
             finally
@@ -969,10 +967,12 @@ namespace AUnityLocal.Editor
                                       $"失败 {failedPrefabs.Count} 个";
                 
                 EditorUtility.DisplayDialog(dialogTitle, dialogMessage, "确定");
+                Repaint();
             }
             catch (System.Exception e)
             {
                 EditorUtility.DisplayDialog("错误", "处理过程中出现错误: " + e.Message, "确定");
+                Repaint();
                 Debug.LogError("ReplaceSpritesInPrefabs Error: " + e);
             }
             finally
