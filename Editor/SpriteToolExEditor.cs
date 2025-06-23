@@ -22,7 +22,7 @@ namespace AUnityLocal.Editor
         private List<string> modifiedPrefabs = new List<string>();
         private List<string> failedPrefabs = new List<string>(); // 新增：记录失败项
         private string resultText = "";
-        private string logFilePath = "";
+        private static string logFilePath = "";
         private Vector2Int progressBarSize = new Vector2Int(400, 20);
         private float progress = 0f;
         private string progressMessage = "";
@@ -498,7 +498,7 @@ namespace AUnityLocal.Editor
             return string.Join("/", path);
         }
 
-        private void SaveLogFile(string logType, string content)
+        private static void SaveLogFile(string fileName, string content)
         {
             try
             {
@@ -509,10 +509,10 @@ namespace AUnityLocal.Editor
                 }
                 
                 string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string fileName = $"{timestamp}_{logType}.txt";
-                logFilePath = Path.Combine(logDirectory, fileName);
-                
-                File.WriteAllText(logFilePath, content, Encoding.UTF8);
+                string filePath = Path.Combine(logDirectory, $"{timestamp}_{fileName}.txt");
+                File.WriteAllText(filePath, content, Encoding.UTF8);
+                Debug.Log("日志文件已保存: " + filePath);
+                logFilePath = filePath;
             }
             catch (System.Exception e)
             {

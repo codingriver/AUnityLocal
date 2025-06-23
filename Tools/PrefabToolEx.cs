@@ -212,6 +212,27 @@ namespace AUnityLocal.Editor
 
 
         // 日志文件保存路径
-
+        private static string  SaveLogFile(string fileName, string content)
+        {
+            try
+            {
+                string logDirectory = Path.Combine(Application.dataPath, "../AUnityLocal");
+                if (!Directory.Exists(logDirectory))
+                {
+                    Directory.CreateDirectory(logDirectory);
+                }
+                
+                string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string filePath = Path.Combine(logDirectory, $"{timestamp}_{fileName}.txt");
+                File.WriteAllText(filePath, content, Encoding.UTF8);
+                Debug.Log("日志文件已保存: " + filePath);
+                return filePath;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError("保存日志文件失败: " + e.Message);
+            }
+            return string.Empty;
+        }
     }
 }
