@@ -9,7 +9,7 @@ using System.Threading;
 
 namespace AUnityLocal.Editor
 {
-    public class MissingSpriteChecker : EditorWindow
+    public class MissingComponentChecker : EditorWindow
     {
         private string searchDirectory = "Assets/";
         private string logFilePath = "";
@@ -18,24 +18,25 @@ namespace AUnityLocal.Editor
         private int checkedPrefabs = 0;
         private int missingCount = 0;
         private Vector2 scrollPosition;
-        private List<MissingSpriteInfo> missingSprites = new List<MissingSpriteInfo>();
+        private List<MissingComponentInfo> missingComponents = new List<MissingComponentInfo>();
         private CancellationTokenSource cancellationTokenSource;
         private int batchSize = 100;
         private StringBuilder logBuilder = new StringBuilder();
         private List<string> prefabPaths = new List<string>();
         private float checkInterval = 0.01f; // 检查间隔，防止编辑器卡顿
 
-        [MenuItem("AUnityLocal/检查Missing Sprite")]
+        [MenuItem("AUnityLocal/检查Missing Component")]
         public static void ShowWindow()
         {
-            GetWindow<MissingSpriteChecker>("Missing Sprite Checker");
+            GetWindow<MissingComponentChecker>("Missing Component Checker");
         }
 
         private void OnGUI()
         {
-            GUILayout.Label("Prefab Missing Sprite Checker", EditorStyles.boldLabel);
+            GUILayout.Label("Prefab Missing Component Checker", EditorStyles.boldLabel);
             EditorGUILayout.BeginHorizontal();
             searchDirectory = EditorGUILayout.TextField("Search Directory:", searchDirectory);
+            
             // 美化的选择路径按钮
             GUIContent folderContent = new GUIContent("浏览", EditorGUIUtility.IconContent("Folder Icon").image);
             if (GUILayout.Button(folderContent, GUILayout.Width(70), GUILayout.Height(20)))
@@ -54,11 +55,12 @@ namespace AUnityLocal.Editor
                 }
             }           
             EditorGUILayout.EndHorizontal();
+            
             batchSize = EditorGUILayout.IntSlider("Batch Size (Single Thread)", batchSize, 10, 200);
             checkInterval = EditorGUILayout.Slider("Check Interval (Seconds)", checkInterval, 0.01f, 0.1f);
 
             EditorGUI.BeginDisabledGroup(isChecking);
-            if (GUILayout.Button("Check Missing Sprites"))
+            if (GUILayout.Button("Check Missing Components"))
             {
                 StartChecking();
             }
@@ -67,29 +69,30 @@ namespace AUnityLocal.Editor
             if (isChecking)
             {
                 EditorGUILayout.LabelField($"Progress: {checkedPrefabs}/{totalPrefabs}");
-                EditorGUILayout.LabelField($"Missing Sprites Found: {missingCount}");
+                EditorGUILayout.LabelField($"Missing Components Found: {missingCount}");
                 if (GUILayout.Button("Cancel"))
                 {
                     CancelChecking();
                 }
             }
-            else if (missingSprites.Count > 0)
+            else if (missingComponents.Count > 0)
             {
-                EditorGUILayout.LabelField($"Total Missing Sprites: {missingCount}");
+                EditorGUILayout.LabelField($"Total Missing Components: {missingCount}");
                 
                 scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
                 
-                foreach (var missingSprite in missingSprites)
+                foreach (var missingComponent in missingComponents)
                 {
                     EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                     
-                    EditorGUILayout.LabelField($"Prefab: {missingSprite.PrefabPath}", EditorStyles.boldLabel);
-                    EditorGUILayout.LabelField($"GameObject: {missingSprite.GameObjectPath}");
+                    EditorGUILayout.LabelField($"Prefab: {missingComponent.PrefabPath}", EditorStyles.boldLabel);
+                    EditorGUILayout.LabelField($"GameObject: {missingComponent.GameObjectPath}");
+                    EditorGUILayout.LabelField($"Component Type: {missingComponent.ComponentType}");
                     
                     EditorGUILayout.BeginHorizontal();
                     if (GUILayout.Button("Select Prefab"))
                     {
-                        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(missingSprite.PrefabPath);
+                        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(missingComponent.PrefabPath);
                         if (prefab)
                         {
                             Selection.activeObject = prefab;
@@ -99,7 +102,7 @@ namespace AUnityLocal.Editor
                     
                     if (GUILayout.Button("Copy Path"))
                     {
-                        EditorGUIUtility.systemCopyBuffer = missingSprite.PrefabPath;
+                        EditorGUIUtility.systemCopyBuffer = missingComponent.PrefabPath;
                     }
                     EditorGUILayout.EndHorizontal();
                     
@@ -111,7 +114,7 @@ namespace AUnityLocal.Editor
                 EditorGUILayout.BeginHorizontal();
                 if (GUILayout.Button("Clear Results"))
                 {
-                    missingSprites.Clear();
+                    missingComponents.Clear();
                     missingCount = 0;
                 }
                 
@@ -131,7 +134,7 @@ namespace AUnityLocal.Editor
             {
                 // 初始化日志
                 logBuilder.Clear();
-                logBuilder.AppendLine($"Missing Sprites Check - {System.DateTime.Now}");
+                logBuilder.AppendLine($"Missing Components Check - {System.DateTime.Now}");
                 logBuilder.AppendLine($"Search Directory: {searchDirectory}");
                 logBuilder.AppendLine($"Batch Size: {batchSize}");
                 logBuilder.AppendLine($"Check Interval: {checkInterval}s");
@@ -142,7 +145,7 @@ namespace AUnityLocal.Editor
                 totalPrefabs = prefabPaths.Count;
                 checkedPrefabs = 0;
                 missingCount = 0;
-                missingSprites.Clear();
+                missingComponents.Clear();
                 isChecking = true;
                 
                 cancellationTokenSource = new CancellationTokenSource();
@@ -209,25 +212,66 @@ namespace AUnityLocal.Editor
                     return;
                 }
 
-                var renderers = prefab.GetComponentsInChildren<SpriteRenderer>(true);
-                for (int i = 0; i < renderers.Length; i++)
+                // 检查预制体中的所有GameObject
+                var allGameObjects = prefab.GetComponentsInChildren<Transform>(true);
+                foreach (var transform in allGameObjects)
                 {
-                    CheckForMissingSprite(renderers[i].gameObject, renderers[i].sprite, 
-                        () => new SerializedObject(renderers[i]).FindProperty("m_Sprite"),
-                        prefabPath);
-                }
-
-                var images = prefab.GetComponentsInChildren<UnityEngine.UI.Image>(true);
-                for (int i = 0; i < images.Length; i++)
-                {
-                    CheckForMissingSprite(images[i].gameObject, images[i].sprite, 
-                        () => new SerializedObject(images[i]).FindProperty("m_Sprite"),
-                        prefabPath);
+                    CheckGameObjectForMissingComponents(transform.gameObject, prefabPath);
                 }
             }
             catch (Exception e)
             {
                 AddLog($"Error checking prefab {prefabPath}: {e.Message}");
+            }
+        }
+
+        private void CheckGameObjectForMissingComponents(GameObject go, string prefabPath)
+        {
+            // 获取GameObject的所有组件，包括缺失的组件
+            var components = go.GetComponents<Component>();
+            
+            // 使用SerializedObject来检查缺失的组件
+            var serializedObject = new SerializedObject(go);
+            var prop = serializedObject.FindProperty("m_Component");
+            
+            // 遍历所有组件属性
+            for (int i = 0; i < prop.arraySize; i++)
+            {
+                var componentProp = prop.GetArrayElementAtIndex(i);
+                var componentRef = componentProp.FindPropertyRelative("component");
+                
+                // 如果引用存在但组件为空，则认为是缺失的组件
+                if (componentRef.objectReferenceInstanceIDValue != 0 && 
+                    componentRef.objectReferenceValue == null)
+                {
+                    // 获取组件类型名称
+                    string componentType = "Unknown Missing Component";
+                    
+                    // 尝试从MonoBehaviour的m_Script属性获取类型信息
+                    var scriptProp = componentProp.FindPropertyRelative("m_Script");
+                    if (scriptProp != null && scriptProp.objectReferenceValue != null)
+                    {
+                        var script = scriptProp.objectReferenceValue as MonoScript;
+                        if (script != null && script.GetClass() != null)
+                        {
+                            componentType = script.GetClass().FullName;
+                        }
+                    }
+                    
+                    lock (missingComponents)
+                    {
+                        missingCount++;
+                        string gameObjectPath = GetGameObjectPath(go);
+                        missingComponents.Add(new MissingComponentInfo 
+                        { 
+                            PrefabPath = prefabPath, 
+                            GameObjectPath = gameObjectPath,
+                            ComponentType = componentType
+                        });
+                        
+                        AddLog($"Missing Component found in: {prefabPath} on GameObject: {gameObjectPath}, Type: {componentType}");
+                    }
+                }
             }
         }
 
@@ -244,30 +288,6 @@ namespace AUnityLocal.Editor
             }
         }
 
-        private void CheckForMissingSprite(GameObject obj, Sprite sprite, 
-            System.Func<SerializedProperty> getSpriteProperty, string prefabPath)
-        {
-            if (sprite == null)
-            {
-                SerializedProperty sp = getSpriteProperty();
-                if (sp != null && sp.objectReferenceValue == null && sp.objectReferenceInstanceIDValue != 0)
-                {
-                    lock (missingSprites)
-                    {
-                        missingCount++;
-                        string gameObjectPath = GetGameObjectPath(obj);
-                        missingSprites.Add(new MissingSpriteInfo 
-                        { 
-                            PrefabPath = prefabPath, 
-                            GameObjectPath = gameObjectPath 
-                        });
-                        
-                        AddLog($"Missing Sprite found in: {prefabPath} on GameObject: {gameObjectPath}");
-                    }
-                }
-            }
-        }
-
         private void FinishChecking()
         {
             isChecking = false;
@@ -277,14 +297,14 @@ namespace AUnityLocal.Editor
             logBuilder.AppendLine("----------------------------------------");
             logBuilder.AppendLine($"Check Complete - {System.DateTime.Now}");
             logBuilder.AppendLine($"Checked {checkedPrefabs}/{totalPrefabs} prefabs.");
-            logBuilder.AppendLine($"Found {missingCount} missing sprites.");
+            logBuilder.AppendLine($"Found {missingCount} missing components.");
             
             // 写入日志文件
             WriteLogToFile();
-            Debug.Log($"Checked {checkedPrefabs}/{totalPrefabs} prefabs. Found {missingCount} missing sprites.\n\n" +
+            Debug.Log($"Checked {checkedPrefabs}/{totalPrefabs} prefabs. Found {missingCount} missing components.\n\n" +
                       $"Log saved to: {Path.GetFullPath(logFilePath)}");
             EditorUtility.DisplayDialog("Check Complete", 
-                $"Checked {checkedPrefabs}/{totalPrefabs} prefabs. Found {missingCount} missing sprites.\n\n" +
+                $"Checked {checkedPrefabs}/{totalPrefabs} prefabs. Found {missingCount} missing components.\n\n" +
                 $"Log saved to: {Path.GetFullPath(logFilePath)}", "OK");
             Repaint();
         }
@@ -301,7 +321,7 @@ namespace AUnityLocal.Editor
         {
             try
             {
-                logFilePath = Path.Combine(Application.dataPath, $"MissingSprites_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                logFilePath = Path.Combine(Application.dataPath, $"MissingComponents_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
                 File.WriteAllText(logFilePath, logBuilder.ToString());
                 
                 AssetDatabase.Refresh();
@@ -348,10 +368,11 @@ namespace AUnityLocal.Editor
             return path;
         }
 
-        private class MissingSpriteInfo
+        private class MissingComponentInfo
         {
             public string PrefabPath;
             public string GameObjectPath;
+            public string ComponentType;
         }
     }
 }
