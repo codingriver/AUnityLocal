@@ -212,7 +212,7 @@ namespace AUnityLocal.Editor
 
 
         // 日志文件保存路径
-        private static string  SaveLogFile(string fileName, string content)
+        public static string  SaveLogFile(string fileName, string content)
         {
             try
             {
