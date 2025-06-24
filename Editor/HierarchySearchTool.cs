@@ -372,6 +372,14 @@ namespace AUnityLocal.Editor
             {
                 ClearAllResults();
             }
+            EditorGUILayout.Space(5);
+            if (!string.IsNullOrEmpty(componentLogFilePath))
+            {
+                if (GUILayout.Button("打开日志文件",searchButtonStyle))
+                {
+                    OpenComponentLogFile();
+                }                   
+            }
         }
 
         private void DrawSectionHeader(string title)
@@ -452,18 +460,6 @@ private void DrawLayerSearchResults()
 private void DrawComponentSearchResults()
 {
     DrawSearchResults("Component Reference Results", componentReferences, DrawComponentReferenceResult);
-    
-    EditorGUILayout.BeginHorizontal();
-    if (GUILayout.Button("清除组件结果"))
-    {
-        componentReferences.Clear();
-    }
-    
-    if (GUILayout.Button("打开日志文件"))
-    {
-        OpenComponentLogFile();
-    }
-    EditorGUILayout.EndHorizontal();
 }
 
 // 新增的组件引用绘制方法
@@ -584,7 +580,7 @@ private void DrawComponentReferenceResult(ComponentReference reference)
 
         private void SearchByName()
         {
-            nameSearchResults.Clear();
+            ClearAllResults();
             GameObject[] allObjects = FindObjectsOfType<GameObject>(searchInactiveName);
             
             foreach (var go in allObjects)
@@ -606,7 +602,7 @@ private void DrawComponentReferenceResult(ComponentReference reference)
 
         private void SearchByLayer()
         {
-            layerSearchResults.Clear();
+            ClearAllResults();
             GameObject[] allObjects = FindObjectsOfType<GameObject>(searchInactiveLayer);
             
             foreach (var go in allObjects)
@@ -625,6 +621,7 @@ private void DrawComponentReferenceResult(ComponentReference reference)
 
         private void SearchForComponents()
         {
+            ClearAllResults();
             if (string.IsNullOrEmpty(componentNameSearch))
             {
                 showComponentSearchResults = false;
@@ -906,6 +903,7 @@ private void DrawComponentReferenceResult(ComponentReference reference)
             nameSearchResults.Clear();
             layerSearchResults.Clear();
             componentReferences.Clear();
+            componentLogFilePath = "";
             UpdateStatus("已清除所有结果", Color.green);
             Repaint();
         }
