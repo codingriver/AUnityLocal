@@ -46,6 +46,7 @@ namespace AUnityLocal.Editor
         // 界面样式字段
         private GUIStyle sectionHeaderStyle;
         private GUIStyle searchButtonStyle;
+        private GUIStyle searchButtonStyle1;
         private GUIStyle resultCountStyle;
         private GUIStyle separatorStyle;
         private Color sectionBackgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.1f);
@@ -140,7 +141,15 @@ namespace AUnityLocal.Editor
                 hover = { background = CreateButtonTexture(new Color(0.25f, 0.45f, 0.65f)) },
                 active = { background = CreateButtonTexture(new Color(0.15f, 0.35f, 0.55f)) }
             };
-            
+            searchButtonStyle1 = new GUIStyle(EditorStyles.miniButton)
+            {
+                fontSize = originalButtonFontSize,
+                fontStyle = FontStyle.Bold,
+                fixedHeight = 18,
+                normal = { background = CreateButtonTexture(new Color(0.2f, 0.4f, 0.6f)) },
+                hover = { background = CreateButtonTexture(new Color(0.25f, 0.45f, 0.65f)) },
+                active = { background = CreateButtonTexture(new Color(0.15f, 0.35f, 0.55f)) }
+            };
             // 结果计数样式
             resultCountStyle = new GUIStyle(EditorStyles.miniBoldLabel)
             {
@@ -151,7 +160,7 @@ namespace AUnityLocal.Editor
             // 分隔线样式
             separatorStyle = new GUIStyle
             {
-                margin = new RectOffset(0, 0, 8, 8)
+                margin = new RectOffset(0, 0, 1, 8)
             };
         }
 
@@ -495,7 +504,7 @@ namespace AUnityLocal.Editor
             
             EditorGUILayout.ObjectField(go, typeof(GameObject), true);
             
-            if (GUILayout.Button("Select", new GUIStyle(searchButtonStyle)
+            if (GUILayout.Button("Select", new GUIStyle(searchButtonStyle1)
             {
                 fixedWidth = 70,
                 margin = new RectOffset(5, 0, 0, 0)
@@ -507,7 +516,7 @@ namespace AUnityLocal.Editor
             EditorGUILayout.EndHorizontal();
             
             // 结果项分隔线
-            EditorGUILayout.LabelField("", separatorStyle);
+            GUILayout.Space(3);
         }
 
         private void DrawProgressBar()
