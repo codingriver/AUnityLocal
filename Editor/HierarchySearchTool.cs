@@ -409,15 +409,15 @@ namespace AUnityLocal.Editor
             }
             else if (nameSearchResults.Count > 0)
             {
-                DrawNameSearchResults();
+                DrawSearchResults("Name Search Results", nameSearchResults, DrawGameObjectResult);
             }
             else if (layerSearchResults.Count > 0)
             {
-                DrawLayerSearchResults();
+                DrawSearchResults("Layer Search Results", layerSearchResults, DrawGameObjectResult);
             }
             else if (componentReferences.Count > 0)
             {
-                DrawComponentSearchResults();
+                DrawSearchResults("Component Reference Results", componentReferences, DrawComponentReferenceResult);
             }
             else
             {
@@ -446,21 +446,6 @@ namespace AUnityLocal.Editor
             EditorGUILayout.EndScrollView();
         }
         
-
-private void DrawNameSearchResults()
-{
-    DrawSearchResults("Name Search Results", nameSearchResults, DrawGameObjectResult);
-}
-
-private void DrawLayerSearchResults()
-{
-    DrawSearchResults("Layer Search Results", layerSearchResults, DrawGameObjectResult);
-}
-
-private void DrawComponentSearchResults()
-{
-    DrawSearchResults("Component Reference Results", componentReferences, DrawComponentReferenceResult);
-}
 
 // 新增的组件引用绘制方法
 private void DrawComponentReferenceResult(ComponentReference reference)
