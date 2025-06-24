@@ -59,7 +59,7 @@ namespace AUnityLocal.Editor
         // 按钮动画计时器
         private float buttonPulseTimer = 0f;
         private float buttonPulseDuration = 0.15f;
-        private const int originalButtonFontSize = 11;
+        private int originalButtonFontSize = 11;
         
         // 状态颜色过渡
         private float statusColorTransitionTimer = 0f;
@@ -70,7 +70,9 @@ namespace AUnityLocal.Editor
         [MenuItem("AUnityLocal/Hierarchy Search Tool")]
         public static void ShowWindow()
         {
-            GetWindow<HierarchySearchTool>("Hierarchy Search");
+            var window = GetWindow<HierarchySearchTool>("Hierarchy Search");
+            window.minSize = new Vector2(800, 700); // 增大默认高度
+            window.maxSize = new Vector2(1200, 1000);
         }
 
         private void OnEnable()
@@ -171,7 +173,7 @@ namespace AUnityLocal.Editor
             if (isFirstLayout)
             {
                 isFirstLayout = false;
-                minSize = new Vector2(800, 600);
+                minSize = new Vector2(800, 700); // 增大默认高度
             }
             
             DrawTitle();
@@ -184,15 +186,16 @@ namespace AUnityLocal.Editor
             
             DrawProgressBar();
             
-            // 新增底部状态显示区域
+            // 底部状态栏固定在窗口底部
+            GUILayout.FlexibleSpace();
             DrawStatusBar();
         }
 
         private void DrawTitle()
         {
             // 标题区域添加渐变背景
-            // Rect titleRect = GUILayoutUtility.GetRect(1, 35);
-            // EditorGUI.DrawRect(titleRect, new Color(0.1f, 0.2f, 0.3f));
+            Rect titleRect = GUILayoutUtility.GetRect(1, 35);
+            EditorGUI.DrawRect(titleRect, new Color(0.1f, 0.2f, 0.3f));
             
             GUILayout.Label("Hierarchy Search & Component Checker", new GUIStyle(EditorStyles.boldLabel)
             {
@@ -312,27 +315,31 @@ namespace AUnityLocal.Editor
                 EditorGUILayout.HelpBox("未找到匹配的组件", MessageType.Info);
             }
             
-            if (!string.IsNullOrEmpty(targetComponentName))
+            // 只有在不显示组件搜索结果时才显示这些设置
+            if (!showComponentSearchResults)
             {
-                EditorGUILayout.LabelField($"当前选择: {targetComponentName}");
-            }
-            
-            batchSize = EditorGUILayout.IntSlider("批处理大小", batchSize, 10, 500);
-            checkInterval = EditorGUILayout.Slider("检查间隔(秒)", checkInterval, 0.001f, 0.1f);
-            
-            EditorGUI.BeginDisabledGroup(isCheckingComponents || targetComponentType == typeof(Component));
-            if (GUILayout.Button("检查引用", searchButtonStyle))
-            {
-                if (targetComponentType == typeof(Component) || string.IsNullOrEmpty(targetComponentName))
+                if (!string.IsNullOrEmpty(targetComponentName))
                 {
-                    EditorUtility.DisplayDialog("选择组件", "请先选择一个具体的组件类型", "确定");
-                    return;
+                    EditorGUILayout.LabelField($"当前选择: {targetComponentName}");
                 }
                 
-                ClearOtherResults(SearchType.Component);
-                StartComponentChecking();
+                batchSize = EditorGUILayout.IntSlider("批处理大小", batchSize, 10, 500);
+                checkInterval = EditorGUILayout.Slider("检查间隔(秒)", checkInterval, 0.001f, 0.1f);
+                
+                EditorGUI.BeginDisabledGroup(isCheckingComponents || targetComponentType == typeof(Component));
+                if (GUILayout.Button("检查引用", searchButtonStyle))
+                {
+                    if (targetComponentType == typeof(Component) || string.IsNullOrEmpty(targetComponentName))
+                    {
+                        EditorUtility.DisplayDialog("选择组件", "请先选择一个具体的组件类型", "确定");
+                        return;
+                    }
+                    
+                    ClearOtherResults(SearchType.Component);
+                    StartComponentChecking();
+                }
+                EditorGUI.EndDisabledGroup();
             }
-            EditorGUI.EndDisabledGroup();
             
             EditorGUILayout.Space(5);
             EditorGUILayout.EndVertical();
@@ -618,13 +625,12 @@ namespace AUnityLocal.Editor
             try
             {
                 var allTypes = AppDomain.CurrentDomain.GetAssemblies()
-                    .SelectMany(a => {
-                        try { return a.GetTypes(); }
-                        catch { return Type.EmptyTypes; }
-                    })
-                    .Where(t => typeof(Component).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface)
-                    .ToList();
-                    
+                .SelectMany(a => {
+                    try { return a.GetTypes(); }
+                    catch { return Type.EmptyTypes; }
+                })
+                .Where(t => typeof(Component).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface)
+                .ToList();            
                 foreach (var type in allTypes)
                 {
                     if (type.Name.IndexOf(componentNameSearch, StringComparison.OrdinalIgnoreCase) >= 0)
