@@ -68,10 +68,10 @@ namespace AUnityLocal.Editor
         private Color statusStartColor = Color.green;
         private Color statusTargetColor = Color.green;
 
-        [MenuItem("AUnityLocal/Hierarchy Search Tool")]
+        [MenuItem("AUnityLocal/Hierarchy 工具")]
         public static void ShowWindow()
         {
-            var window = GetWindow<HierarchySearchTool>("Hierarchy Search");
+            var window = GetWindow<HierarchySearchTool>("Hierarchy 工具");
             window.minSize = new Vector2(800, 700); // 增大默认高度
             window.maxSize = new Vector2(1200, 1000);
         }
@@ -202,11 +202,7 @@ namespace AUnityLocal.Editor
 
         private void DrawTitle()
         {
-            // 标题区域添加渐变背景
-            Rect titleRect = GUILayoutUtility.GetRect(1, 35);
-            EditorGUI.DrawRect(titleRect, new Color(0.1f, 0.2f, 0.3f));
-            
-            GUILayout.Label("Hierarchy Search & Component Checker", new GUIStyle(EditorStyles.boldLabel)
+            GUILayout.Label("Hierarchy 工具", new GUIStyle(EditorStyles.boldLabel)
             {
                 alignment = TextAnchor.MiddleCenter,
                 fontSize = 18,
@@ -282,7 +278,7 @@ namespace AUnityLocal.Editor
 
         private void DrawComponentSearchSection()
         {
-            DrawSectionHeader("Component Check");
+            DrawSectionHeader("Component 组件引用");
             
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.Space(5);
