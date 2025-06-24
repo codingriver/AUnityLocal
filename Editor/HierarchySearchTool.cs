@@ -27,7 +27,7 @@ namespace AUnityLocal.Editor
         private string targetComponentName = "Component";
         private List<Type> matchedComponentTypes = new List<Type>();
         private bool showComponentSearchResults = false;
-        private List<ComponentReferenceInfo> componentReferences = new List<ComponentReferenceInfo>();
+        private List<ComponentReference> componentReferences = new List<ComponentReference>();
         private bool isCheckingComponents = false;
         private CancellationTokenSource componentCheckCancellationToken;
         private int batchSize = 200;
@@ -408,81 +408,72 @@ namespace AUnityLocal.Editor
             
             EditorGUILayout.EndVertical();
         }
-
-        private void DrawNameSearchResults()
+        
+        Vector2 scrollPosition= Vector2.zero;
+        private void DrawSearchResults<T>(string title, List<T> results, Action<T> drawItemCallback)
         {
-            GUILayout.Label($"Name Search Results: {nameSearchResults.Count}", resultCountStyle);
-            resultsScrollPosition = EditorGUILayout.BeginScrollView(resultsScrollPosition);
-            
-            foreach (var go in nameSearchResults)
+            GUILayout.Label($"{title}: {results.Count}", resultCountStyle);
+
+            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+            foreach (var item in results)
             {
-                if (go != null)
+                if (item != null)
                 {
-                    DrawGameObjectResult(go);
+                    drawItemCallback(item);
                 }
             }
-            
             EditorGUILayout.EndScrollView();
         }
+        
 
-        private void DrawLayerSearchResults()
+private void DrawNameSearchResults()
+{
+    DrawSearchResults("Name Search Results", nameSearchResults, DrawGameObjectResult);
+}
+
+private void DrawLayerSearchResults()
+{
+    DrawSearchResults("Layer Search Results", layerSearchResults, DrawGameObjectResult);
+}
+
+private void DrawComponentSearchResults()
+{
+    DrawSearchResults("Component Reference Results", componentReferences, DrawComponentReferenceResult);
+    
+    EditorGUILayout.BeginHorizontal();
+    if (GUILayout.Button("清除组件结果"))
+    {
+        componentReferences.Clear();
+    }
+    
+    if (GUILayout.Button("打开日志文件"))
+    {
+        OpenComponentLogFile();
+    }
+    EditorGUILayout.EndHorizontal();
+}
+
+// 新增的组件引用绘制方法
+private void DrawComponentReferenceResult(ComponentReference reference)
+{
+    EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+    
+    EditorGUILayout.LabelField($"游戏对象: {reference.GameObjectPath}", EditorStyles.boldLabel);
+    EditorGUILayout.LabelField($"组件类型: {reference.ComponentType}");
+    
+    EditorGUILayout.BeginHorizontal();
+    if (GUILayout.Button("选择游戏对象"))
+    {
+        if (reference.GameObject != null)
         {
-            GUILayout.Label($"Layer Search Results: {layerSearchResults.Count}", resultCountStyle);
-            resultsScrollPosition = EditorGUILayout.BeginScrollView(resultsScrollPosition);
-            
-            foreach (var go in layerSearchResults)
-            {
-                if (go != null)
-                {
-                    DrawGameObjectResult(go);
-                }
-            }
-            
-            EditorGUILayout.EndScrollView();
+            Selection.activeObject = reference.GameObject;
+            EditorGUIUtility.PingObject(reference.GameObject);
         }
-
-        private void DrawComponentSearchResults()
-        {
-            GUILayout.Label($"Component Reference Results: {componentReferences.Count}", resultCountStyle);
-            resultsScrollPosition = EditorGUILayout.BeginScrollView(resultsScrollPosition);
-            
-            foreach (var reference in componentReferences)
-            {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                
-                EditorGUILayout.LabelField($"游戏对象: {reference.GameObjectPath}", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField($"组件类型: {reference.ComponentType}");
-                
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("选择游戏对象"))
-                {
-                    if (reference.GameObject != null)
-                    {
-                        Selection.activeObject = reference.GameObject;
-                        EditorGUIUtility.PingObject(reference.GameObject);
-                    }
-                }
-                // 移除"复制路径"按钮
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.EndVertical();
-            }
-            
-            EditorGUILayout.EndScrollView();
-            
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("清除组件结果"))
-            {
-                componentReferences.Clear();
-            }
-            
-            if (GUILayout.Button("打开日志文件"))
-            {
-                OpenComponentLogFile();
-            }
-            EditorGUILayout.EndHorizontal();
-        }
-
+    }
+    EditorGUILayout.EndHorizontal();
+    
+    EditorGUILayout.EndVertical();
+}
         private void DrawGameObjectResult(GameObject go)
         {
             // 结果项背景
@@ -791,13 +782,7 @@ namespace AUnityLocal.Editor
                         
                     lock (componentReferences)
                     {
-                        componentReferences.Add(new ComponentReferenceInfo 
-                        { 
-                            GameObject = go,
-                            GameObjectPath = gameObjectPath,
-                            ComponentType = component.GetType().Name,
-                            ReferencePath = gameObjectPath
-                        });
+                        componentReferences.Add(new ComponentReference(go,gameObjectPath,component.GetType().Name));
                                     
                         AddComponentCheckLog($"{component.GetType().Name} 被引用:{gameObjectPath}");
                     }                                    
@@ -813,16 +798,7 @@ namespace AUnityLocal.Editor
         {
             Repaint();
         }
-
-        private void CancelComponentChecking()
-        {
-            if (componentCheckCancellationToken != null)
-            {
-                componentCheckCancellationToken.Cancel();
-                isCheckingComponents = false;
-                UpdateStatus("检查已取消", Color.red);
-            }
-        }
+        
 
         private void FinishComponentChecking()
         {
@@ -978,5 +954,20 @@ namespace AUnityLocal.Editor
             public string ComponentType;
             public string ReferencePath;
         }
+        // 定义组件引用类，用于存储搜索结果
+        public class ComponentReference
+        {
+            public GameObject GameObject { get; set; }
+            public string GameObjectPath { get; set; }
+            public string ComponentType { get; set; }
+    
+            // 构造函数
+            public ComponentReference(GameObject gameObject, string path, string type)
+            {
+                GameObject = gameObject;
+                GameObjectPath = path;
+                ComponentType = type;
+            }
+        }        
     }
 }
