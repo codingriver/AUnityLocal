@@ -12,8 +12,7 @@ public class HierarchySearchTool : EditorWindow
     private LayerMask layerMask = -1;
     private List<GameObject> nameSearchResults = new List<GameObject>();
     private List<GameObject> layerSearchResults = new List<GameObject>();
-    private Vector2 nameScrollPosition;
-    private Vector2 layerScrollPosition;
+    private Vector2 resultsScrollPosition;
     private Dictionary<int, int> layerDictionary = new Dictionary<int, int>();
     private GUIStyle sectionHeaderStyle;
     private GUIStyle searchButtonStyle;
@@ -93,6 +92,8 @@ public class HierarchySearchTool : EditorWindow
         DrawNameSearchSection();
         EditorGUILayout.Space();
         DrawLayerSearchSection();
+        EditorGUILayout.Space();
+        DrawClearButton();
         
         EditorGUILayout.EndVertical();
     }
@@ -130,6 +131,17 @@ public class HierarchySearchTool : EditorWindow
         EditorGUILayout.EndVertical();
     }
 
+    private void DrawClearButton()
+    {
+        if (GUILayout.Button("Clear Results", new GUIStyle(searchButtonStyle)
+        {
+            normal = { textColor = Color.red }
+        }))
+        {
+            ClearResults();
+        }
+    }
+
     private void DrawSectionHeader(string title)
     {
         Rect rect = GUILayoutUtility.GetRect(1, 25);
@@ -141,21 +153,58 @@ public class HierarchySearchTool : EditorWindow
     {
         EditorGUILayout.BeginVertical();
         
-        DrawResultsSection("Name Search Results", nameSearchResults, ref nameScrollPosition);
-        EditorGUILayout.Space();
-        DrawResultsSection("Layer Search Results", layerSearchResults, ref layerScrollPosition);
+        DrawResultsSection();
         
         EditorGUILayout.EndVertical();
     }
 
-    private void DrawResultsSection(string title, List<GameObject> results, ref Vector2 scrollPosition)
+    private void DrawResultsSection()
     {
-        DrawSectionHeader(title);
+        DrawSectionHeader("Search Results");
         
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-        GUILayout.Label($"Results: {results.Count}", resultCountStyle);
         
-        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
+        // 计算总结果数
+        int totalResults = nameSearchResults.Count + layerSearchResults.Count;
+        GUILayout.Label($"Total Results: {totalResults}", resultCountStyle);
+        
+        resultsScrollPosition = EditorGUILayout.BeginScrollView(resultsScrollPosition, GUILayout.ExpandHeight(true));
+        
+        // 显示名称搜索结果
+        if (nameSearchResults.Count > 0)
+        {
+            DrawResultsGroup("Name Search", nameSearchResults);
+        }
+        
+        // 显示层搜索结果
+        if (layerSearchResults.Count > 0)
+        {
+            if (nameSearchResults.Count > 0)
+            {
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+                EditorGUILayout.Space();
+            }
+            DrawResultsGroup("Layer Search", layerSearchResults);
+        }
+        
+        // 无结果提示
+        if (totalResults == 0)
+        {
+            EditorGUILayout.LabelField("No results to display.", EditorStyles.centeredGreyMiniLabel);
+        }
+        
+        EditorGUILayout.EndScrollView();
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawResultsGroup(string groupName, List<GameObject> results)
+    {
+        EditorGUILayout.LabelField($"<b>{groupName} Results</b>", new GUIStyle(EditorStyles.label)
+        {
+            richText = true,
+            fontStyle = FontStyle.Bold
+        });
         
         foreach (var go in results)
         {
@@ -172,9 +221,6 @@ public class HierarchySearchTool : EditorWindow
                 EditorGUILayout.EndHorizontal();
             }
         }
-        
-        EditorGUILayout.EndScrollView();
-        EditorGUILayout.EndVertical();
     }
 
     private string GetSelectedLayers(int mask)
@@ -232,4 +278,11 @@ public class HierarchySearchTool : EditorWindow
         
         Repaint();
     }
-}    
+
+    private void ClearResults()
+    {
+        nameSearchResults.Clear();
+        layerSearchResults.Clear();
+        Repaint();
+    }
+}
