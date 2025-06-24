@@ -9,6 +9,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEditorInternal;
+using Object = UnityEngine.Object;
 
 namespace AUnityLocal.Editor
 {
@@ -20,6 +21,10 @@ namespace AUnityLocal.Editor
         private LayerMask layerMask = -1;
         private List<GameObject> nameSearchResults = new List<GameObject>();
         private List<GameObject> layerSearchResults = new List<GameObject>();
+        
+        // 新增：控制是否搜索非激活物体的选项
+        private bool searchInactiveName = true;
+        private bool searchInactiveLayer = true;
         
         // 组件引用检查功能字段
         private string componentNameSearch = "";
@@ -244,6 +249,10 @@ namespace AUnityLocal.Editor
             
             nameSearchText = EditorGUILayout.TextField("Search Text", nameSearchText);
             
+            EditorGUILayout.Space(5);
+            // 新增：是否搜索非激活物体的选项
+            searchInactiveName = EditorGUILayout.Toggle("包含非激活物体", searchInactiveName);
+            
             EditorGUILayout.Space(10);
             if (GUILayout.Button("Search", searchButtonStyle))
             {
@@ -265,6 +274,10 @@ namespace AUnityLocal.Editor
             
             string selectedLayers = GetSelectedLayers(layerMaskShow);
             EditorGUILayout.LabelField("Selected Layers", selectedLayers);
+            
+            EditorGUILayout.Space(5);
+            // 新增：是否搜索非激活物体的选项
+            searchInactiveLayer = EditorGUILayout.Toggle("包含非激活物体", searchInactiveLayer);
             
             EditorGUILayout.Space(10);
             if (GUILayout.Button("Search Layers", searchButtonStyle))
@@ -572,10 +585,11 @@ private void DrawComponentReferenceResult(ComponentReference reference)
         private void SearchByName()
         {
             nameSearchResults.Clear();
-            GameObject[] allObjects = FindObjectsOfType<GameObject>();
+            GameObject[] allObjects = FindObjectsOfType<GameObject>(searchInactiveName);
             
             foreach (var go in allObjects)
             {
+                // 新增：根据searchInactiveName决定是否包含非激活物体
                 if (go.name.IndexOf(nameSearchText, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     nameSearchResults.Add(go);
@@ -593,10 +607,11 @@ private void DrawComponentReferenceResult(ComponentReference reference)
         private void SearchByLayer()
         {
             layerSearchResults.Clear();
-            GameObject[] allObjects = FindObjectsOfType<GameObject>();
+            GameObject[] allObjects = FindObjectsOfType<GameObject>(searchInactiveLayer);
             
             foreach (var go in allObjects)
             {
+                // 新增：根据searchInactiveLayer决定是否包含非激活物体
                 if ((layerMask.value & (1 << go.layer)) != 0)
                 {
                     layerSearchResults.Add(go);
@@ -655,12 +670,9 @@ private void DrawComponentReferenceResult(ComponentReference reference)
             try
             {
                 allGameObjects.Clear();
-                var rootGameObjects = SceneManager.GetActiveScene().GetRootGameObjects();
-                foreach (var rootGo in rootGameObjects)
-                {
-                    CollectAllGameObjects(rootGo, allGameObjects);
-                }
-                
+                // var rootGameObjects = SceneManager.GetActiveScene().GetRootGameObjects();
+                allGameObjects.AddRange(FindObjectsOfType<GameObject>(true));
+
                 gameObjectCount = allGameObjects.Count;
                 
                 componentCheckLog.Clear();
@@ -832,7 +844,7 @@ private void DrawComponentReferenceResult(ComponentReference reference)
             try
             {
                 componentLogFilePath = Path.Combine(Application.dataPath, 
-                    $"ComponentReferences_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                    $"../AUnityLocal/ComponentReferences_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
                 File.WriteAllText(componentLogFilePath, componentCheckLog.ToString());
                 
                 AssetDatabase.Refresh();
@@ -947,13 +959,6 @@ private void DrawComponentReferenceResult(ComponentReference reference)
             Repaint();
         }
 
-        private class ComponentReferenceInfo
-        {
-            public GameObject GameObject;
-            public string GameObjectPath;
-            public string ComponentType;
-            public string ReferencePath;
-        }
         // 定义组件引用类，用于存储搜索结果
         public class ComponentReference
         {
