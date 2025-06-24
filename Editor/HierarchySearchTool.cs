@@ -731,7 +731,11 @@ namespace AUnityLocal.Editor
                         break;
                         
                     var go = allGameObjects[currentGameObjectIndex];
-                    componentCheckProgressMessage = go.name;
+                    if (go != null && go.GetInstanceID() >0)
+                    {
+                        componentCheckProgressMessage = go.name;
+                    }
+                    
                     
                     CheckComponentReferences(go);
                     
@@ -759,6 +763,7 @@ namespace AUnityLocal.Editor
                 AddComponentCheckLog($"检查Hierarchy时出错: {e.Message}");
                 FinishComponentChecking();
                 UpdateStatus("检查时出错", Color.red);
+                EditorApplication.update -= CheckHierarchyForComponentReferencesInBatches;
             }
         }
 
@@ -768,7 +773,12 @@ namespace AUnityLocal.Editor
             {
                 if (componentCheckCancellationToken.Token.IsCancellationRequested)
                     return;
-                        
+                if (go == null || go.GetInstanceID() == 0)
+                {
+                    AddComponentCheckLog($"警告: 游戏对象 {go?.name} 已被销毁，跳过检查");
+                    return;
+                }
+                
                 var components = go.GetComponents(targetComponentType);
                 if (components == null || components.Length == 0)
                     return;
@@ -885,8 +895,11 @@ namespace AUnityLocal.Editor
 
         private string GetGameObjectPath(GameObject obj)
         {
-            if (obj == null)
+            if (obj == null || obj.GetInstanceID() == 0)
+            {
                 return "Null GameObject";
+            }
+                
                 
             string path = obj.name;
             Transform parent = obj.transform.parent;
