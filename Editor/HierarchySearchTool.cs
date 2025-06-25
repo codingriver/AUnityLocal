@@ -648,9 +648,7 @@ namespace AUnityLocal.Editor
             ShowParam = true;
             // 添加搜索完成的状态反馈
             UpdateStatus($"找到 {searchResults.Count} 个结果", Color.cyan);
-
-            // 微动画：短暂放大按钮
-            AnimateButton();
+            
         }
         private void SearchByName()
         {
@@ -669,9 +667,7 @@ namespace AUnityLocal.Editor
 
             // 添加搜索完成的状态反馈
             UpdateStatus($"找到 {searchResults.Count} 个结果", Color.cyan);
-
-            // 微动画：短暂放大按钮
-            AnimateButton();
+            
         }
 
         private void SearchByLayer()
@@ -689,7 +685,6 @@ namespace AUnityLocal.Editor
             }
             
             UpdateStatus($"找到 {searchResults.Count} 个结果", Color.cyan);
-            AnimateButton();
         }
 
         private void SearchForComponents()
@@ -730,7 +725,6 @@ namespace AUnityLocal.Editor
                 matchedComponentTypes = matchedComponentTypes.OrderBy(t => t.Name).ToList();
                 showComponentSearchResults = true;
                 UpdateStatus($"找到 {matchedComponentTypes.Count} 个匹配组件", Color.cyan);
-                AnimateButton();
             }
             catch (Exception e)
             {
@@ -770,9 +764,7 @@ namespace AUnityLocal.Editor
             ShowParam = true;
             // 添加搜索完成的状态反馈
             UpdateStatus($"找到 {searchResults.Count} 个结果", Color.cyan);
-
-            // 微动画：短暂放大按钮
-            AnimateButton();
+            
         }
 
         private void AddLog(string message)
@@ -855,11 +847,6 @@ namespace AUnityLocal.Editor
             searchResults.Clear();
             componentLogFilePath = "";
             UpdateStatus("已清除所有结果", Color.green);
-        }
-
-        // 按钮动画（替换协程）
-        private void AnimateButton()
-        {
         }
 
         // 平滑状态颜色过渡（替换协程）
