@@ -428,7 +428,7 @@ namespace AUnityLocal.Editor
         }
 
         Vector2 scrollPosition = Vector2.zero;
-        float maxScrollY = 0;
+        float maxScroll = 0;
         float viewportHeight = 0;
         float contentHeight = 0;
 
@@ -443,7 +443,7 @@ namespace AUnityLocal.Editor
             // 开始滚动视图
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
             {
-                if (maxScrollY > 0)
+                if (maxScroll > 0)
                 {
                     float curHeight = scrollPosition.y;
                     // 计算当前可见范围的起始和结束索引
@@ -455,12 +455,14 @@ namespace AUnityLocal.Editor
                 // 开始一个垂直组以捕获内容高度
                 EditorGUILayout.BeginVertical();
                 {
-                    if (maxScrollY <= 0)
+                    if (maxScroll <= 0)
                     {
                         DrawPlaceholderBox(itemHeight * results.Count);
+                        UpdateStatus("列表渲染中...", Color.yellow);
                     }
                     else
                     {
+                        UpdateStatus($"找到 {searchResults.Count} 个结果", Color.cyan,false);
                         int before = startIndex;
                         DrawPlaceholderBox(itemHeight * before);
                         // 绘制显示项
@@ -517,10 +519,10 @@ namespace AUnityLocal.Editor
 
             if (Event.current.type == EventType.Repaint)
             {
-                maxScrollY = Mathf.Max(0, contentHeight - viewportHeight);
+                maxScroll = Mathf.Max(0, contentHeight - viewportHeight);
                 if (viewportHeight >= contentHeight)
                 {
-                    maxScrollY = viewportHeight;
+                    maxScroll = viewportHeight;
                 }
             }
 
@@ -828,7 +830,7 @@ namespace AUnityLocal.Editor
 
         private void ClearResults()
         {
-            maxScrollY = 0;
+            maxScroll = 0;
             scrollPosition = Vector2.zero;
             viewportHeight = 0;
             contentHeight = 0;
@@ -839,7 +841,7 @@ namespace AUnityLocal.Editor
         }
 
         // 平滑状态颜色过渡（替换协程）
-        private void UpdateStatus(string message, Color? targetColor = null)
+        private void UpdateStatus(string message, Color? targetColor = null,bool needRepaint = true)
         {
             statusMessage = message;
 
