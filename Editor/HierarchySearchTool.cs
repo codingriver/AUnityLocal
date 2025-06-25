@@ -19,6 +19,7 @@ namespace AUnityLocal.Editor
         private string nameSearchText = "";
         private LayerMask layerMaskShow = -1;
         private LayerMask layerMask = -1;
+        private List<GameObject> searchResults = new List<GameObject>();
         private List<GameObject> nameSearchResults = new List<GameObject>();
         private List<GameObject> layerSearchResults = new List<GameObject>();
 
@@ -72,6 +73,9 @@ namespace AUnityLocal.Editor
         private float statusColorTransitionDuration = 0.3f;
         private Color statusStartColor = Color.green;
         private Color statusTargetColor = Color.green;
+
+        private bool includeInactive = true;
+        private string searchText= "";
 
         [MenuItem("AUnityLocal/Hierarchy 工具")]
         public static void ShowWindow()
@@ -230,6 +234,9 @@ namespace AUnityLocal.Editor
 
             DrawLayerSearchSection();
             EditorGUILayout.Space(20);
+            
+            DrawUITextSearchSection();
+            EditorGUILayout.Space(20);            
 
             DrawComponentSearchSection();
             EditorGUILayout.Space(20);
@@ -263,7 +270,29 @@ namespace AUnityLocal.Editor
             EditorGUILayout.Space(5);
             EditorGUILayout.EndVertical();
         }
+        private void DrawUITextSearchSection()
+        {
+            DrawSectionHeader("UI.Text Search");
 
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.Space(5);
+
+            searchText = EditorGUILayout.TextField("text", searchText);
+
+            EditorGUILayout.Space(5);
+            // 新增：是否搜索非激活物体的选项
+            includeInactive = EditorGUILayout.Toggle("包含非激活物体", includeInactive);
+
+            EditorGUILayout.Space(10);
+            if (GUILayout.Button("Search", searchButtonStyle))
+            {
+                ClearResults();
+                SearchUITextByText();
+            }
+
+            EditorGUILayout.Space(5);
+            EditorGUILayout.EndVertical();
+        }
         private void DrawLayerSearchSection()
         {
             DrawSectionHeader("Layer Search");
@@ -434,6 +463,11 @@ namespace AUnityLocal.Editor
                 DrawResults("Component Reference Results", componentReferences, DrawComponentReferenceResult,
                     EditorGUIUtility.singleLineHeight);
             }
+            else if (searchResults.Count > 0)
+            {
+                DrawResults("UI.Text Search Results", searchResults, DrawGameObjectResult,
+                    EditorGUIUtility.singleLineHeight);
+            }            
             else
             {
                 EditorGUILayout.LabelField("No results to display.", EditorStyles.centeredGreyMiniLabel);
@@ -684,7 +718,25 @@ namespace AUnityLocal.Editor
 
             return string.IsNullOrEmpty(layers) ? "None" : layers.TrimEnd(',', ' ');
         }
+        private void SearchUITextByText()
+        {
+            ClearResults();
+            UnityEngine.UI.Text[] allObjects = FindObjectsOfType<UnityEngine.UI.Text>(includeInactive);
 
+            foreach (var obj in allObjects)
+            {
+                if (obj?.text.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    searchResults.Add(obj?.gameObject);
+                }
+            }
+
+            // 添加搜索完成的状态反馈
+            UpdateStatus($"找到 {searchResults.Count} 个结果", Color.cyan);
+
+            // 微动画：短暂放大按钮
+            AnimateButton();
+        }
         private void SearchByName()
         {
             ClearResults();
@@ -1021,6 +1073,7 @@ namespace AUnityLocal.Editor
             nameSearchResults.Clear();
             layerSearchResults.Clear();
             componentReferences.Clear();
+            searchResults.Clear();
             componentLogFilePath = "";
             UpdateStatus("已清除所有结果", Color.green);
         }
