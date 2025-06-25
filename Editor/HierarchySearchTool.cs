@@ -526,6 +526,10 @@ namespace AUnityLocal.Editor
             if (Event.current.type == EventType.Repaint)
             {
                 maxScrollY = Mathf.Max(0, contentHeight - viewportHeight);
+                if (viewportHeight >= contentHeight)
+                {
+                    maxScrollY = viewportHeight;
+                }
             }
 
             // Debug.Log($"Scroll Range Y: [{minScrollY}, {maxScrollY}],cur scroll {scrollPosition.y},itemHeight:{itemHeight},startIndex:{startIndex}, endIndex:{endIndex}, viewportHeight: {viewportHeight}, contentHeight: {contentHeight},{Time.realtimeSinceStartup}");
