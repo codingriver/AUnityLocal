@@ -528,9 +528,7 @@ namespace AUnityLocal.Editor
                 maxScrollY = Mathf.Max(0, contentHeight - viewportHeight);
             }
 
-            Debug.Log(
-                $"Scroll Range Y: [{minScrollY}, {maxScrollY}],cur scroll {scrollPosition.y},itemHeight:{itemHeight},startIndex:{startIndex}, endIndex:{endIndex}, viewportHeight: {viewportHeight}, contentHeight: {contentHeight},{Time.realtimeSinceStartup}");
-            // 此时可获取 scrollPosition.y 的取值范围: [minScrollY, maxScrollY]
+            // Debug.Log($"Scroll Range Y: [{minScrollY}, {maxScrollY}],cur scroll {scrollPosition.y},itemHeight:{itemHeight},startIndex:{startIndex}, endIndex:{endIndex}, viewportHeight: {viewportHeight}, contentHeight: {contentHeight},{Time.realtimeSinceStartup}");
         }
 
         private GUIStyle placeholderStyle;
