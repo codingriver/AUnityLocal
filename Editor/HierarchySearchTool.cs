@@ -84,7 +84,7 @@ namespace AUnityLocal.Editor
         private void OnEnable()
         {
             InitializeStyles();
-
+            componentNameSearch=PlayerPrefs.GetString("ComponentNameSearch", ""); // 保存搜索组件名称
             // 初始化层字典
             for (int i = 0; i < InternalEditorUtility.layers.Length; i++)
             {
@@ -247,7 +247,7 @@ namespace AUnityLocal.Editor
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.Space(5);
 
-            nameSearchText = EditorGUILayout.TextField("Search Text", nameSearchText);
+            nameSearchText = EditorGUILayout.TextField("GameObject Name", nameSearchText);
 
             EditorGUILayout.Space(5);
             // 新增：是否搜索非激活物体的选项
@@ -300,7 +300,12 @@ namespace AUnityLocal.Editor
 
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("搜索组件:", GUILayout.Width(70));
-            componentNameSearch = EditorGUILayout.TextField(componentNameSearch);
+            string componentNameSearch1 = EditorGUILayout.TextField(componentNameSearch);
+            if(componentNameSearch1!= componentNameSearch)
+            {
+                componentNameSearch = componentNameSearch1;
+                PlayerPrefs.SetString("ComponentNameSearch", componentNameSearch); // 保存搜索组件名称
+            }
 
             if (GUILayout.Button("搜索", GUILayout.Width(60)))
             {
