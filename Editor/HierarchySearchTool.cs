@@ -370,7 +370,7 @@ namespace AUnityLocal.Editor
                 normal = { textColor = Color.red }
             }))
             {
-                ClearAllResults();
+                ClearResults();
             }
             EditorGUILayout.Space(5);
             if (!string.IsNullOrEmpty(componentLogFilePath))
@@ -409,15 +409,15 @@ namespace AUnityLocal.Editor
             }
             else if (nameSearchResults.Count > 0)
             {
-                DrawSearchResults("Name Search Results", nameSearchResults, DrawGameObjectResult);
+                DrawResults("Name Search Results", nameSearchResults, DrawGameObjectResult,EditorGUIUtility.singleLineHeight + 3f);
             }
             else if (layerSearchResults.Count > 0)
             {
-                DrawSearchResults("Layer Search Results", layerSearchResults, DrawGameObjectResult);
+                DrawResults("Layer Search Results", layerSearchResults, DrawGameObjectResult,EditorGUIUtility.singleLineHeight + 3f);
             }
             else if (componentReferences.Count > 0)
             {
-                DrawSearchResults("Component Reference Results", componentReferences, DrawComponentReferenceResult);
+                DrawResults("Component Reference Results", componentReferences, DrawComponentReferenceResult,EditorGUIUtility.singleLineHeight*3);
             }
             else
             {
@@ -431,21 +431,109 @@ namespace AUnityLocal.Editor
         }
         
         Vector2 scrollPosition= Vector2.zero;
-        private void DrawSearchResults<T>(string title, List<T> results, Action<T> drawItemCallback)
+        float maxScrollY = 0;
+        float viewportHeight = 0;
+        float contentHeight = 0;
+        private void DrawResults<T>(string title, List<T> results, Action<T> drawItemCallback,float itemHeight = 20f)
         {
             GUILayout.Label($"{title}: {results.Count}", resultCountStyle);
 
-            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-            foreach (var item in results)
+            // 记录视口高度
+            int startIndex = 0;
+            int endIndex = results.Count - 1;
+            // 开始滚动视图
+            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
             {
-                if (item != null)
+                if (maxScrollY> 0)
                 {
-                    drawItemCallback(item);
+                    float curHeight = scrollPosition.y;
+                    // 计算当前可见范围的起始和结束索引
+                    startIndex = Mathf.Max(0, Mathf.FloorToInt(curHeight / itemHeight)-1);
+                    endIndex = Mathf.Min(results.Count - 1, Mathf.CeilToInt((curHeight + viewportHeight) / itemHeight)+1);
+                }                
+                
+                // 开始一个垂直组以捕获内容高度
+                EditorGUILayout.BeginVertical();
+                {
+
+                    // 绘制所有项
+                    for (int i = 0; i < results.Count; i++)
+                    {
+                        T item= results[i];
+                        if (maxScrollY <= 0)
+                        {
+                            DrawPlaceholderBox(itemHeight);
+                            continue;
+                        }
+
+                        if (i >=startIndex && i <= endIndex)
+                        {
+                            if (item != null)
+                            {
+                                drawItemCallback(item);
+                            }
+                            else
+                            {
+                                DrawPlaceholderBox(itemHeight);
+                            }
+                        }
+                        else
+                        {
+                            // 绘制占位框
+                            DrawPlaceholderBox(itemHeight);
+                        }
+
+                    }
+                }
+                EditorGUILayout.EndVertical();
+
+                // 在 Repaint 事件中计算内容高度
+                if (Event.current.type == EventType.Repaint)
+                {
+                    // 获取内容区域矩形
+                    Rect contentRect = GUILayoutUtility.GetLastRect();
+                    contentHeight = contentRect.height;
                 }
             }
             EditorGUILayout.EndScrollView();
+
+            // 获取视口高度 (滚动视图结束后的矩形高度)
+            if (Event.current.type == EventType.Repaint)
+            {
+                Rect scrollViewRect = GUILayoutUtility.GetLastRect();
+                viewportHeight = scrollViewRect.height;
+            }
+
+            // 计算滚动范围
+            float minScrollY = 0;
+            
+            if (Event.current.type == EventType.Repaint)
+            {
+                maxScrollY = Mathf.Max(0, contentHeight - viewportHeight);
+                Debug.Log($"Scroll Range Y: [{minScrollY}, {maxScrollY}],cur scroll {scrollPosition.y},itemHeight:{itemHeight},startIndex:{startIndex}, endIndex:{endIndex}, viewportHeight: {viewportHeight}, contentHeight: {contentHeight}");
+            }
+
+            // 此时可获取 scrollPosition.y 的取值范围: [minScrollY, maxScrollY]
+            
         }
-        
+
+        private GUIStyle placeholderStyle;
+// 绘制单个占位框
+        private void DrawPlaceholderBox(float height) {
+            GUILayout.Space(height);
+            return;
+            // 定义占位框样式：透明背景+灰色边框
+            if (placeholderStyle == null)
+            {
+                placeholderStyle = new GUIStyle(GUI.skin.box);
+                placeholderStyle.normal.background = Texture2D.whiteTexture;
+                placeholderStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f, 0.3f); // 半透明白色背景
+                placeholderStyle.border = new RectOffset(1, 1, 1, 1); // 1像素边框                
+            }
+            
+            // 绘制占位框（高度与实际Item一致）
+            GUILayout.Box("", placeholderStyle, GUILayout.Height(height), GUILayout.ExpandWidth(true));
+        }
 
 // 新增的组件引用绘制方法
 private void DrawComponentReferenceResult(ComponentReference reference)
@@ -565,7 +653,7 @@ private void DrawComponentReferenceResult(ComponentReference reference)
 
         private void SearchByName()
         {
-            ClearAllResults();
+            ClearResults();
             GameObject[] allObjects = FindObjectsOfType<GameObject>(searchInactiveName);
             
             foreach (var go in allObjects)
@@ -587,7 +675,7 @@ private void DrawComponentReferenceResult(ComponentReference reference)
 
         private void SearchByLayer()
         {
-            ClearAllResults();
+            ClearResults();
             GameObject[] allObjects = FindObjectsOfType<GameObject>(searchInactiveLayer);
             
             foreach (var go in allObjects)
@@ -606,7 +694,7 @@ private void DrawComponentReferenceResult(ComponentReference reference)
 
         private void SearchForComponents()
         {
-            ClearAllResults();
+            ClearResults();
             if (string.IsNullOrEmpty(componentNameSearch))
             {
                 showComponentSearchResults = false;
@@ -883,8 +971,10 @@ private void DrawComponentReferenceResult(ComponentReference reference)
             return path;
         }
 
-        private void ClearAllResults()
+        private void ClearResults()
         {
+            maxScrollY = 0;
+            scrollPosition = Vector2.zero;
             nameSearchResults.Clear();
             layerSearchResults.Clear();
             componentReferences.Clear();
