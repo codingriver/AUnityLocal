@@ -32,7 +32,6 @@ namespace AUnityLocal.Editor
         private List<Type> matchedComponentTypes = new List<Type>();
         private bool showComponentSearchResults = false;
         private List<ItemData> componentReferences = new List<ItemData>();
-        private bool isCheckingComponents = false;
         private CancellationTokenSource componentCheckCancellationToken;
         private int batchSize = 200;
         private float checkInterval = 0.01f;
@@ -353,7 +352,7 @@ namespace AUnityLocal.Editor
                     EditorGUILayout.LabelField($"当前选择: {targetComponentName}");
                 }
 
-                EditorGUI.BeginDisabledGroup(isCheckingComponents || targetComponentType == typeof(Component));
+                EditorGUI.BeginDisabledGroup(targetComponentType == typeof(Component));
                 if (GUILayout.Button("检查引用", searchButtonStyle))
                 {
                     if (targetComponentType == typeof(Component) || string.IsNullOrEmpty(targetComponentName))
@@ -413,13 +412,7 @@ namespace AUnityLocal.Editor
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.Space(5);
 
-            if (isCheckingComponents)
-            {
-                EditorGUILayout.LabelField($"检查中: {componentCheckProgressMessage}");
-                EditorGUILayout.LabelField(
-                    $"进度: {processedGameObjectCount}/{gameObjectCount} ({componentCheckProgress * 100:F1}%)");
-            }
-            else if (searchResults.Count > 0)
+            if (searchResults.Count > 0)
             {
                 DrawResults(searchTitle, searchResults, DrawGameObjectResult, EditorGUIUtility.singleLineHeight);
             }            
@@ -534,8 +527,6 @@ namespace AUnityLocal.Editor
             // Debug.Log($"Scroll Range Y: [{minScrollY}, {maxScrollY}],cur scroll {scrollPosition.y},itemHeight:{itemHeight},startIndex:{startIndex}, endIndex:{endIndex}, viewportHeight: {viewportHeight}, contentHeight: {contentHeight},{Time.realtimeSinceStartup}");
         }
 
-        private GUIStyle placeholderStyle;
-
         // 绘制单个占位框
         private void DrawPlaceholderBox(float height)
         {
@@ -571,7 +562,7 @@ namespace AUnityLocal.Editor
 
         private void DrawProgressBar()
         {
-            if (isCheckingComponents)
+            return;
             {
                 EditorGUILayout.Space();
                 Rect progressRect = GUILayoutUtility.GetRect(EditorGUIUtility.currentViewWidth - 20, 20);
@@ -595,8 +586,7 @@ namespace AUnityLocal.Editor
 
             // 状态图标
             string icon = "✓";
-            if (isCheckingComponents) icon = "⟳";
-            else if (statusColor == Color.red) icon = "✗";
+            if (statusColor == Color.red) icon = "✗";
 
             // 状态文本（带图标）
             EditorGUI.LabelField(statusRect, $"{icon}  {statusMessage}", new GUIStyle(EditorStyles.label)
@@ -664,7 +654,6 @@ namespace AUnityLocal.Editor
                     searchResults.Add(new ItemData(go,string.Empty,string.Empty));
                 }
             }
-
             // 添加搜索完成的状态反馈
             UpdateStatus($"找到 {searchResults.Count} 个结果", Color.cyan);
             
