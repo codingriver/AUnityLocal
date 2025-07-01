@@ -18,7 +18,7 @@ namespace AUnityLocal.Editor
         
         // 扩展的标签页列表
          static string[] tabNames = new string[] {
-            "名称搜索", "Layer搜索", "UI.Text搜索", "组件搜索", "资源搜索", "标签搜索",
+            "名称搜索", "Layer搜索", "UI.Text搜索", "组件搜索", "批量改名","资源搜索", "标签搜索",
             "材质搜索", "预设搜索", "脚本搜索", "音频搜索", "视频搜索",
             "图片搜索", "字体搜索", "动画搜索", "控制器搜索", "粒子搜索",
             "灯光搜索", "相机搜索", "碰撞体搜索", "触发器搜索"
@@ -104,6 +104,9 @@ namespace AUnityLocal.Editor
                     break;
                 case 3:
                     DrawComponentSearchSection();
+                    break;
+                case 4:
+                    DrawBatchRenameSection();
                     break;
                 default:
                     DrawCommonSection(tabNames[0],"GameObject Name",SearchByName);
@@ -322,6 +325,10 @@ namespace AUnityLocal.Editor
             
                     if (GUILayout.Button(tabName, isActive ? activeTabButtonStyle : tabButtonStyle))
                     {
+                        if (currentTab != i)
+                        {
+                            ShowParam = false; // 切换标签时重置参数显示状态
+                        }
                         currentTab = i;
                         Repaint();
                     }
@@ -979,7 +986,203 @@ namespace AUnityLocal.Editor
                 Repaint();
             }
         }
+        
+        
+// 批量改名功能所需的变量
+        private Transform batchRenameRoot = null;
+        private string batchRenameNewName = "";
+        private int batchRenameStartIndex = 1;
+        private bool batchRenameIncludeChildren = false;
+        private bool batchRenameSearchExecuted = false; // 标记是否已执行搜索        
+// 修改DrawBatchRenameSection方法，添加搜索按钮
+        private void DrawBatchRenameSection()
+        {
+            DrawSectionHeader("批量改名");
 
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.Space(5);
+
+            // 选择根对象
+            batchRenameRoot = (Transform)EditorGUILayout.ObjectField("根对象", batchRenameRoot, typeof(Transform), true);
+
+            EditorGUILayout.Space(5);
+    
+            // 搜索按钮
+            EditorGUI.BeginDisabledGroup(batchRenameRoot == null);
+            if (GUILayout.Button("搜索子物体", searchButtonStyle))
+            {
+                SearchBatchRenameChildren();
+            }
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUILayout.Space(10);
+
+            // 改名设置（仅在搜索后显示）
+            if (batchRenameSearchExecuted)
+            {
+                // 新名称
+                batchRenameNewName = EditorGUILayout.TextField("新名称", batchRenameNewName);
+
+                // 起始序号
+                batchRenameStartIndex = EditorGUILayout.IntField("起始序号", batchRenameStartIndex);
+
+                // // 是否包含子物体
+                // batchRenameIncludeChildren = EditorGUILayout.Toggle("包含所有子物体", batchRenameIncludeChildren);
+
+                EditorGUILayout.Space(10);
+
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("预览", searchButtonStyle))
+                {
+                    PreviewBatchRename();
+                }
+
+                if (GUILayout.Button("执行", new GUIStyle(searchButtonStyle)
+                    {
+                        normal = { textColor = Color.red }
+                    }))
+                {
+                    ExecuteBatchRename();
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.Space(5);
+            EditorGUILayout.EndVertical();
+        }
+// 搜索批量改名的子物体
+        private void SearchBatchRenameChildren()
+        {
+            if (batchRenameRoot == null)
+            {
+                UpdateStatus("请先选择根对象", Color.red);
+                return;
+            }
+    
+            ClearResults();
+            searchTitle = "批量改名 - 子物体列表";
+    
+            try
+            {
+                Transform[] children;
+        
+                if (batchRenameIncludeChildren)
+                {
+                    // 获取所有子物体
+                    children = batchRenameRoot.GetComponentsInChildren<Transform>(true);
+                }
+                else
+                {
+                    // 只获取直接子物体
+                    children = new Transform[batchRenameRoot.childCount];
+                    for (int i = 0; i < batchRenameRoot.childCount; i++)
+                    {
+                        children[i] = batchRenameRoot.GetChild(i);
+                    }
+                }
+        
+                // 添加到搜索结果
+                foreach (Transform child in children)
+                {
+                    if (child != batchRenameRoot) // 排除根对象自身
+                    {
+                        searchResults.Add(new ItemData(child.gameObject, child.gameObject.activeSelf ? "活动" : "非活动"));
+                    }
+                }
+        
+                batchRenameSearchExecuted = true;
+                UpdateStatus($"找到 {searchResults.Count} 个子物体", Color.cyan);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"搜索子物体时出错: {e.Message}");
+                UpdateStatus("搜索子物体时出错", Color.red);
+            }
+        }
+
+// 预览批量改名
+        private void PreviewBatchRename()
+        {
+            if (searchResults.Count == 0)
+            {
+                UpdateStatus("没有可重命名的对象，请先搜索子物体", Color.red);
+                return;
+            }
+    
+            if (string.IsNullOrEmpty(batchRenameNewName))
+            {
+                UpdateStatus("请输入新名称", Color.red);
+                return;
+            }
+    
+            try
+            {
+                ShowParam = true;
+                // 为每个对象生成预览名称
+                for (int i = 0; i < searchResults.Count; i++)
+                {
+                    ItemData item = searchResults[i];
+                    if (item != null && item.GameObject != null)
+                    {
+                        item.Param = $"{batchRenameNewName}{batchRenameStartIndex + i}";
+                    }
+                }
+        
+                UpdateStatus($"预览完成: {searchResults.Count} 个对象将被重命名", Color.cyan);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"预览批量改名时出错: {e.Message}");
+                UpdateStatus("预览批量改名时出错", Color.red);
+            }
+        }
+
+// 执行批量改名
+        private void ExecuteBatchRename()
+        {
+            if (searchResults.Count == 0)
+            {
+                UpdateStatus("没有可重命名的对象，请先搜索子物体", Color.red);
+                return;
+            }
+    
+            if (!EditorUtility.DisplayDialog("确认批量改名", 
+                    $"确定要将 {searchResults.Count} 个对象重命名吗？", 
+                    "确定", "取消"))
+            {
+                UpdateStatus("批量改名已取消", Color.yellow);
+                return;
+            }
+    
+            try
+            {
+                GameObject[] gameObjects = searchResults
+                    .Where(item => item != null && item.GameObject != null)
+                    .Select(item => item.GameObject)
+                    .ToArray();
+            
+                Undo.RecordObjects(gameObjects, "批量改名");
+        
+                for (int i = 0; i < searchResults.Count; i++)
+                {
+                    ItemData item = searchResults[i];
+                    if (item != null && item.GameObject != null)
+                    {
+                        item.GameObject.name = item.Param;
+                    }
+                }
+        
+                UpdateStatus($"批量改名完成: {searchResults.Count} 个对象已重命名", Color.green);
+        
+                // 刷新层级视图
+                EditorApplication.RepaintHierarchyWindow();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"批量改名时出错: {e.Message}");
+                UpdateStatus("批量改名时出错", Color.red);
+            }
+        }
         // 定义组件引用类，用于存储搜索结果
         public class ItemData
         {
