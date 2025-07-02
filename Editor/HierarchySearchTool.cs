@@ -15,21 +15,22 @@ namespace AUnityLocal.Editor
 {
     public class HierarchySearchTool : EditorWindow
     {
-        
         // 扩展的标签页列表
-         static string[] tabNames = new string[] {
-            "名称搜索", "Layer搜索", "UI.Text搜索", "组件搜索", "批量改名","资源搜索", "标签搜索",
+        static string[] tabNames = new string[]
+        {
+            "名称搜索", "Layer搜索", "UI.Text搜索", "组件搜索", "批量改名", "资源搜索", "标签搜索",
             "材质搜索", "预设搜索", "脚本搜索", "音频搜索", "视频搜索",
             "图片搜索", "字体搜索", "动画搜索", "控制器搜索", "粒子搜索",
             "灯光搜索", "相机搜索", "碰撞体搜索", "触发器搜索"
-        };        
-         private  const int TAB_LINES=4;
+        };
+
+        private const int TAB_LINES = 4;
+
         // 搜索功能字段
-        private string nameSearchText = "";
         private LayerMask layerMaskShow = -1;
         private LayerMask layerMask = -1;
         private List<ItemData> searchResults = new List<ItemData>();
-        
+
 
         // 组件引用检查功能字段
         private string componentNameSearch = "";
@@ -51,10 +52,8 @@ namespace AUnityLocal.Editor
         private Vector2 componentSearchScrollPosition;
         private Dictionary<int, int> layerDictionary = new Dictionary<int, int>();
 
-        // 标签页相关字段
-        private enum SearchTab { Name, Layer, UI, Component }
         // private SearchTab currentTab = SearchTab.Name;
-        private int currentTab = 0;
+        private int currentTab = 2;
         private GUIStyle tabButtonStyle;
         private GUIStyle activeTabButtonStyle;
 
@@ -64,7 +63,6 @@ namespace AUnityLocal.Editor
         private GUIStyle searchButtonStyle1;
         private GUIStyle resultCountStyle;
         private GUIStyle separatorStyle;
-        private Color sectionBackgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.1f);
         private Vector2 resultsScrollPosition;
         private bool isFirstLayout = true;
 
@@ -80,27 +78,27 @@ namespace AUnityLocal.Editor
         // 状态颜色过渡
         private float statusColorTransitionTimer = 0f;
         private float statusColorTransitionDuration = 0.3f;
-        private Color statusStartColor = Color.green;
+        private Color statusStartColor = Color.green * 0.5f;
         private Color statusTargetColor = Color.green;
 
         private bool includeInactive = true;
-        private string searchText= "";
+        private string searchText = "";
         private bool ShowParam = false;
         private string searchTitle = "";
 
-        
+
         private void DrawCurrentTabContent()
         {
             switch (currentTab)
             {
                 case 0:
-                    DrawCommonSection(tabNames[currentTab],"GameObject Name",SearchByName);
+                    DrawCommonSection(tabNames[currentTab], "GameObject Name", SearchByName);
                     break;
                 case 1:
                     DrawLayerSearchSection();
                     break;
                 case 2:
-                    DrawCommonSection(tabNames[currentTab],"UI.Text text",SearchUITextByText);
+                    DrawCommonSection(tabNames[currentTab], "UI.Text text", SearchUITextByText);
                     break;
                 case 3:
                     DrawComponentSearchSection();
@@ -109,11 +107,11 @@ namespace AUnityLocal.Editor
                     DrawBatchRenameSection();
                     break;
                 default:
-                    DrawCommonSection(tabNames[0],"GameObject Name",SearchByName);
+                    DrawCommonSection(tabNames[0], "GameObject Name", SearchByName);
                     break;
             }
-        }        
-        
+        }
+
         [MenuItem("AUnityLocal/Hierarchy 工具")]
         public static void ShowWindow()
         {
@@ -125,7 +123,7 @@ namespace AUnityLocal.Editor
         private void OnEnable()
         {
             InitializeStyles();
-            componentNameSearch=PlayerPrefs.GetString("ComponentNameSearch", ""); // 保存搜索组件名称
+            componentNameSearch = PlayerPrefs.GetString("ComponentNameSearch", ""); // 保存搜索组件名称
             // 初始化层字典
             for (int i = 0; i < InternalEditorUtility.layers.Length; i++)
             {
@@ -159,6 +157,7 @@ namespace AUnityLocal.Editor
                     float t = statusColorTransitionTimer / statusColorTransitionDuration;
                     statusColor = Color.Lerp(statusStartColor, statusTargetColor, t);
                 }
+
                 Repaint();
             }
 
@@ -194,7 +193,7 @@ namespace AUnityLocal.Editor
                 fontStyle = FontStyle.Bold,
                 fixedHeight = 18,
             };
-            
+
             // 标签页按钮样式
             tabButtonStyle = new GUIStyle(EditorStyles.toolbarButton)
             {
@@ -204,7 +203,7 @@ namespace AUnityLocal.Editor
                 fixedHeight = 25,
                 margin = new RectOffset(2, 2, 0, 0)
             };
-            
+
             // 激活标签页按钮样式
             activeTabButtonStyle = new GUIStyle(tabButtonStyle)
             {
@@ -251,23 +250,24 @@ namespace AUnityLocal.Editor
 
             DrawTitle();
             EditorGUILayout.BeginHorizontal();
-            
+
             EditorGUILayout.BeginVertical(GUILayout.Width(position.width * 0.5f + 10));
             DrawLeftPanel();
             EditorGUILayout.EndVertical();
-            
+
             // 绘制分隔线
-            DrawSeparator();            
-            
+            DrawSeparator();
+
             EditorGUILayout.BeginVertical();
             DrawResultsPanel();
             EditorGUILayout.EndVertical();
-            
+
             EditorGUILayout.EndHorizontal();
 
             // // 底部状态栏固定在窗口底部
             // GUILayout.FlexibleSpace();
-            DrawProgressBar();
+            // EditorGUILayout.BeginVertical(GUILayout.Height(DRAW_STATUS_HEIGHT*3+10));
+
             DrawStatusBar();
         }
 
@@ -293,55 +293,53 @@ namespace AUnityLocal.Editor
 
             DrawTabButtons();
             EditorGUILayout.Space(10);
-            
+
             DrawCurrentTabContent();
             EditorGUILayout.Space(20);
             // 底部状态栏固定在窗口底部
-            GUILayout.FlexibleSpace();            
+            GUILayout.FlexibleSpace();
             DrawClearButton();
             EditorGUILayout.EndVertical();
         }
-        
 
-        
+
         private void DrawTabButtons()
         {
-
-
             // 计算每行显示的标签数
-            int tabsPerRow = Mathf.CeilToInt(tabNames.Length*1f / TAB_LINES);
-            
+            int tabsPerRow = Mathf.CeilToInt(tabNames.Length * 1f / TAB_LINES);
+
             for (int row = 0; row < TAB_LINES; row++)
             {
                 EditorGUILayout.BeginHorizontal();
-        
+
                 int startIndex = row * tabsPerRow;
                 int endIndex = Mathf.Min(startIndex + tabsPerRow, tabNames.Length);
-        
+
                 for (int i = startIndex; i < endIndex; i++)
                 {
                     string tabName = tabNames[i];
                     bool isActive = currentTab == i;
-            
+
                     if (GUILayout.Button(tabName, isActive ? activeTabButtonStyle : tabButtonStyle))
                     {
                         if (currentTab != i)
                         {
                             ShowParam = false; // 切换标签时重置参数显示状态
                         }
+
                         currentTab = i;
                         Repaint();
                     }
                 }
-        
+
                 EditorGUILayout.EndHorizontal();
             }
         }
 
 
-        private void DrawCommonSection(string name,string searchDesc, Action searchAction, string buttonText = "搜索",string buttonText2 = "联合搜索")
+        private void DrawCommonSection(string name, string searchDesc, Action searchAction, string buttonText = "搜索",
+            string buttonText2 = "联合搜索")
         {
-            
             DrawSectionHeader(name);
 
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
@@ -362,7 +360,7 @@ namespace AUnityLocal.Editor
             EditorGUILayout.Space(10);
             if (GUILayout.Button(buttonText, searchButtonStyle))
             {
-                ClearResults();
+                Reset();
                 searchAction.Invoke();
             }
 
@@ -386,7 +384,7 @@ namespace AUnityLocal.Editor
             EditorGUILayout.Space(10);
             if (GUILayout.Button("Search", searchButtonStyle))
             {
-                ClearResults();
+                Reset();
                 SearchUITextByText();
             }
 
@@ -430,7 +428,7 @@ namespace AUnityLocal.Editor
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("搜索组件:", GUILayout.Width(70));
             string componentNameSearch1 = EditorGUILayout.TextField(componentNameSearch);
-            if(componentNameSearch1!= componentNameSearch)
+            if (componentNameSearch1 != componentNameSearch)
             {
                 componentNameSearch = componentNameSearch1;
                 PlayerPrefs.SetString("ComponentNameSearch", componentNameSearch); // 保存搜索组件名称
@@ -478,7 +476,9 @@ namespace AUnityLocal.Editor
                 {
                     EditorGUILayout.LabelField($"当前选择: {targetComponentName}");
                 }
-
+                EditorGUILayout.Space(5);
+                // 是否包含非激活物体的选项
+                includeInactive = EditorGUILayout.Toggle("Include Inactive Objects", includeInactive);
                 EditorGUI.BeginDisabledGroup(targetComponentType == typeof(Component));
                 if (GUILayout.Button("检查引用", searchButtonStyle))
                 {
@@ -488,7 +488,7 @@ namespace AUnityLocal.Editor
                         return;
                     }
 
-                    ClearResults();
+                    Reset();
                     SearchComponents();
                 }
 
@@ -508,15 +508,15 @@ namespace AUnityLocal.Editor
                     OpenComponentLogFile();
                 }
             }
-            
+
             EditorGUILayout.Space(5);
-            
+
             if (GUILayout.Button("Clear All Results", new GUIStyle(searchButtonStyle)
                 {
                     normal = { textColor = Color.red }
                 }))
             {
-                ClearResults();
+                Reset();
             }
         }
 
@@ -526,6 +526,7 @@ namespace AUnityLocal.Editor
             Rect separatorRect = GUILayoutUtility.GetRect(1, position.height - 80, GUILayout.Width(2));
             EditorGUI.DrawRect(separatorRect, new Color(0.3f, 0.4f, 0.5f));
         }
+
         private void DrawSectionHeader(string title)
         {
             // 带渐变背景的标题栏
@@ -538,7 +539,6 @@ namespace AUnityLocal.Editor
 
         private void DrawResultsPanel()
         {
-            
             EditorGUILayout.Space(15);
 
             DrawSectionHeader("Search Results");
@@ -557,7 +557,6 @@ namespace AUnityLocal.Editor
 
             EditorGUILayout.Space(5);
             EditorGUILayout.EndVertical();
-
         }
 
         private void DrawProgressBar()
@@ -569,16 +568,18 @@ namespace AUnityLocal.Editor
                     $"{componentCheckProgress * 100:F1}% - {componentCheckProgressMessage}");
             }
         }
+        
+        private const int STATUS_TEXT_HEIGHT = 22;
 
         private void DrawStatusBar()
         {
             // 状态条背景（带渐变）
-            Rect statusRect = GUILayoutUtility.GetRect(1, 22);
+            Rect statusRect = GUILayoutUtility.GetRect(1, STATUS_TEXT_HEIGHT);
             Color topColor = new Color(0.15f, 0.15f, 0.15f);
             Color bottomColor = new Color(0.1f, 0.1f, 0.1f);
-            for (int y = 0; y < statusRect.height; y++)
+            for (int y = 0; y < STATUS_TEXT_HEIGHT; y++)
             {
-                float t = y / statusRect.height;
+                float t = y / STATUS_TEXT_HEIGHT;
                 Color color = Color.Lerp(topColor, bottomColor, t);
                 EditorGUI.DrawRect(new Rect(0, statusRect.y + y, statusRect.width, 1), color);
             }
@@ -586,16 +587,19 @@ namespace AUnityLocal.Editor
             // 状态图标
             string icon = "✓";
             if (statusColor == Color.red) icon = "✗";
-
+            EditorGUILayout.BeginHorizontal(GUILayout.Height(STATUS_TEXT_HEIGHT));
             // 状态文本（带图标）
-            EditorGUI.LabelField(statusRect, $"{icon}  {statusMessage}", new GUIStyle(EditorStyles.label)
-            {
-                alignment = TextAnchor.MiddleLeft,
-                fontSize = 11,
-                normal = { textColor = statusColor },
-                margin = new RectOffset(8, 0, 0, 0)
-            });
+            EditorGUI.LabelField(new Rect(0, statusRect.y, position.width * 0.7f, STATUS_TEXT_HEIGHT),
+                $"{icon}  {statusMessage}", new GUIStyle(EditorStyles.label)
+                {
+                    alignment = TextAnchor.MiddleLeft,
+                    fontSize = 11,
+                    normal = { textColor = statusColor },
+                    margin = new RectOffset(8, 0, 0, 0)
+                });
+            EditorGUILayout.EndHorizontal();
         }
+
 
         Vector2 scrollPosition = Vector2.zero;
         float maxScroll = 0;
@@ -646,8 +650,9 @@ namespace AUnityLocal.Editor
                                     GUILayout.Space(2);
                                     using (new EditorGUILayout.HorizontalScope())
                                     {
-                                        drawItemCallback(i+1, item);    
+                                        drawItemCallback(i + 1, item);
                                     }
+
                                     GUILayout.Space(2);
                                 }
                                 catch (Exception e)
@@ -713,12 +718,13 @@ namespace AUnityLocal.Editor
 
         private void DrawGameObjectResult(int index, ItemData data)
         {
-            GUILayout.Label(index.ToString(),GUILayout.MaxWidth(40));
-            EditorGUILayout.ObjectField(data.GameObject, typeof(GameObject), true);//GUILayout.ExpandWidth(false)
+            GUILayout.Label(index.ToString(), GUILayout.MaxWidth(40));
+            EditorGUILayout.ObjectField(data.GameObject, typeof(GameObject), true); //GUILayout.ExpandWidth(false)
             if (ShowParam)
             {
-                EditorGUILayout.LabelField($"{data.Param}",GUILayout.ExpandWidth(false));    
+                EditorGUILayout.LabelField($"{data.Param}", GUILayout.ExpandWidth(false));
             }
+
             if (GUILayout.Button("Select", new GUIStyle(searchButtonStyle1)
                 {
                     fixedWidth = 70,
@@ -757,15 +763,15 @@ namespace AUnityLocal.Editor
 
         private void SearchUITextByText()
         {
-            ClearResults();
-            searchTitle= "UI.Text Search Results";
+            Reset();
+            searchTitle = "UI.Text Search Results";
             UnityEngine.UI.Text[] allObjects = FindObjectsOfType<UnityEngine.UI.Text>(includeInactive);
 
             foreach (var obj in allObjects)
             {
                 if (obj?.text.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    searchResults.Add(new ItemData(obj?.gameObject,obj.GetType().Name));
+                    searchResults.Add(new ItemData(obj?.gameObject, obj.GetType().Name));
                 }
             }
 
@@ -776,42 +782,53 @@ namespace AUnityLocal.Editor
 
         private void SearchByName()
         {
-            ClearResults();
-            searchTitle= "Name Search Results";
+            Reset();
+            searchTitle = "Name Search Results";
             GameObject[] allObjects = FindObjectsOfType<GameObject>(includeInactive);
 
+            int max = allObjects.Length;
+            int cur = 0;
             foreach (var go in allObjects)
             {
                 // 新增：根据searchInactiveName决定是否包含非激活物体
-                if (go.name.IndexOf(nameSearchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                if (go.name.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    searchResults.Add(new ItemData(go,string.Empty,string.Empty));
+                    searchResults.Add(new ItemData(go, string.Empty, string.Empty));
                 }
+
+                componentCheckProgress = (float)++cur / max;
+                componentCheckProgressMessage = $"正在搜索 {go.name} ({cur}/{max})";
             }
+
             // 添加搜索完成的状态反馈
             UpdateStatus($"找到 {searchResults.Count} 个结果", Color.cyan);
         }
 
         private void SearchByLayer()
         {
-            ClearResults();
-            searchTitle= "Layer Search Results";
+            Reset();
+            searchTitle = "Layer Search Results";
             GameObject[] allObjects = FindObjectsOfType<GameObject>(includeInactive);
+            int max = allObjects.Length;
+            int cur = 0;
             foreach (var go in allObjects)
             {
                 // 新增：根据searchInactiveLayer决定是否包含非激活物体
                 if ((layerMask.value & (1 << go.layer)) != 0)
                 {
-                    searchResults.Add(new ItemData(go,string.Empty,string.Empty));
+                    searchResults.Add(new ItemData(go, string.Empty, string.Empty));
                 }
+
+                componentCheckProgress = (float)++cur / max;
+                componentCheckProgressMessage = $"正在搜索 {go.name} ({cur}/{max})";
             }
-            
+
             UpdateStatus($"找到 {searchResults.Count} 个结果", Color.cyan);
         }
 
         private void SearchForComponents()
         {
-            ClearResults();
+            Reset();
             if (string.IsNullOrEmpty(componentNameSearch))
             {
                 showComponentSearchResults = false;
@@ -858,24 +875,31 @@ namespace AUnityLocal.Editor
 
         private void SearchComponents()
         {
-            ClearResults();
-            searchTitle= "Component Search Results";
-            var components = FindObjectsOfType(targetComponentType,includeInactive);
+            Reset();
+            searchTitle = "Component Search Results";
+            var components = FindObjectsOfType(targetComponentType, includeInactive);
             log.Clear();
             AddLog($"组件引用检查 - {System.DateTime.Now}");
             AddLog($"目标组件: {targetComponentName} ({targetComponentType.FullName})");
             AddLog($"场景中使用组件总数: {components.Length}");
             AddLog("----------------------------------------");
+
+            int max = components.Length;
+            int cur = 0;
+
             foreach (var component in components)
             {
                 if (component == null || component.GetInstanceID() == 0)
-                    continue;                
+                    continue;
                 var go = (component as UnityEngine.Component)?.gameObject;
                 if (go == null || go.GetInstanceID() == 0)
                     continue;
-                searchResults.Add(new ItemData(go,component.GetType().Name));
+                searchResults.Add(new ItemData(go, component.GetType().Name));
                 AddLog($"{component.GetType().Name} 被引用 {GetGameObjectPath(go)}");
+                componentCheckProgress = (float)++cur / max;
+                componentCheckProgressMessage = $"正在搜索 {go.name} ({cur}/{max})";
             }
+
             AddLog("----------------------------------------");
             AddLog($"检查完成 - {System.DateTime.Now}");
             AddLog($"发现 {searchResults.Count} 个对组件 {targetComponentName} 的引用.");
@@ -957,7 +981,7 @@ namespace AUnityLocal.Editor
             return path;
         }
 
-        private void ClearResults()
+        private void Reset()
         {
             maxScroll = 0;
             scrollPosition = Vector2.zero;
@@ -966,11 +990,12 @@ namespace AUnityLocal.Editor
             componentReferences.Clear();
             searchResults.Clear();
             componentLogFilePath = "";
-            UpdateStatus("已清除所有结果", Color.green);
+            componentCheckProgress = 0;
+            UpdateStatus("已经重置", Color.green);
         }
 
         // 平滑状态颜色过渡（替换协程）
-        private void UpdateStatus(string message, Color? targetColor = null,bool needRepaint = true)
+        private void UpdateStatus(string message, Color? targetColor = null, bool needRepaint = true)
         {
             statusMessage = message;
 
@@ -986,14 +1011,16 @@ namespace AUnityLocal.Editor
                 Repaint();
             }
         }
-        
-        
+
+
 // 批量改名功能所需的变量
         private Transform batchRenameRoot = null;
         private string batchRenameNewName = "";
         private int batchRenameStartIndex = 1;
         private bool batchRenameIncludeChildren = false;
+
         private bool batchRenameSearchExecuted = false; // 标记是否已执行搜索        
+
 // 修改DrawBatchRenameSection方法，添加搜索按钮
         private void DrawBatchRenameSection()
         {
@@ -1006,13 +1033,14 @@ namespace AUnityLocal.Editor
             batchRenameRoot = (Transform)EditorGUILayout.ObjectField("根对象", batchRenameRoot, typeof(Transform), true);
 
             EditorGUILayout.Space(5);
-    
+
             // 搜索按钮
             EditorGUI.BeginDisabledGroup(batchRenameRoot == null);
             if (GUILayout.Button("搜索子物体", searchButtonStyle))
             {
                 SearchBatchRenameChildren();
             }
+
             EditorGUI.EndDisabledGroup();
 
             EditorGUILayout.Space(10);
@@ -1044,12 +1072,14 @@ namespace AUnityLocal.Editor
                 {
                     ExecuteBatchRename();
                 }
+
                 EditorGUILayout.EndHorizontal();
             }
 
             EditorGUILayout.Space(5);
             EditorGUILayout.EndVertical();
         }
+
 // 搜索批量改名的子物体
         private void SearchBatchRenameChildren()
         {
@@ -1058,14 +1088,14 @@ namespace AUnityLocal.Editor
                 UpdateStatus("请先选择根对象", Color.red);
                 return;
             }
-    
-            ClearResults();
+
+            Reset();
             searchTitle = "批量改名 - 子物体列表";
-    
+
             try
             {
                 Transform[] children;
-        
+
                 if (batchRenameIncludeChildren)
                 {
                     // 获取所有子物体
@@ -1080,7 +1110,7 @@ namespace AUnityLocal.Editor
                         children[i] = batchRenameRoot.GetChild(i);
                     }
                 }
-        
+
                 // 添加到搜索结果
                 foreach (Transform child in children)
                 {
@@ -1089,7 +1119,7 @@ namespace AUnityLocal.Editor
                         searchResults.Add(new ItemData(child.gameObject, child.gameObject.activeSelf ? "活动" : "非活动"));
                     }
                 }
-        
+
                 batchRenameSearchExecuted = true;
                 UpdateStatus($"找到 {searchResults.Count} 个子物体", Color.cyan);
             }
@@ -1108,15 +1138,17 @@ namespace AUnityLocal.Editor
                 UpdateStatus("没有可重命名的对象，请先搜索子物体", Color.red);
                 return;
             }
-    
+
             if (string.IsNullOrEmpty(batchRenameNewName))
             {
                 UpdateStatus("请输入新名称", Color.red);
                 return;
             }
-    
+
             try
             {
+                int max = searchResults.Count;
+                int cur = 0;
                 ShowParam = true;
                 // 为每个对象生成预览名称
                 for (int i = 0; i < searchResults.Count; i++)
@@ -1126,8 +1158,11 @@ namespace AUnityLocal.Editor
                     {
                         item.Param = $"{batchRenameNewName}{batchRenameStartIndex + i}";
                     }
+
+                    componentCheckProgress = (float)++cur / max;
+                    componentCheckProgressMessage = $"正在预览重命名 {item?.GameObject?.name} ({cur}/{max})";
                 }
-        
+
                 UpdateStatus($"预览完成: {searchResults.Count} 个对象将被重命名", Color.cyan);
             }
             catch (Exception e)
@@ -1145,24 +1180,25 @@ namespace AUnityLocal.Editor
                 UpdateStatus("没有可重命名的对象，请先搜索子物体", Color.red);
                 return;
             }
-    
-            if (!EditorUtility.DisplayDialog("确认批量改名", 
-                    $"确定要将 {searchResults.Count} 个对象重命名吗？", 
+
+            if (!EditorUtility.DisplayDialog("确认批量改名",
+                    $"确定要将 {searchResults.Count} 个对象重命名吗？",
                     "确定", "取消"))
             {
                 UpdateStatus("批量改名已取消", Color.yellow);
                 return;
             }
-    
+
             try
             {
                 GameObject[] gameObjects = searchResults
                     .Where(item => item != null && item.GameObject != null)
                     .Select(item => item.GameObject)
                     .ToArray();
-            
+
                 Undo.RecordObjects(gameObjects, "批量改名");
-        
+                int max = searchResults.Count;
+                int cur = 0;
                 for (int i = 0; i < searchResults.Count; i++)
                 {
                     ItemData item = searchResults[i];
@@ -1170,10 +1206,13 @@ namespace AUnityLocal.Editor
                     {
                         item.GameObject.name = item.Param;
                     }
+
+                    componentCheckProgress = (float)++cur / max;
+                    componentCheckProgressMessage = $"正在重命名 {item?.GameObject?.name} ({cur}/{max})";
                 }
-        
+
                 UpdateStatus($"批量改名完成: {searchResults.Count} 个对象已重命名", Color.green);
-        
+
                 // 刷新层级视图
                 EditorApplication.RepaintHierarchyWindow();
             }
@@ -1183,14 +1222,17 @@ namespace AUnityLocal.Editor
                 UpdateStatus("批量改名时出错", Color.red);
             }
         }
+
         // 定义组件引用类，用于存储搜索结果
         public class ItemData
         {
             public GameObject GameObject { get; set; }
             public string GameObjectPath { get; set; }
+
             public string Param { get; set; }
+
             // 构造函数
-            public ItemData(GameObject gameObject, string param="",string path="")
+            public ItemData(GameObject gameObject, string param = "", string path = "")
             {
                 GameObject = gameObject;
                 GameObjectPath = path;
@@ -1198,4 +1240,4 @@ namespace AUnityLocal.Editor
             }
         }
     }
-}    
+}
