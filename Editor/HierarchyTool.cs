@@ -13,7 +13,7 @@ using Object = UnityEngine.Object;
 
 namespace AUnityLocal.Editor
 {
-    public class HierarchySearchTool : EditorWindow
+    public class HierarchyTool : EditorWindow
     {
         // 扩展的标签页列表
         static string[] tabNames = new string[]
@@ -115,7 +115,7 @@ namespace AUnityLocal.Editor
         [MenuItem("AUnityLocal/Hierarchy 工具")]
         public static void ShowWindow()
         {
-            var window = GetWindow<HierarchySearchTool>("Hierarchy 工具");
+            var window = GetWindow<HierarchyTool>("Hierarchy 工具");
             window.minSize = new Vector2(800, 700); // 增大默认高度
             window.maxSize = new Vector2(1200, 1000);
         }
