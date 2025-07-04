@@ -118,9 +118,10 @@ namespace AUnityLocal.Editor
             var window = GetWindow<HierarchyTool>("Hierarchy 工具");
             window.minSize = new Vector2(800, 700); // 增大默认高度
             window.maxSize = new Vector2(1200, 1000);
+            window.Init();
         }
 
-        private void OnEnable()
+        void Init()
         {
             InitializeStyles();
             componentNameSearch = PlayerPrefs.GetString("ComponentNameSearch", ""); // 保存搜索组件名称
@@ -132,13 +133,13 @@ namespace AUnityLocal.Editor
             }
 
             // 注册编辑器更新回调
-            EditorApplication.update += OnEditorUpdate;
+            EditorApplication.update += OnEditorUpdate;            
         }
 
-        private void OnDisable()
+        private void OnDestroy()
         {
             // 移除编辑器更新回调
-            EditorApplication.update -= OnEditorUpdate;
+            EditorApplication.update -= OnEditorUpdate;            
         }
 
         private void OnEditorUpdate()
