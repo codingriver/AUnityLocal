@@ -354,7 +354,7 @@ namespace AUnityLocal.Editor
         {
             try
             {
-                logFilePath = Path.Combine(Application.dataPath, $"AssetReferences_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                logFilePath = Path.Combine(Application.dataPath, $"../AUnityLocal/AssetReferences_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
                 File.WriteAllText(logFilePath, logBuilder.ToString());
                 
                 AssetDatabase.Refresh();
