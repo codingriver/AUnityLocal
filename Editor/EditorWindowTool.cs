@@ -171,6 +171,10 @@ namespace AUnityLocal.Editor
                 }
 
                 EditorGUILayout.EndHorizontal();
+                if (DrawButton("打印子节点下所有节点数量", "", Color.white, GUILayout.Width(180)))
+                {
+                    Tools.PrintChildCount(root,true);
+                }                
             });
 
             GUILayout.Space(5);

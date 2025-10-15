@@ -122,6 +122,63 @@ namespace AUnityLocal.Editor
 
             Debug.Log(sb.ToString());
             return sb.ToString();
+        }
+
+        public static void PrintChildCount(Transform root,bool isChild=true)
+        {
+            if (isChild)
+            {
+                PrintChildCount(root.gameObject);
+            }
+            else
+            {
+                int totalCount = GetTotalChildCount(root);
+                Debug.Log($"根物体 [{root.name}] 总共包含子物体数量: {totalCount}");
+            }
+        }
+       public static void PrintChildCount(GameObject obj)
+        {
+            Debug.Log($"=== {obj.name} 的子物体统计 ===");
+        
+            // 打印根物体的总子物体数量
+            int totalCount = GetTotalChildCount(obj.transform);
+            Debug.Log($"根物体 [{obj.name}] 总共包含子物体数量: {totalCount}");
+        
+            // 遍历每个直接子物体
+            for (int i = 0; i < obj.transform.childCount; i++)
+            {
+                Transform child = obj.transform.GetChild(i);
+                int childCount = GetTotalChildCount(child);
+                Debug.Log($"子物体 [{child.name}] 包含子物体数量: {childCount}");
+                
+            }
         }        
+        static int GetTotalChildCount(Transform transform)
+        {
+            int count = 0;
+
+            // 递归计算所有子物体数量
+            count += transform.childCount;
+        
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                count += GetTotalChildCount(transform.GetChild(i));
+            }
+        
+            return count;
+        }
+        
+        // static void PrintAllRootObjectsChildCount()
+        // {
+        //     GameObject[] rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+        //
+        //     Debug.Log("=== 场景中所有根物体的子物体统计 ===");
+        //
+        //     foreach (GameObject rootObj in rootObjects)
+        //     {
+        //         int totalCount = GetTotalChildCount(rootObj);
+        //         Debug.Log($"根物体 [{rootObj.name}] 总共包含子物体数量: {totalCount}");
+        //     }
+        // }
     }
 }
