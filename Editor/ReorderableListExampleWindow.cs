@@ -21,7 +21,17 @@ namespace AUnityLocal.Editor
             return $"{name} ({value})";
         }
     }    
-    
+    public class PathData
+    {
+        public string path;
+        public string filter;
+        public bool valid;
+
+        public override string ToString()
+        {
+            return $"{path} ({filter}) - {(valid ? "Valid" : "Invalid")}";
+        }
+    }    
 // 枚举过滤器
     public enum FilterType
     {
@@ -46,6 +56,9 @@ namespace AUnityLocal.Editor
         private ReorderableList<CustomData> _customDataFilterList;
         private ReorderableList<FilterType> _enumFilterList;
         private ReorderableList<bool> _boolFilterList;
+        
+        private ReorderableList<PathData> _pathDataFilterList;
+        private List<PathData>_pathDataList=new List<PathData>();
 
         [SerializeField]
         // public List<PathFilter> pathFilters = new List<PathFilter>();
@@ -105,7 +118,14 @@ namespace AUnityLocal.Editor
                 _boolFilters,
                 "Boolean Filters"
             );
-
+            _pathDataFilterList = new ReorderableList<PathData>(
+                _pathDataList,
+                "Path Data Filters",_onAddElement:()=>
+                {
+                    return new PathData{path="",filter="*.prefab",valid=true};
+                },_onDrawElement:OnDrawPathDataElement
+            );
+            
             // 如果列表为空，添加一些示例数据
             // if (pathFilters.Count == 0)
             // {
@@ -138,6 +158,46 @@ namespace AUnityLocal.Editor
             data.value = EditorGUI.IntField(valueRect, "Value", data.value);
             data.enabled = EditorGUI.Toggle(enabledRect, "Enabled", data.enabled);
         }
+
+        private void OnDrawPathDataElement(Rect rect, int index, PathData filter)
+         {
+             const float LINE_HEIGHT = 18f;
+             const float GAP = 5;
+             rect.y++;
+
+             Rect r = rect;
+
+             // 启用复选框
+             r.width = 60;
+             r.height = LINE_HEIGHT;
+             filter.valid = GUI.Toggle(r, filter.valid, new GUIContent("启用"));
+
+             // 路径文本框
+             r.xMin = r.xMax + GAP;
+             r.xMax = rect.xMax - 300;
+             GUI.enabled = false;
+             filter.path = GUI.TextField(r, filter.path ?? "");
+             GUI.enabled = true;
+
+             // 选择按钮
+             r.xMin = r.xMax + GAP;
+             r.width = 50;
+             if (GUI.Button(r, new GUIContent("Select", "选择目录")))
+             {
+                 string selectedPath = Tools.SelectFolder();
+                 if (!string.IsNullOrEmpty(selectedPath))
+                 {
+                     filter.path = selectedPath;
+                 }
+             }
+
+             // 过滤器文本框
+             r.xMin = r.xMax + GAP;
+             r.xMax = rect.xMax;
+             filter.filter = EditorGUI.TextField(r, filter.filter ?? "");
+         }
+        
+        
         Vector2 scrollPos;
         void OnGUI()
         {
@@ -162,6 +222,8 @@ namespace AUnityLocal.Editor
             _transformFilterList?.DoLayoutList();
             GUILayout.Space(10);
             _boolFilterList?.DoLayoutList();
+            
+            _pathDataFilterList.DoLayoutList();
             // 显示统计信息
             GUILayout.Space(20);
             EditorGUILayout.LabelField("Statistics", EditorStyles.boldLabel);

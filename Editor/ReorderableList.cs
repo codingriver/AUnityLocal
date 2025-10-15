@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace AUnityLocal.Editor
 {
@@ -42,14 +39,13 @@ namespace AUnityLocal.Editor
         public Func<object,List<T>> OnPaste;
 
         public int height = 130;
-        /// <summary>
-        /// 显示粘贴按钮
-        /// </summary>
-        public bool ShowPasteButton { get; set; } = true;
+        
+        
         // 配置属性
         public bool Draggable { get; set; } = true;
         public float ElementHeight { get; set; } = 22f;
-        public bool ShowAddRemoveButtons { get; set; } = true;
+        public float ContentElementHeight { get; set; } = 18f;
+        private bool ShowAddRemoveButtons { get; set; } = true;
 
         // 新增：是否显示粘贴按钮
         // private EditorWindow _parentWindow;
@@ -571,7 +567,7 @@ namespace AUnityLocal.Editor
             return default(T);
         }
 
-// 保持原有的ParseLineToData等方法不变...
+        
         private T ParseLineToData(string line)
         {
             Type dataType = typeof(T);
@@ -686,7 +682,7 @@ namespace AUnityLocal.Editor
             string _dataFieldLabel = string.Empty;
             Type dataType = typeof(T);
             T newData = data;
-
+            rect.height = ContentElementHeight;
             try
             {
                 // 根据数据类型选择合适的绘制方式
@@ -760,99 +756,5 @@ namespace AUnityLocal.Editor
             }
         }        
         
-        public string SelectFolder()
-        {
-            string dataPath = Application.dataPath;
-            string selectedPath = EditorUtility.OpenFolderPanel("选择路径", dataPath, "");
-
-            if (!string.IsNullOrEmpty(selectedPath))
-            {
-                if (selectedPath.StartsWith(dataPath))
-                {
-                    return "Assets/" + selectedPath.Substring(dataPath.Length + 1);
-                }
-                else
-                {
-                    Debug.LogWarning("不能在Assets目录之外!");
-                }
-            }
-
-            return null;
-        }        
     }
-//
-//     /// <summary>
-//     /// 带路径选择功能的ReorderableList包装器
-//     /// </summary>
-//     /// <typeparam name="T">必须实现IPathFilter接口的类型</typeparam>
-//     public class PathFilterReorderableList<T> : ReorderableList<T> where T : class, IPathFilter, new()
-//     {
-//         private EditorWindow _parentWindow;
-//
-//         public PathFilterReorderableList(System.Collections.Generic.List<T> dataList, string headerText,
-//             EditorWindow parentWindow = null)
-//             : base(dataList, headerText)
-//         {
-//             _parentWindow = parentWindow;
-//
-//             // 设置默认的绘制和添加回调
-//             OnDrawElement = DrawPathFilterElement;
-//             OnAddElement = AddPathFilterElement;
-//         }
-//
-//         private void DrawPathFilterElement(Rect rect, int index, T filter)
-//         {
-//             const float GAP = 5;
-//             rect.y++;
-//
-//             Rect r = rect;
-//
-//             // 启用复选框
-//             r.width = 60;
-//             r.height = 18;
-//             filter.Valid = GUI.Toggle(r, filter.Valid, new GUIContent("启用"));
-//
-//             // 路径文本框
-//             r.xMin = r.xMax + GAP;
-//             r.xMax = rect.xMax - 300;
-//             GUI.enabled = false;
-//             filter.Path = GUI.TextField(r, filter.Path ?? "");
-//             GUI.enabled = true;
-//
-//             // 选择按钮
-//             r.xMin = r.xMax + GAP;
-//             r.width = 50;
-//             if (GUI.Button(r, new GUIContent("Select", "选择目录")))
-//             {
-//                 string selectedPath = SelectFolder();
-//                 if (!string.IsNullOrEmpty(selectedPath))
-//                 {
-//                     filter.Path = selectedPath;
-//                 }
-//             }
-//
-//             // 过滤器文本框
-//             r.xMin = r.xMax + GAP;
-//             r.xMax = rect.xMax;
-//             filter.Filter = EditorGUI.TextField(r, filter.Filter ?? "");
-//         }
-//
-//         private T AddPathFilterElement()
-//         {
-//             T filter = new T();
-//             string path = SelectFolder();
-//             if (!string.IsNullOrEmpty(path))
-//             {
-//                 
-//                 filter.Path = path;
-//                 filter.Filter = "*.prefab"; // 默认过滤器
-//                 filter.Valid = true;
-//                 
-//             }
-//             return filter;
-//         }
-//
-//
-//     }
-    
 }
