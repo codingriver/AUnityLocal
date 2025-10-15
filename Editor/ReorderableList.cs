@@ -143,6 +143,10 @@ namespace AUnityLocal.Editor
         private void DrawHeaderCallback(Rect rect)
         {
             EditorGUI.LabelField(rect, _headerText);
+            string countText = $"Count: {_dataList.Count}";
+            Vector2 countSize = EditorStyles.label.CalcSize(new GUIContent(countText));
+            Rect countRect = new Rect(rect.xMax - countSize.x, rect.y, countSize.x, rect.height);
+            EditorGUI.LabelField(countRect, countText);            
         }
 
         private void DrawElementCallback(Rect rect, int index, bool isActive, bool isFocused)
