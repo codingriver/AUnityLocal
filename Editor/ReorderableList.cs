@@ -265,9 +265,10 @@ namespace AUnityLocal.Editor
         {
             try
             {
+                Type type = typeof(T);
                 var objects = Selection.objects;
                 List<T> parsedData = null;
-                if (objects != null && objects.Length > 0)
+                if (objects != null && objects.Length > 0&&!type.IsValueType)
                 {
                     parsedData = ParseClipboard(objects);
                 }
