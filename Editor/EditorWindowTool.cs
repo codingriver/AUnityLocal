@@ -167,7 +167,7 @@ namespace AUnityLocal.Editor
 
                 if (DrawButton("打印Path相对根节点", "打印选中节点相对于根节点的路径", Color.white, GUILayout.Width(180)))
                 {
-                    PrintRelativePaths();
+                    Tools.PrintRelativePaths(Selection.transforms,root);
                 }
 
                 EditorGUILayout.EndHorizontal();
@@ -202,7 +202,7 @@ namespace AUnityLocal.Editor
                     SetSortingOrder();
                 }
 
-                if (DrawButton("设置Order基数", "在当前Order基础上添加基数", Color.cyan, GUILayout.Width(120)))
+                if (DrawButton("设置Order偏移", "在当前Order基础上添加基数", Color.cyan, GUILayout.Width(120)))
                 {
                     AddSortingOrderBase();
                 }
@@ -341,8 +341,7 @@ namespace AUnityLocal.Editor
 
         private void CopyObjects()
         {
-            var _objs = _gameObjectFilterList.dataList;
-            foreach (var asset in _objs)
+            foreach (var asset in _gameObjectFilterList.dataList)
             {
                 for (int i = 0; i < count; i++)
                 {
@@ -350,7 +349,7 @@ namespace AUnityLocal.Editor
                     {
                         var newObj = Instantiate(asset);
                         newObj.transform.SetParent(asset.transform.parent);
-                        newObj.name = asset.name + "_copy" + (i + 1);
+                        newObj.name = asset.name + "_copy_" + (i + 1);
                         newObj.transform.position += arg3 * (i + 1);
                     }
                 }
@@ -408,30 +407,6 @@ namespace AUnityLocal.Editor
                 renderer.sortingOrder += sortingOrder;
                 Debug.Log($"设置 {renderer.gameObject.name} 的 Order 从 {order} 到 {renderer.sortingOrder}");
             }
-        }
-
-        private void PrintRelativePaths()
-        {
-            var selectedObjects = Selection.transforms;
-            StringBuilder sb = new StringBuilder();
-            foreach (Transform transform in selectedObjects)
-            {
-                if (root != null && transform.IsChildOf(root))
-                {
-                    string relativePath = GetRelativePath(transform, root);
-                    sb.AppendLine(relativePath);
-                    Debug.Log($"选中节点 {transform.name} 相对于根节点 {root.name} 的路径: {relativePath}");
-                }
-                else
-                {
-                    string relativePath = GetRelativePath(transform, null);
-                    sb.AppendLine(relativePath);
-                    if (root != null)
-                        Debug.LogWarning($"选中节点 {transform.name} 不是根节点 {root.name} 的子节点");
-                }
-            }
-
-            Debug.Log(sb.ToString());
         }
 
         private void ToggleSkinnedMeshRenderer(bool enable)
@@ -551,13 +526,31 @@ namespace AUnityLocal.Editor
 
         private void SetProfilerStatus()
         {
-            // 开启Unity Profiler
-            ProfilerDriver.enabled = true;
-            Debug.Log("Unity Profiler 已开启");
+            // EditorApplication.ExecuteMenuItem("Window/Analysis/Profiler");
+            // ProfilerDriver.enabled = true;
+            Tools.FindAndGetComponent<Camera>("UICam", false);
+            Tools.FindAndGetComponent<Camera>("UICam", false);
+            var go = GameObject.Find("world_root");
+            if (go != null)
+            {
+                for (int i = 0; i < go.transform.childCount; i++)
+                {
+                    var t= go.transform.GetChild(i);
+                    if (t.name != "LargeLand")
+                    {
+                        t.gameObject.SetActive(false);
+                    }
+                }
+            }
 
-            // 如果需要开启深度分析
-            ProfilerDriver.deepProfiling = true;
-            Debug.Log("深度分析模式已开启");
+            Tools.SetGameObject("Troops_root", false);
+            Tools.SetGameObject("rss_root", false);
+            Tools.SetGameObject("lod3_root", false);
+            Tools.SetGameObject("CityRoot", false);
+            Tools.SetGameObject("fogSystem", false);
+            Tools.SetGameObject("BillBuffer", false);
+
+            Tools.ToggleGameStats();
         }
 
         private void DrawTitle()
@@ -571,26 +564,6 @@ namespace AUnityLocal.Editor
             GUILayout.Space(10);
         }
 
-// 辅助方法：获取相对路径
-        private string GetRelativePath(Transform child, Transform parent)
-        {
-            if (child == null) return "";
 
-            List<string> path = new List<string>();
-            Transform current = child;
-
-            while (current != null && current != parent)
-            {
-                path.Insert(0, current.name);
-                current = current.parent;
-            }
-
-            if (parent != null && current != parent)
-            {
-                return "不是子节点";
-            }
-
-            return string.Join("/", path);
-        }
     }
 }
