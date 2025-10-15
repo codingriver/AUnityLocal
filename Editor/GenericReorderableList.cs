@@ -7,22 +7,6 @@ using UnityEngine;
 namespace EditorExtensions
 {
     /// <summary>
-    /// 路径过滤器接口
-    /// </summary>
-    public interface IPathFilter
-    {
-        bool Valid { get; set; }
-        string Path { get; set; }
-        string Filter { get; set; }
-    }
-
-    public interface IObjectFilter<T>
-    {
-        bool Valid { get; set; }
-        T data { get; set; }
-    }
-
-    /// <summary>
     /// ReorderableList的通用包装器，简化使用
     /// </summary>
     /// <typeparam name="T">列表元素类型</typeparam>
@@ -42,11 +26,22 @@ namespace EditorExtensions
         public bool Draggable { get; set; } = true;
         public float ElementHeight { get; set; } = 22f;
         public bool ShowAddRemoveButtons { get; set; } = true;
+        
+        // 新增：粘贴相关回调
+        public Func<UnityEngine.Object[], List<T>> OnPasteObjects;
+        public Func<bool> CanPaste;
+        public Action<List<T>> OnPasteComplete;
+        
+        // 新增：是否显示粘贴按钮
+        public bool ShowPasteButton { get; set; } = true;        
+        private EditorWindow _parentWindow;
+        private Vector2 _scrollPosition;        
 
-        public GenericReorderableList(List<T> dataList, string headerText = "List Items")
+        public GenericReorderableList(List<T> dataList, string headerText = "List Items", EditorWindow parentWindow = null)
         {
             _dataList = dataList;
             _headerText = headerText;
+            _parentWindow = parentWindow;
             InitializeReorderableList();
         }
 
@@ -57,6 +52,7 @@ namespace EditorExtensions
             _reorderableList.drawHeaderCallback = DrawHeaderCallback;
             _reorderableList.onAddCallback = AddCallback;
             _reorderableList.onRemoveCallback = RemoveCallback;
+            _reorderableList.drawFooterCallback = DrawFooterCallback; // 添加自定义底部绘制
 
             UpdateSettings();
         }
@@ -65,10 +61,42 @@ namespace EditorExtensions
         {
             _reorderableList.draggable = Draggable;
             _reorderableList.elementHeight = ElementHeight;
-            _reorderableList.displayAdd = ShowAddRemoveButtons;
-            _reorderableList.displayRemove = ShowAddRemoveButtons;
+            _reorderableList.displayAdd = false;
+            _reorderableList.displayRemove = false;            
         }
-
+        private void DrawFooterCallback(Rect rect)
+        {
+            float buttonWidth = 25f;
+            float spacing = 5f;
+    
+            // 自定义按钮（在最左边）
+            Rect customButtonRect = new Rect(rect.xMax - buttonWidth * 3 - spacing * 2, rect.y, buttonWidth, rect.height);
+            if (GUI.Button(customButtonRect, "P", EditorStyles.miniButtonLeft))
+            {
+                // 自定义按钮逻辑
+                Debug.Log("Custom Button Clicked!");
+            }
+    
+            
+            if (ShowAddRemoveButtons)
+            {
+                // 加号按钮
+                Rect addButtonRect = new Rect(rect.xMax - buttonWidth * 2 - spacing, rect.y, buttonWidth, rect.height);
+                if (GUI.Button(addButtonRect, "+", EditorStyles.miniButtonMid))
+                {
+                    AddCallback(_reorderableList);
+                }
+        
+                // 减号按钮
+                Rect removeButtonRect = new Rect(rect.xMax - buttonWidth, rect.y, buttonWidth, rect.height);
+                GUI.enabled = _reorderableList.index >= 0 && _reorderableList.index < _dataList.Count;
+                if (GUI.Button(removeButtonRect, "-", EditorStyles.miniButtonRight))
+                {
+                    RemoveCallback(_reorderableList);
+                }
+                GUI.enabled = true;
+            }
+        }
         private void DrawHeaderCallback(Rect rect)
         {
             EditorGUI.LabelField(rect, _headerText);
@@ -448,4 +476,68 @@ namespace EditorExtensions
             set => _data = value;
         }
     }
+    
+    
+    /// <summary>
+    /// 粘贴数据接口
+    /// </summary>
+    /// <typeparam name="T">数据类型</typeparam>
+    public interface IPasteable<T>
+    {
+        /// <summary>
+        /// 解析剪贴板文本并转换为数据列表
+        /// </summary>
+        /// <param name="clipboardText">剪贴板文本</param>
+        /// <returns>解析出的数据列表</returns>
+        List<T> ParseClipboardText(string clipboardText);
+    
+        /// <summary>
+        /// 验证粘贴的数据是否有效
+        /// </summary>
+        /// <param name="data">要验证的数据</param>
+        /// <returns>是否有效</returns>
+        bool ValidatePastedData(T data);
+    
+        /// <summary>
+        /// 获取粘贴按钮的提示文本
+        /// </summary>
+        string GetPasteTooltip();
+    }
+
+    /// <summary>
+    /// 默认的粘贴实现基类
+    /// </summary>
+    /// <typeparam name="T">数据类型</typeparam>
+    public abstract class DefaultPasteable<T> : IPasteable<T>
+    {
+        public abstract List<T> ParseClipboardText(string clipboardText);
+    
+        public virtual bool ValidatePastedData(T data)
+        {
+            return data != null;
+        }
+    
+        public virtual string GetPasteTooltip()
+        {
+            return "从剪贴板粘贴数据";
+        }
+    }
+
+    
+    /// <summary>
+    /// 路径过滤器接口
+    /// </summary>
+    public interface IPathFilter
+    {
+        bool Valid { get; set; }
+        string Path { get; set; }
+        string Filter { get; set; }
+    }
+
+    public interface IObjectFilter<T>
+    {
+        bool Valid { get; set; }
+        T data { get; set; }
+    }
+    
 }
