@@ -11,7 +11,7 @@ namespace AUnityLocal.Editor
 {
     public  static class Tools
     {
-        
+        public static StringBuilder sb= new StringBuilder();
         public static string SelectFolder()
         {
             string dataPath = Application.dataPath;
@@ -57,8 +57,58 @@ namespace AUnityLocal.Editor
             }
 
             return string.Join("/", path);
-        }        
+        }
+
+        public static List<string> GetAllChildrenPaths(string assetPath, bool includeSelf = false)
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            var ls= GetAllChildrenPaths(prefab, includeSelf);
+            return ls;
+        }
         
+        
+        /// <summary>
+        /// 获取物体所有子节点的相对路径
+        /// </summary>
+        /// <param name="parent">父物体</param>
+        /// <param name="includeSelf">是否包含自身</param>
+        /// <returns>所有子节点的相对路径列表</returns>
+        public static List<string> GetAllChildrenPaths(GameObject parent, bool includeSelf = false)
+        {
+            List<string> paths = new List<string>();
+        
+            if (includeSelf)
+            {
+                paths.Add(parent.name);
+            }
+        
+            GetChildrenPathsRecursive(parent.transform, "", paths);
+            return paths;
+        }
+    
+        /// <summary>
+        /// 递归获取子节点路径
+        /// </summary>
+        /// <param name="parent">父Transform</param>
+        /// <param name="currentPath">当前路径</param>
+        /// <param name="paths">路径列表</param>
+        private static void GetChildrenPathsRecursive(Transform parent, string currentPath, List<string> paths)
+        {
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                Transform child = parent.GetChild(i);
+                string childPath = string.IsNullOrEmpty(currentPath) ? child.name : currentPath + "/" + child.name;
+            
+                // 添加当前子节点路径
+                paths.Add(childPath);
+            
+                // 递归处理子节点的子节点
+                if (child.childCount > 0)
+                {
+                    GetChildrenPathsRecursive(child, childPath, paths);
+                }
+            }
+        }
         public static T FindAndGetComponent<T>(string name,bool enable = true) where T : Behaviour
         {
             var go = GameObject.Find(name);
@@ -180,5 +230,14 @@ namespace AUnityLocal.Editor
         //         Debug.Log($"根物体 [{rootObj.name}] 总共包含子物体数量: {totalCount}");
         //     }
         // }
+        
+        public static bool IsModelAsset(string assetPath)
+        {
+            return assetPath.EndsWith(".fbx") || 
+                   assetPath.EndsWith(".obj") || 
+                   assetPath.EndsWith(".dae") || 
+                   assetPath.EndsWith(".3ds") ||
+                   assetPath.EndsWith(".blend");
+        }        
     }
 }
