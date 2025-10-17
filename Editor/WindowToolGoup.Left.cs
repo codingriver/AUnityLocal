@@ -21,7 +21,7 @@ namespace AUnityLocal.Editor
     /// <summary>
     /// 模板
     /// </summary>
-    [WindowToolGroup(order: 100)]
+    [WindowToolGroup(500,WindowArea.Left)]
     public class WindowToolGroupT : WindowToolGroup
     {
         public override string title { get; } = "";
@@ -39,6 +39,7 @@ namespace AUnityLocal.Editor
     {
         public abstract string title { get; }
         public virtual string tip { get; }=string.Empty;
+        public virtual bool Show { get; }=true;
         
         public static GUIStyle titleStyle;
         public static GUIStyle sectionHeaderStyle;
@@ -47,9 +48,14 @@ namespace AUnityLocal.Editor
         public static GUIStyle fieldStyle;
         
         private Vector2 scrollPosition;        
-        public const int buttonWidthMin = 120;
-        public const int buttonWidthMid = 180;
-        public const int buttonWidthMax = 240;
+        public const int widthMin = 80;
+        public const int widthMid = 120;
+        public const int widthMax = 160;
+        public const int heightMin = 20;
+        public const int heightMid = 25;
+        public const int heightMax = 32;
+        
+        
         public abstract void OnGUI();
         public  bool DrawButton(string text, string tooltip, Color? color = null, params GUILayoutOption[] options)
         {
@@ -117,9 +123,9 @@ namespace AUnityLocal.Editor
             {
                 fontSize = 12,
                 fontStyle = FontStyle.Bold,
-                fixedHeight = 35,
+                fixedHeight = heightMid,
                 margin = new RectOffset(5, 5, 3, 3),
-                padding = new RectOffset(10, 10, 8, 8)
+                padding = new RectOffset(2, 5, 2, 5)
             };
 
             // 盒子样式
@@ -192,30 +198,30 @@ namespace AUnityLocal.Editor
     /// <summary>
     /// 其他工具
     /// </summary>
-    [WindowToolGroup(order: 200, area: WindowArea.RightBottom)]
+    [WindowToolGroup( 500)]
     public class WindowToolGroupTestOther : WindowToolGroup
     {
-        public override string title { get; } = "WindowToolGroupTest2";
-        public override string tip { get; } = "This is a test tool group 2.";
+        public override string title { get; } = "WindowToolGroupTestOther";
+        public override string tip { get; } = "";
         
         public override void OnGUI()
         {
-            if (DrawButton("Click Me", buttonWidthMin,Color.cyan))
+            if (DrawButton("Click Me", widthMin,Color.cyan))
             {
                 Debug.Log("Button Clicked!");
             }
-            if (DrawButton("Click Me", buttonWidthMid,Color.cyan))
+            if (DrawButton("Click Me", widthMid,Color.cyan))
             {
                 Debug.Log("Button Clicked!");
             }            
         }
     }
     
-    [WindowToolGroup(order: 200, area: WindowArea.RightBottom)]
+    [WindowToolGroup( 500)]
     public class WindowToolGroupAnimator : WindowToolGroup
     {
-        public override string title { get; } = "WindowToolGroupTest2";
-        public override string tip { get; } = "This is a test tool group 2.";
+        public override string title { get; } = "动画处理";
+        public override string tip { get; } = "";
         private string animArg1 = "state";
         private string animArg2 = "2";
         private Transform animRoot = null;
@@ -227,12 +233,12 @@ namespace AUnityLocal.Editor
                 animRoot, typeof(Transform), true, GUILayout.Height(20));
 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("动画参数1:", GUILayout.Width(80));
+            EditorGUILayout.LabelField("动画参数1:", GUILayout.Width(widthMin));
             animArg1 = EditorGUILayout.TextField(animArg1, fieldStyle);
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("动画参数2:", GUILayout.Width(80));
+            EditorGUILayout.LabelField("动画参数2:", GUILayout.Width(widthMin));
             animArg2 = EditorGUILayout.TextField(animArg2, fieldStyle);
             EditorGUILayout.EndHorizontal();
 
@@ -276,7 +282,7 @@ namespace AUnityLocal.Editor
         }        
     }
   
-    [WindowToolGroup(order: 200, area: WindowArea.RightBottom)]
+    [WindowToolGroup( 500)]
     public class WindowToolGroupGameObject : WindowToolGroup
     {
         public override string title { get; } = "物体操作";
@@ -300,12 +306,12 @@ namespace AUnityLocal.Editor
                     scaleValue = EditorGUILayout.FloatField("子物体缩放值:", scaleValue);
 
                     EditorGUILayout.BeginHorizontal();
-                if (DrawButton("设置物体名字", "根据TroopsSkinCarEvent设置物体名字", Color.yellow, GUILayout.Width(180)))
+                if (DrawButton("设置物体名字", "根据TroopsSkinCarEvent设置物体名字", Color.yellow, GUILayout.Width(widthMax)))
                 {
                     SetObjectNames();
                 }
 
-                if (DrawButton("显示子节点数量", "显示根节点的子节点数量", Color.green, GUILayout.Width(180)))
+                if (DrawButton("显示子节点数量", "显示根节点的子节点数量", Color.green, GUILayout.Width(widthMax)))
                 {
                     ShowChildCount();
                 }
@@ -313,42 +319,49 @@ namespace AUnityLocal.Editor
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.BeginHorizontal();
-                if (DrawButton("显示选中节点数量", "显示当前选中的节点数量", Color.magenta, GUILayout.Width(180)))
+                if (DrawButton("显示选中节点数量", "显示当前选中的节点数量", Color.magenta, GUILayout.Width(widthMax)))
                 {
                     ShowSelectedCount();
                 }
 
-                if (DrawButton("打印Path相对根节点", "打印选中节点相对于根节点的路径", Color.white, GUILayout.Width(180)))
+                if (DrawButton("打印Path相对根节点", "打印选中节点相对于根节点的路径", Color.white, GUILayout.Width(widthMax)))
                 {
                     Tools.PrintRelativePaths(Selection.transforms, objRoot);
                 }
 
                 EditorGUILayout.EndHorizontal();
 
-                if (DrawButton("打印子节点下所有节点数量", "统计子节点数量", Color.white, GUILayout.Width(180)))
+                if (DrawButton("打印子节点下所有节点数量", "统计子节点数量", Color.white, GUILayout.Width(widthMax)))
                 {
                     Tools.PrintChildCount(objRoot, true);
                 }
 
-                if (DrawButton("设置子物体坐标摆放", "按照偏移量设置子物体位置", Color.white, GUILayout.Width(180)))
+                if (DrawButton("设置子物体坐标摆放", "按照偏移量设置子物体位置", Color.white, GUILayout.Width(widthMax)))
                 {
                     SetChildObjectPositions();
                 }
 
-                if (DrawButton("打印组件参数", "打印组件的详细参数", Color.white, GUILayout.Width(180)))
+                if (DrawButton("打印组件参数", "打印组件的详细参数", Color.white, GUILayout.Width(widthMax)))
                 {
                     PrintComponentParameters();
                 }
 
-                if (DrawButton("设置所有子物体缩放", "统一设置子物体的缩放值", Color.white, GUILayout.Width(180)))
+                if (DrawButton("设置所有子物体缩放", "统一设置子物体的缩放值", Color.white, GUILayout.Width(widthMax)))
                 {
                     SetAllChildScale();
                 }
 
-                if (DrawButton("设置SkinCar参数", "设置皮肤车辆相关参数", Color.white, GUILayout.Width(180)))
+                if (DrawButton("设置SkinCar参数", "设置皮肤车辆相关参数", Color.white, GUILayout.Width(widthMax)))
                 {
                     SetSkinCarParameters();
                 }
+                
+                copyCount = EditorGUILayout.IntField(new GUIContent("复制数量:", "设置复制物体的数量"), copyCount);
+                copyOffset = EditorGUILayout.Vector3Field("复制偏移:", copyOffset);                
+                if (DrawButton("复制物体", "根据设置复制选中的物体", Color.green))
+                {
+                    CopyObjects();
+                }                
         }
         
         private void SetObjectNames()
@@ -479,30 +492,10 @@ namespace AUnityLocal.Editor
 
             Debug.Log($"已设置 {skinCarComponents.Length} 个SkinCar组件的参数");
         }
-
-    }
-    
-    [WindowToolGroup(order: 100)]
-    public class WindowToolGroupCopy : WindowToolGroup
-    {
+        
         private int copyCount = 20;
         private Vector3 copyOffset = new Vector3(1, 0, 0);
         private ReorderableList<GameObject> _gameObjectFilterList = null;
-        public override string title { get; } = "复制功能";
-        public override string tip { get; } = "";
-        public override void OnGUI()
-        {
-            copyCount = EditorGUILayout.IntField(new GUIContent("复制数量:", "设置复制物体的数量"), copyCount);
-            copyOffset = EditorGUILayout.Vector3Field("复制偏移:", copyOffset);
-
-            _gameObjectFilterList?.DoLayoutList();
-            GUILayout.Space(5);
-            if (DrawButton("复制物体", "根据设置复制选中的物体", Color.green))
-            {
-                CopyObjects();
-            }
-        }
-        
         private void CopyObjects()
         {
             if (Selection.transforms.Length == 0)
@@ -523,11 +516,12 @@ namespace AUnityLocal.Editor
             }
 
             Debug.Log($"已复制 {Selection.transforms.Length} 个物体，每个复制 {copyCount} 次");
-        }
-        
+        }        
+
     }
     
-    [WindowToolGroup(order: 100)]
+    
+    [WindowToolGroup( 500)]
     public class WindowToolGroupRenderer : WindowToolGroup
     {
         public override string title { get; } = "渲染顺序";
@@ -554,17 +548,17 @@ namespace AUnityLocal.Editor
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.BeginHorizontal();
-                if (DrawButton("设置Order", "设置粒子系统的渲染顺序", Color.blue, GUILayout.Width(120)))
+                if (DrawButton("设置Order", "设置粒子系统的渲染顺序", Color.blue, GUILayout.Width(widthMid)))
                 {
                     SetSortingOrder();
                 }
 
-                if (DrawButton("设置Order偏移", "在当前Order基础上添加基数", Color.cyan, GUILayout.Width(120)))
+                if (DrawButton("设置Order偏移", "在当前Order基础上添加基数", Color.cyan, GUILayout.Width(widthMid)))
                 {
                     AddSortingOrderBase();
                 }
 
-                if (DrawButton("打印SortingOrder", "打印所有渲染器的Order信息", Color.yellow, GUILayout.Width(120)))
+                if (DrawButton("打印SortingOrder", "打印所有渲染器的Order信息", Color.yellow, GUILayout.Width(widthMid)))
                 {
                     PrintSortingOrder();
                 }
@@ -572,12 +566,12 @@ namespace AUnityLocal.Editor
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.BeginHorizontal();
-                if (DrawButton("隐藏SkinnedMeshRenderer", "隐藏所有蒙皮网格渲染器", Color.red, GUILayout.Width(180)))
+                if (DrawButton("隐藏SkinnedMeshRenderer", "隐藏所有蒙皮网格渲染器", Color.red, GUILayout.Width(widthMax)))
                 {
                     ToggleSkinnedMeshRenderer(false);
                 }
 
-                if (DrawButton("显示SkinnedMeshRenderer", "显示所有蒙皮网格渲染器", Color.green, GUILayout.Width(180)))
+                if (DrawButton("显示SkinnedMeshRenderer", "显示所有蒙皮网格渲染器", Color.green, GUILayout.Width(widthMax)))
                 {
                     ToggleSkinnedMeshRenderer(true);
                 }
@@ -664,14 +658,14 @@ namespace AUnityLocal.Editor
                 var renderer = ps.GetComponent<ParticleSystemRenderer>();
                 if (renderer != null)
                 {
-                    Debug.Log($"粒子系统 {ps.gameObject.name} 的SortingOrder: {renderer.sortingOrder}");
+                    Debug.Log($"粒子系统 {ps.gameObject.name} 的Sorting {renderer.sortingOrder}");
                 }
             }
 
             var spriteRenderers = renderRoot.GetComponentsInChildren<SpriteRenderer>(renderIncludeInactive);
             foreach (var sr in spriteRenderers)
             {
-                Debug.Log($"精灵渲染器 {sr.gameObject.name} 的SortingOrder: {sr.sortingOrder}");
+                Debug.Log($"精灵渲染器 {sr.gameObject.name} 的Sorting {sr.sortingOrder}");
             }
         }
 
@@ -731,7 +725,7 @@ namespace AUnityLocal.Editor
         }        
         
     }    
-    [WindowToolGroup(order: 100)]
+    [WindowToolGroup( 500)]
     public class WindowToolGroupOpti : WindowToolGroup
     {
         public override string title { get; } = "性能分析";
@@ -775,7 +769,7 @@ namespace AUnityLocal.Editor
         
     }
     
-    [WindowToolGroup(order: 100)]
+    [WindowToolGroup( 500)]
     public class WindowToolGroupFBX : WindowToolGroup
     {
         public override string title { get; } = "🔧 模型处理";
@@ -792,12 +786,12 @@ namespace AUnityLocal.Editor
             ProcessFBXOnlyLog = EditorGUILayout.Toggle("只打印模型数据", ProcessFBXOnlyLog);
 
             EditorGUILayout.BeginHorizontal();
-            if (DrawButton("查询引用模型", "查询模型引用情况", Color.blue, GUILayout.Width(150)))
+            if (DrawButton("查询引用模型", "查询模型引用情况", Color.blue, GUILayout.Width(widthMid)))
             {
                 Tools.ProcessFBX(true, modelRoot.gameObject, ProcessFBXOnlyLog);
             }
 
-            if (DrawButton("修复模型", "修复模型相关问题", Color.green, GUILayout.Width(150)))
+            if (DrawButton("修复模型", "修复模型相关问题", Color.green, GUILayout.Width(widthMid)))
             {
                 Tools.ProcessFBX(false, modelRoot.gameObject, ProcessFBXOnlyLog);
             }
@@ -806,7 +800,7 @@ namespace AUnityLocal.Editor
         }
         
     }
-    [WindowToolGroup(order: 100)]
+    [WindowToolGroup( 500)]
     public class WindowToolGroupPrefab : WindowToolGroup
     {
         public override string title { get; } = "Prefab操作";
@@ -818,7 +812,7 @@ namespace AUnityLocal.Editor
             ProcessPrefabOnlyLog = EditorGUILayout.Toggle("只打印Prefab数据", ProcessPrefabOnlyLog);
 
             EditorGUILayout.BeginHorizontal();
-            if (DrawButton("查询Prefab依赖的Prefab", "查询Prefab依赖的Prefab", Color.blue, GUILayout.Width(150)))
+            if (DrawButton("查询Prefab依赖的Prefab", "查询Prefab依赖的Prefab", Color.blue))
             {
                 Tools.ProcessPrefab();
             }
@@ -832,7 +826,7 @@ namespace AUnityLocal.Editor
         }
         
     }
-    // [WindowToolGroup(order: 100)]
+    // [WindowToolGroup( 500)]
     // public class WindowToolGroupT : WindowToolGroup
     // {
     //     public override string title { get; } = "";
@@ -843,7 +837,7 @@ namespace AUnityLocal.Editor
     //     }
     //     
     // }
-    // [WindowToolGroup(order: 100)]
+    // [WindowToolGroup( 500)]
     // public class WindowToolGroupT : WindowToolGroup
     // {
     //     public override string title { get; } = "";

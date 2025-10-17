@@ -1074,6 +1074,75 @@ namespace AUnityLocal.Editor
     }
         
 
-        #endregion        
+        #endregion
+
+        public static Object[] GetSelection(Object root=null,Action<Object> action=null)
+        {
+            if (root != null)
+            {
+                action?.Invoke(root);
+                return new Object[] { root };
+            }
+            var arr= Selection.objects;
+            var arr1= arr.Select(b=>b as Object).ToArray();
+            foreach (var a in arr1)
+            {
+                action?.Invoke(a);
+            }
+            return arr1;
+        }
+        public static Object[] GetSelection(Object[] array=null,Action<Object> action=null) 
+        {
+            if (array != null&&array.Length>0)
+            {
+                var data = array.Where(a => a != null).ToArray();
+                foreach (var a in data)
+                {
+                    action?.Invoke(a);
+                }                  
+                return data;
+            }
+            var arr= Selection.objects;
+            var arr1= arr.Where((a)=>a !=null).ToArray();
+            foreach (var a in arr1)
+            {
+                action?.Invoke(a);
+            }            
+            return arr1;
+        }      
+        public static T[] GetSelection<T>(T root=null,Action<T> action=null) where T : Object
+        {
+            if (root != null)
+            {
+                action?.Invoke(root);
+                return new T[] { root };
+            }
+            var arr= Selection.objects;
+            var arr1= arr.Where((a)=>a is T&&a!=null).Select(b=>b as T).ToArray();
+            foreach (var a in arr1)
+            {
+                action?.Invoke(a);
+            }
+            return arr1;
+        }
+        public static T[] GetSelection<T>(T[] array=null,Action<T> action=null) where T : Object
+        {
+            if (array != null&&array.Length>0)
+            {
+                var data = array.Where(a => a != null).ToArray();
+                foreach (var a in data)
+                {
+                    action?.Invoke(a);
+                }                  
+                return data;
+            }
+            var arr= Selection.objects;
+            var arr1= arr.Where((a)=>a is T&&a!=null).Select(b=>b as T).ToArray();
+            foreach (var a in arr1)
+            {
+                action?.Invoke(a);
+            }            
+            return arr1;
+        }        
     }
 }

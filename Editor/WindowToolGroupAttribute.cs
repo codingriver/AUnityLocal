@@ -20,9 +20,10 @@ namespace AUnityLocal.Editor
     
     public enum WindowArea
     {
-        Left = 0,    // 左侧区域A
-        RightTop = 1,    // 右上区域B  
-        RightBottom = 2  // 右下区域C
+        Left = 0,    // 左侧区域
+        LeftMid = 1,    // 左侧区域
+        RightMid = 2,   // 右侧区域
+        Right = 3    // 右侧区域
     }
     
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
@@ -31,7 +32,7 @@ namespace AUnityLocal.Editor
         public WindowArea Area { get; set; } = WindowArea.Left;
         public int Order { get; set; } = 0;
     
-        public WindowToolGroupAttribute(WindowArea area = WindowArea.Left, int order = 0)
+        public WindowToolGroupAttribute(int order = 500,WindowArea area = WindowArea.Left)
         {
             Area = area;
             Order = order;
