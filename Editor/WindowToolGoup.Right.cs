@@ -22,29 +22,29 @@ namespace AUnityLocal.Editor
     /// <summary>
     /// 模板
     /// </summary>
-    [WindowToolGroup(500,WindowArea.RightMid)]
-    public class WindowToolGroupM : WindowToolGroup
-    {
-        public override string title { get; } = "";
-        public override string tip { get; } = "";
-        
-        public override void OnGUI()
-        {
-
-        }
-        
-    }
+    // [WindowToolGroup(500,WindowArea.RightMid)]
+    // public class WindowToolGroupM : WindowToolGroup
+    // {
+    //     public override string title { get; } = "";
+    //     public override string tip { get; } = "";
+    //     
+    //     public override void OnGUI()
+    //     {
+    //
+    //     }
+    //     
+    // }
     public abstract class WindowToolGroupReorderableList<TData> : WindowToolGroup
     {
         public override string title { get; } = "搜索结果";
         public override string tip { get; } = "";
         ReorderableList<TData> _ReorderableList;
         static List<TData> dataList = new List<TData>();
-        public  List<TData> GetData()
+        public  static List<TData> GetData()
         {
             return dataList;
         }
-        public void SetData(List<TData> _dataList)
+        public static  void SetData(List<TData> _dataList)
         {
             dataList.Clear();
             dataList.AddRange(_dataList);
@@ -63,7 +63,7 @@ namespace AUnityLocal.Editor
             // GameObject过滤器
             if(_ReorderableList==null)
             {
-                _ReorderableList = new ReorderableList<TData>(dataList, "搜索结果");
+                _ReorderableList = new ReorderableList<TData>(dataList, "搜索结果",600);
             }
             _ReorderableList.DoLayoutList();
         }

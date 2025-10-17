@@ -141,6 +141,81 @@ namespace AUnityLocal.Editor
                 fontSize = 11,
                 fixedHeight = 20
             };
+            InitializeStyles2();
+        }     
+        // private GUIStyle sectionHeaderStyle;
+        public static GUIStyle searchButtonStyle;
+        public static GUIStyle searchButtonStyle1;
+        public static GUIStyle resultCountStyle;
+        public static GUIStyle separatorStyle;
+        // 按钮动画计时器
+        public static float buttonPulseTimer = 0f;
+        public static float buttonPulseDuration = 0.15f;
+        public static int originalButtonFontSize = 11;
+
+        // 状态颜色过渡
+        public static float statusColorTransitionTimer = 0f;
+        public static float statusColorTransitionDuration = 0.3f;
+        public static Color statusStartColor = Color.green * 0.5f;
+        public static Color statusTargetColor = Color.green;
+        public  static GUIStyle tabButtonStyle;
+        public  static GUIStyle activeTabButtonStyle;
+        private static void InitializeStyles2()
+        {
+            // // 主标题样式
+            // sectionHeaderStyle = new GUIStyle(EditorStyles.boldLabel)
+            // {
+            //     fontSize = 14,
+            //     margin = new RectOffset(0, 0, 10, 5),
+            //     padding = new RectOffset(8, 8, 5, 5),
+            //     normal = { textColor = new Color(0.8f, 0.9f, 1.0f) } // 浅蓝色文本
+            // };
+
+            // 按钮样式
+            searchButtonStyle = new GUIStyle(EditorStyles.miniButton)
+            {
+                fontSize = originalButtonFontSize,
+                fontStyle = FontStyle.Bold,
+                fixedHeight = 28,
+            };
+            searchButtonStyle1 = new GUIStyle(EditorStyles.miniButton)
+            {
+                fontSize = originalButtonFontSize,
+                fontStyle = FontStyle.Bold,
+                fixedHeight = 18,
+            };
+
+            // 标签页按钮样式
+            tabButtonStyle = new GUIStyle(EditorStyles.toolbarButton)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                fixedHeight = 25,
+                margin = new RectOffset(2, 2, 0, 0)
+            };
+
+            // 激活标签页按钮样式
+            activeTabButtonStyle = new GUIStyle(tabButtonStyle)
+            {
+                normal = { textColor = Color.white },
+                onNormal = { textColor = Color.white },
+                fontStyle = FontStyle.Bold,
+                // backgroundColor = new Color(0.2f, 0.4f, 0.6f)
+            };
+
+            // 结果计数样式
+            resultCountStyle = new GUIStyle(EditorStyles.miniBoldLabel)
+            {
+                fontSize = 12,
+                normal = { textColor = new Color(0.7f, 0.9f, 1.0f) } // 亮蓝色文本
+            };
+
+            // 分隔线样式
+            separatorStyle = new GUIStyle
+            {
+                margin = new RectOffset(0, 0, 1, 8)
+            };
         }        
         
         // 按区域分组存储
