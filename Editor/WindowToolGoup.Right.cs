@@ -28,7 +28,7 @@ namespace AUnityLocal.Editor
     //     public override string title { get; } = "";
     //     public override string tip { get; } = "";
     //     
-    //     public override void OnGUI()
+    //     public override void OnGUI(Rect contentRect)
     //     {
     //
     //     }
@@ -36,7 +36,7 @@ namespace AUnityLocal.Editor
     // }
     public abstract class WindowToolGroupReorderableList<TData> : WindowToolGroup
     {
-        public override string title { get; } = "搜索结果";
+        public override string title { get; } = "";
         public override string tip { get; } = "";
         ReorderableList<TData> _ReorderableList;
         static List<TData> dataList = new List<TData>();
@@ -49,6 +49,10 @@ namespace AUnityLocal.Editor
             dataList.Clear();
             dataList.AddRange(_dataList);
         }
+        public static  void Clear()
+        {
+            dataList.Clear();
+        }        
 
         public override bool Show
         {
@@ -58,12 +62,15 @@ namespace AUnityLocal.Editor
             }
         } 
 
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
+            
             // GameObject过滤器
             if(_ReorderableList==null)
             {
-                _ReorderableList = new ReorderableList<TData>(dataList, "搜索结果",600);
+
+                // 进行你的布局逻辑
+                _ReorderableList = new ReorderableList<TData>(dataList, "搜索结果",contentRect.height-50);
             }
             _ReorderableList.DoLayoutList();
         }

@@ -38,7 +38,7 @@ namespace AUnityLocal.Editor
         /// </summary>
         public Func<object,List<T>> OnPaste;
 
-        public int height = 130;
+        public float height = 130;
         
         
         // 配置属性
@@ -51,7 +51,7 @@ namespace AUnityLocal.Editor
         // private EditorWindow _parentWindow;
         private Vector2 _scrollPosition;
         
-        public ReorderableList(List<T> dataList, string headerText = "List Items",int height=120,Action<Rect, int, T> _onDrawElement=null,Func<T> _onAddElement=null,Action<T> _onRemoveElement=null, Func<object,List<T>> _onPaste=null)
+        public ReorderableList(List<T> dataList, string headerText = "List Items",float height=120,Action<Rect, int, T> _onDrawElement=null,Func<T> _onAddElement=null,Action<T> _onRemoveElement=null, Func<object,List<T>> _onPaste=null)
         {
             _dataList = dataList;
             _headerText = headerText;
@@ -62,7 +62,7 @@ namespace AUnityLocal.Editor
             OnPaste = _onPaste;
             InitializeReorderableList();
         }
-        public ReorderableList(string headerText = "List Items",int height=130)
+        public ReorderableList(string headerText = "List Items",float height=130)
         {
             _dataList =  new List<T>();
             _headerText = headerText;
@@ -727,9 +727,35 @@ namespace AUnityLocal.Editor
                 }
                 else if (typeof(UnityEngine.Object).IsAssignableFrom(dataType))
                 {
+                    // 计算各个控件的rect
+                    float buttonWidth = 50f;
+                    float spacing = 5f;
                     // Unity对象引用
                     UnityEngine.Object obj = data as UnityEngine.Object;
-                    newData = (T)(object)EditorGUI.ObjectField(rect, _dataFieldLabel, obj, dataType, true);
+                    Rect objectFieldRect = new Rect(
+                        rect.x, 
+                        rect.y, 
+                        rect.width - buttonWidth - spacing, 
+                        rect.height
+                    );
+                    Rect buttonRect = new Rect(
+                        rect.x + rect.width - buttonWidth, 
+                        rect.y, 
+                        buttonWidth, 
+                        rect.height
+                    );
+                    
+                    newData = (T)(object)EditorGUI.ObjectField(objectFieldRect, _dataFieldLabel, obj, dataType, true);
+                    if (obj == null)
+                    {
+                        GUI.enabled = false;
+                    }
+                    if (GUI.Button(buttonRect, "Select"))
+                    {
+                        EditorGUIUtility.PingObject(obj);
+                        Selection.activeGameObject = obj as GameObject;
+                    }
+                    GUI.enabled = true;
                 }
                 else if (dataType.IsEnum)
                 {

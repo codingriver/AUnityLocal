@@ -49,7 +49,7 @@ namespace AUnityLocal.Editor
         private Transform parentTransform = null;
         private bool exactMatch = false;
         private bool includeInactive = true;        
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
             // 搜索参数
             searchName = EditorGUILayout.TextField("Search Name:", searchName);
@@ -238,7 +238,7 @@ namespace AUnityLocal.Editor
         private bool includeInactive = true;
         private bool checkTextEnabled = false; // 新增选项：是否检查Text组件启用状态
         
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
             // 搜索参数
             searchText = EditorGUILayout.TextField("Search Text:", searchText);
@@ -409,7 +409,7 @@ namespace AUnityLocal.Editor
         private string selectedComponentName = "";
         private Vector2 componentScrollPosition = Vector2.zero;
         
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
             // 第一步：搜索组件类型
             EditorGUILayout.LabelField("第一步：搜索组件类型", EditorStyles.boldLabel);
@@ -816,7 +816,7 @@ namespace AUnityLocal.Editor
             }
         }
         
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
             // 第一步：选择Layer层级
             EditorGUILayout.LabelField("第一步：选择Layer层级", EditorStyles.boldLabel);

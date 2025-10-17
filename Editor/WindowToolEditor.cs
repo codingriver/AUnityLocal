@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DG.DemiEditor;
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.UIElements;
@@ -266,7 +267,7 @@ namespace AUnityLocal.Editor
             // 左侧区域
             float leftWidth = availableWidth * leftWeight;
             Rect leftRect = new Rect(currentX, mainRect.y, leftWidth, mainRect.height);
-            DrawPanel(leftRect, title1, ref leftScrollPos, ()=>DrawContent( WindowArea.Left));
+            DrawPanel(leftRect, title1, ref leftScrollPos,WindowArea.Left);
             currentX += leftWidth;
 
             // 分割线1
@@ -277,7 +278,7 @@ namespace AUnityLocal.Editor
             // 中间左侧区域
             float centerLeftWidth = availableWidth * centerLeftWeight;
             Rect centerLeftRect = new Rect(currentX, mainRect.y, centerLeftWidth, mainRect.height);
-            DrawPanel(centerLeftRect, title2, ref centerLeftScrollPos,()=>DrawContent( WindowArea.LeftMid));
+            DrawPanel(centerLeftRect, title2, ref centerLeftScrollPos,WindowArea.LeftMid);
             currentX += centerLeftWidth;
 
             // 分割线2
@@ -288,7 +289,7 @@ namespace AUnityLocal.Editor
             // 中间右侧区域
             float centerRightWidth = availableWidth * centerRightWeight;
             Rect centerRightRect = new Rect(currentX, mainRect.y, centerRightWidth, mainRect.height);
-            DrawPanel(centerRightRect, title3, ref centerRightScrollPos, ()=>DrawContent( WindowArea.RightMid));
+            DrawPanel(centerRightRect, title3, ref centerRightScrollPos, WindowArea.RightMid);
             currentX += centerRightWidth;
 
             // 分割线3
@@ -299,10 +300,10 @@ namespace AUnityLocal.Editor
             // 右侧区域
             float rightWidth = availableWidth * rightWeight;
             Rect rightRect = new Rect(currentX, mainRect.y, rightWidth, mainRect.height);
-            DrawPanel(rightRect, title4, ref rightScrollPos, ()=>DrawContent( WindowArea.Right));
+            DrawPanel(rightRect, title4, ref rightScrollPos, WindowArea.Right);
         }
 
-        private void DrawPanel(Rect rect, string title, ref Vector2 scrollPos, System.Action drawContent)
+        private void DrawPanel(Rect rect, string title, ref Vector2 scrollPos, WindowArea area)
         {
             // 绘制面板背景
             EditorGUI.DrawRect(rect,
@@ -311,18 +312,30 @@ namespace AUnityLocal.Editor
             GUILayout.BeginArea(rect);
 
             // 面板标题
-            Rect titleRect = new Rect(0, 0, rect.width, 25);
-            EditorGUI.DrawRect(titleRect,
-                EditorGUIUtility.isProSkin ? new Color(0.3f, 0.3f, 0.3f) : new Color(0.7f, 0.7f, 0.7f));
-            GUI.Label(titleRect, title, EditorStyles.boldLabel);
-
+            GUILayout.BeginHorizontal(EditorStyles.toolbar,GUILayout.Height(25));
+            GUILayout.Label(title, EditorStyles.boldLabel);
+            
+            if (area == WindowArea.Right)
+            {
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button(new GUIContent("Clear", "Clear 数据"), EditorStyles.toolbarButton))
+                {  
+                    // Clear
+                    WindowToolGroupReorderableListObject.Clear();
+                    WindowToolGroupReorderableListString.Clear();
+                    WindowToolGroupReorderableListInt.Clear();
+                    WindowToolGroupReorderableListBool.Clear();
+                }                    
+            }
+        
+            GUILayout.EndHorizontal();
             // 面板内容区域
             Rect contentRect = new Rect(5, 30, rect.width - 10, rect.height - 35);
             GUILayout.BeginArea(contentRect);
 
             scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
-            drawContent?.Invoke();
-            EditorGUILayout.EndScrollView();
+            DrawContent(contentRect, area);
+            EditorGUILayout.EndScrollView();   
 
             GUILayout.EndArea();
             GUILayout.EndArea();
@@ -414,7 +427,7 @@ namespace AUnityLocal.Editor
             rightWeight = newRightWeight;
         }
 
-        private void DrawContent(WindowArea area)
+        private void DrawContent(Rect rect, WindowArea area)
         {
             if (areaGroups.TryGetValue(area, out var areaGroup))
             {
@@ -422,20 +435,22 @@ namespace AUnityLocal.Editor
                 {
                     if (group.Show)
                     {
-                        DrawSection(group.title, group.tip,group.OnGUI);    
+                        EditorGUILayout.BeginVertical(boxStyle);
+                        if (!string.IsNullOrEmpty(group.title))
+                        {
+                            EditorGUILayout.LabelField(group.title, sectionHeaderStyle);    
+                        }
+                        if (!string.IsNullOrEmpty(group.tip))
+                        {
+                            GUILayout.Space(5);
+                            GUILayout.Label(group.tip);
+                        }
+                        group.OnGUI(rect);
+                        EditorGUILayout.EndVertical();                        
                     }
                 }
                     
             }
-        }
-        private void DrawSection(string title, string tooltip, System.Action content)
-        {
-            EditorGUILayout.BeginVertical(boxStyle);
-            EditorGUILayout.LabelField(title, sectionHeaderStyle);
-            GUILayout.Space(5);
-            GUILayout.Label(tooltip);
-            content?.Invoke();
-            EditorGUILayout.EndVertical();
         }
 
         // 窗口关闭时的清理

@@ -27,7 +27,7 @@ namespace AUnityLocal.Editor
         public override string title { get; } = "";
         public override string tip { get; } = "";
         
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
 
         }
@@ -56,7 +56,7 @@ namespace AUnityLocal.Editor
         public const int heightMax = 32;
         
         
-        public abstract void OnGUI();
+        public abstract void OnGUI(Rect contentRect);
         public  bool DrawButton(string text, string tooltip, Color? color = null, params GUILayoutOption[] options)
         {
             var originalColor = GUI.backgroundColor;
@@ -279,7 +279,7 @@ namespace AUnityLocal.Editor
         public override string title { get; } = "WindowToolGroupTestOther";
         public override string tip { get; } = "";
         
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
             if (DrawButton("Click Me", widthMin,Color.cyan))
             {
@@ -302,7 +302,7 @@ namespace AUnityLocal.Editor
         private Transform animRoot = null;
         private bool animIncludeInactive = true;
         private bool animIncludeDisabled = true;
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
             animRoot = (Transform)EditorGUILayout.ObjectField(new GUIContent("动画根节点:", "指定动画操作的根节点"),
                 animRoot, typeof(Transform), true, GUILayout.Height(20));
@@ -368,7 +368,7 @@ namespace AUnityLocal.Editor
         private Vector3 objPositionOffset = new Vector3(1, 0, 0);
         private bool objIncludeInactive = true;
         float scaleValue = 1.0f;
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
                 objRoot = (Transform)EditorGUILayout.ObjectField(new GUIContent("物体根节点:", "指定物体操作的根节点"),
                     objRoot, typeof(Transform), true, GUILayout.Height(20));
@@ -607,7 +607,7 @@ namespace AUnityLocal.Editor
         private bool renderIncludeInactive = true;
         private bool renderIncludeDisabled = true;
         
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
                 renderRoot = (Transform)EditorGUILayout.ObjectField(new GUIContent("渲染根节点:", "指定渲染操作的根节点"),
                     renderRoot, typeof(Transform), true, GUILayout.Height(20));
@@ -805,7 +805,7 @@ namespace AUnityLocal.Editor
     {
         public override string title { get; } = "性能分析";
         public override string tip { get; } = "";
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
             if (DrawButton("开启分析状态", "开启性能分析模式", Color.red))
             {
@@ -853,7 +853,7 @@ namespace AUnityLocal.Editor
         private Transform modelRoot = null;
         private bool ProcessFBXOnlyLog = false;
         
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
             modelRoot = (Transform)EditorGUILayout.ObjectField(new GUIContent("模型根节点:", "指定模型处理的根节点"),
                 modelRoot, typeof(Transform), true, GUILayout.Height(20));
@@ -882,7 +882,7 @@ namespace AUnityLocal.Editor
         public override string tip { get; } = "";
         
         private bool ProcessPrefabOnlyLog = true;
-        public override void OnGUI()
+        public override void OnGUI(Rect contentRect)
         {
             ProcessPrefabOnlyLog = EditorGUILayout.Toggle("只打印Prefab数据", ProcessPrefabOnlyLog);
 
@@ -906,7 +906,7 @@ namespace AUnityLocal.Editor
     // {
     //     public override string title { get; } = "";
     //     public override string tip { get; } = "";
-    //     public override void OnGUI()
+    //     public override void OnGUI(Rect contentRect)
     //     {
     //
     //     }
@@ -917,7 +917,7 @@ namespace AUnityLocal.Editor
     // {
     //     public override string title { get; } = "";
     //     public override string tip { get; } = "";
-    //     public override void OnGUI()
+    //     public override void OnGUI(Rect contentRect)
     //     {
     //
     //     }
