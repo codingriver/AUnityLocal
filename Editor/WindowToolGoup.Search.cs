@@ -71,6 +71,55 @@ namespace AUnityLocal.Editor
                 PerformSearch2();
             }            
             GUILayout.EndHorizontal();
+            
+            // 组件操作按钮
+            if (shareObjectList.Count > 0)
+            {
+                EditorGUILayout.Space();
+    
+                GUILayout.BeginHorizontal();
+                if (DrawButton("设置active"))
+                {
+                    SetAllGameObject(true);
+                }
+                if (DrawButton("设置inactive"))
+                {
+                    SetAllGameObject(false);
+                }
+                GUILayout.EndHorizontal();
+            }                
+        }
+        
+        void SetAllGameObject(bool active)
+        {
+            if (shareObjectList.Count == 0)
+            {
+                Debug.LogWarning("没有搜索到任何物体");
+                return;
+            }
+
+            int modifiedCount = 0;
+    
+            foreach (var obj in shareObjectList)
+            {
+                GameObject go = obj as GameObject;
+                if (go == null) continue;
+        
+                if (go.activeSelf != active)
+                {
+                    go.SetActive(active);
+                    modifiedCount++;
+                }
+            }
+    
+            string action = active ? "启用" : "禁用";
+            Debug.Log($"{action}操作完成 - 共{action}了 {modifiedCount} 个物体");
+    
+            // 标记场景为已修改
+            if (modifiedCount > 0)
+            {
+                EditorUtility.SetDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects()[0]);
+            }
         }
         private void PerformSearch(bool clear=true)
         {
@@ -117,15 +166,21 @@ namespace AUnityLocal.Editor
         }
         private void SearchInScene()
         {
-            GameObject[] allObjects = includeInactive ? 
-                Resources.FindObjectsOfTypeAll<GameObject>() : 
-                GameObject.FindObjectsOfType<GameObject>();
+            // GameObject[] allObjects = includeInactive ? 
+            //     Resources.FindObjectsOfTypeAll<GameObject>() : 
+            //     GameObject.FindObjectsOfType<GameObject>();
+            GameObject[] allObjects = GameObject.FindObjectsOfType<GameObject>();
+
 
             foreach (GameObject obj in allObjects)
             {
                 // // 过滤掉预制体和资源文件中的对象
                 // if (EditorUtility.IsPersistent(obj))
                 //     continue;
+                if (includeInactive&&!obj.activeInHierarchy)
+                {
+                    continue;
+                }
 
                 if (IsNameMatch(obj.name))
                 {
@@ -257,16 +312,20 @@ namespace AUnityLocal.Editor
         
         private void SearchInScene()
         {
-            GameObject[] allObjects = includeInactive ? 
-                Resources.FindObjectsOfTypeAll<GameObject>() : 
-                GameObject.FindObjectsOfType<GameObject>();
-
+            // GameObject[] allObjects = includeInactive ? 
+            //     Resources.FindObjectsOfTypeAll<GameObject>() : 
+            //     GameObject.FindObjectsOfType<GameObject>();
+            GameObject[] allObjects = GameObject.FindObjectsOfType<GameObject>();
             foreach (GameObject obj in allObjects)
             {
                 // // 过滤掉预制体和资源文件中的对象
                 // if (EditorUtility.IsPersistent(obj))
                 //     continue;
-
+                if(!includeInactive&&!obj.activeInHierarchy)
+                {
+                    continue;
+                }
+                
                 if (HasMatchingTextComponent(obj))
                 {
                     shareObjectList.Add(obj);
@@ -457,7 +516,7 @@ namespace AUnityLocal.Editor
             GUILayout.BeginHorizontal();
             
             GUI.enabled = selectedComponentType != null;
-            if (DrawButton("搜索物体"))
+            if (DrawButton("搜索"))
             {
                 PerformComponentSearch();
             }
@@ -468,8 +527,76 @@ namespace AUnityLocal.Editor
             GUI.enabled = true;
             
             GUILayout.EndHorizontal();
+            // 组件操作按钮
+            if (shareObjectList.Count > 0)
+            {
+                EditorGUILayout.Space();
+    
+                GUILayout.BeginHorizontal();
+                if (DrawButton("启用所有组件"))
+                {
+                    SetAllComponentsEnabled(true);
+                }
+                if (DrawButton("禁用所有组件"))
+                {
+                    SetAllComponentsEnabled(false);
+                }
+                GUILayout.EndHorizontal();
+            }            
         }
         
+        private void SetAllComponentsEnabled(bool enabled)
+        {
+            if (shareObjectList.Count == 0)
+            {
+                Debug.LogWarning("没有搜索到任何物体");
+                return;
+            }
+
+            // 获取当前搜索的组件类型
+            Type currentSearchType = selectedComponentType;
+            if (currentSearchType == null)
+            {
+                Debug.LogWarning("当前不是组件搜索模式或未指定组件类型");
+                return;
+            }
+
+            int modifiedCount = 0;
+    
+            foreach (var obj in shareObjectList)
+            {
+                GameObject go = obj as GameObject;
+                if (go == null) continue;
+        
+                // 只获取当前搜索的组件类型
+                Component component = go.GetComponent(currentSearchType);
+                if (component == null) continue;
+        
+                // 检查组件是否有enabled属性
+                var enabledProperty = component.GetType().GetProperty("enabled");
+                if (enabledProperty != null && enabledProperty.CanWrite)
+                {
+                    try
+                    {
+                        enabledProperty.SetValue(component, enabled);
+                        modifiedCount++;
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogWarning($"无法设置 {go.name} 上的 {component.GetType().Name} 组件状态: {e.Message}");
+                    }
+                }
+            }
+    
+            string action = enabled ? "启用" : "禁用";
+            Debug.Log($"{action}操作完成 - 共{action}了 {modifiedCount} 个 {currentSearchType.Name} 组件");
+    
+            // 标记场景为已修改
+            if (modifiedCount > 0)
+            {
+                EditorUtility.SetDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects()[0]);
+            }
+        }
         private void SearchForComponents()
         {
             if (string.IsNullOrEmpty(componentNameSearch))
@@ -654,7 +781,7 @@ namespace AUnityLocal.Editor
     }
 
 
-    [WindowToolGroup(503, WindowArea.RightMid)]
+  [WindowToolGroup(503, WindowArea.RightMid)]
     public class WindowToolGroupSearchLayer : WindowToolGroupSearch
     {
         public override string title { get; } = "Layer搜索";
@@ -668,6 +795,7 @@ namespace AUnityLocal.Editor
         private List<LayerInfo> availableLayers = new List<LayerInfo>();
         private LayerMask selectedLayerMask = 0;
         private Vector2 layerScrollPosition = Vector2.zero;
+        private bool showLayerList = true; // 控制Layer列表显示/隐藏
         
         // 进度条相关
         private bool isSearching = false;
@@ -698,87 +826,111 @@ namespace AUnityLocal.Editor
             {
                 RefreshLayerList();
             }
-            if (DrawButton("全选"))
+            
+            // 隐藏/显示按钮
+            string hideButtonText = showLayerList ? "隐藏" : "显示";
+            if (DrawButton(hideButtonText))
             {
-                SelectAllLayers();
+                showLayerList = !showLayerList;
             }
-            if (DrawButton("全不选"))
-            {
-                DeselectAllLayers();
-            }
+            
             GUILayout.EndHorizontal();
             
-            // 显示Layer选择列表
-            if (availableLayers.Count > 0)
+            // 只有在显示状态下才显示全选/全不选按钮和Layer列表
+            if (showLayerList)
             {
-                EditorGUILayout.Space();
-                EditorGUILayout.LabelField($"可用的Layer层级 (已选择: {GetSelectedLayerCount()}):", EditorStyles.boldLabel);
-                
-                // 使用固定高度的区域，禁用水平滚动
-                Rect scrollRect = GUILayoutUtility.GetRect(0, 200, GUILayout.ExpandWidth(true));
-                
-                // 计算每行高度
-                float lineHeight = EditorGUIUtility.singleLineHeight + 2;
-                float totalHeight = availableLayers.Count * lineHeight;
-                
-                // 只有当内容超出显示区域时才显示垂直滚动条
-                if (totalHeight > scrollRect.height)
+                GUILayout.BeginHorizontal();
+                if (DrawButton("全选"))
                 {
-                    layerScrollPosition = GUI.BeginScrollView(
-                        scrollRect, 
-                        layerScrollPosition, 
-                        new Rect(0, 0, scrollRect.width - 20, totalHeight),
-                        false, // 禁用水平滚动条
-                        true   // 启用垂直滚动条
-                    );
+                    SelectAllLayers();
                 }
-                else
+                if (DrawButton("全不选"))
                 {
-                    GUI.BeginGroup(scrollRect);
-                    layerScrollPosition = Vector2.zero;
+                    DeselectAllLayers();
                 }
+                GUILayout.EndHorizontal();
                 
-                // 绘制Layer列表
-                for (int i = 0; i < availableLayers.Count; i++)
+                // 显示Layer选择列表
+                if (availableLayers.Count > 0)
                 {
-                    var layerInfo = availableLayers[i];
-                    Rect lineRect = new Rect(0, i * lineHeight, scrollRect.width - (totalHeight > scrollRect.height ? 20 : 0), lineHeight);
+                    EditorGUILayout.Space();
+                    EditorGUILayout.LabelField($"可用的Layer层级 (已选择: {GetSelectedLayerCount()}):", EditorStyles.boldLabel);
                     
-                    // 计算各部分的宽度
-                    float toggleWidth = 20;
-                    float indexWidth = 30;
-                    float spacing = 5;
-                    float nameWidth = lineRect.width - toggleWidth - indexWidth - spacing * 2;
+                    // 使用固定高度的区域，禁用水平滚动
+                    Rect scrollRect = GUILayoutUtility.GetRect(0, 200, GUILayout.ExpandWidth(true));
                     
-                    // 复选框
-                    Rect toggleRect = new Rect(lineRect.x, lineRect.y, toggleWidth, lineRect.height);
-                    bool newSelected = GUI.Toggle(toggleRect, layerInfo.isSelected, "");
+                    // 计算每行高度
+                    float lineHeight = EditorGUIUtility.singleLineHeight + 2;
+                    float totalHeight = availableLayers.Count * lineHeight;
                     
-                    // Layer索引
-                    Rect indexRect = new Rect(toggleRect.xMax + spacing, lineRect.y, indexWidth, lineRect.height);
-                    GUI.Label(indexRect, layerInfo.layerIndex.ToString(), EditorStyles.miniLabel);
-                    
-                    // Layer名称
-                    Rect nameRect = new Rect(indexRect.xMax + spacing, lineRect.y, nameWidth, lineRect.height);
-                    GUI.Label(nameRect, layerInfo.layerName);
-                    
-                    // 更新选择状态
-                    if (newSelected != layerInfo.isSelected)
+                    // 只有当内容超出显示区域时才显示垂直滚动条
+                    if (totalHeight > scrollRect.height)
                     {
-                        var updatedInfo = layerInfo;
-                        updatedInfo.isSelected = newSelected;
-                        availableLayers[i] = updatedInfo;
-                        UpdateLayerMask();
+                        layerScrollPosition = GUI.BeginScrollView(
+                            scrollRect, 
+                            layerScrollPosition, 
+                            new Rect(0, 0, scrollRect.width - 20, totalHeight),
+                            false, // 禁用水平滚动条
+                            true   // 启用垂直滚动条
+                        );
+                    }
+                    else
+                    {
+                        GUI.BeginGroup(scrollRect);
+                        layerScrollPosition = Vector2.zero;
+                    }
+                    
+                    // 绘制Layer列表
+                    for (int i = 0; i < availableLayers.Count; i++)
+                    {
+                        var layerInfo = availableLayers[i];
+                        Rect lineRect = new Rect(0, i * lineHeight, scrollRect.width - (totalHeight > scrollRect.height ? 20 : 0), lineHeight);
+                        
+                        // 计算各部分的宽度
+                        float toggleWidth = 20;
+                        float indexWidth = 30;
+                        float spacing = 5;
+                        float nameWidth = lineRect.width - toggleWidth - indexWidth - spacing * 2;
+                        
+                        // 复选框
+                        Rect toggleRect = new Rect(lineRect.x, lineRect.y, toggleWidth, lineRect.height);
+                        bool newSelected = GUI.Toggle(toggleRect, layerInfo.isSelected, "");
+                        
+                        // Layer索引
+                        Rect indexRect = new Rect(toggleRect.xMax + spacing, lineRect.y, indexWidth, lineRect.height);
+                        GUI.Label(indexRect, layerInfo.layerIndex.ToString(), EditorStyles.miniLabel);
+                        
+                        // Layer名称
+                        Rect nameRect = new Rect(indexRect.xMax + spacing, lineRect.y, nameWidth, lineRect.height);
+                        GUI.Label(nameRect, layerInfo.layerName);
+                        
+                        // 更新选择状态
+                        if (newSelected != layerInfo.isSelected)
+                        {
+                            var updatedInfo = layerInfo;
+                            updatedInfo.isSelected = newSelected;
+                            availableLayers[i] = updatedInfo;
+                            UpdateLayerMask();
+                        }
+                    }
+                    
+                    if (totalHeight > scrollRect.height)
+                    {
+                        GUI.EndScrollView();
+                    }
+                    else
+                    {
+                        GUI.EndGroup();
                     }
                 }
-                
-                if (totalHeight > scrollRect.height)
+            }
+            else
+            {
+                // 隐藏状态下显示简要信息
+                if (availableLayers.Count > 0)
                 {
-                    GUI.EndScrollView();
-                }
-                else
-                {
-                    GUI.EndGroup();
+                    EditorGUILayout.Space();
+                    EditorGUILayout.LabelField($"Layer列表已隐藏 (总数: {availableLayers.Count}, 已选择: {GetSelectedLayerCount()})");
                 }
             }
             
