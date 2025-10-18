@@ -17,8 +17,8 @@ namespace AUnityLocal.Editor
         string title = "WindowTool 工具窗口";
         string title1 = "左侧面板";
         string title2 = "中间左侧";
-        string title3 = "中间右侧 搜索";
-        string title4 = "右侧面板";        
+        string title3 = "搜索";
+        string title4 = "结果";        
         
         // 分割线拖拽状态
         private bool isDraggingSplitter1 = false;
@@ -28,7 +28,8 @@ namespace AUnityLocal.Editor
         // 状态信息
         
         private string statusInfo = "准备就绪";
-        private float statusProgress = 0.7f;
+        private float progress = 0.7f;
+        private string progressMsg = string.Empty;
         private bool showProgress = false;
 
         // 滚动视图位置
@@ -59,6 +60,7 @@ namespace AUnityLocal.Editor
         Dictionary<WindowArea, List<WindowToolGroup>>  areaGroups = new Dictionary<WindowArea, List<WindowToolGroup>>();
         private void OnEnable()
         {
+            WindowToolGroup.window = this;
             NormalizeWeights(); // 确保权重总和为1
             areaGroups = WindowToolGroup.InitializeGroups();
         }
@@ -167,7 +169,8 @@ namespace AUnityLocal.Editor
         {
             if (headerStyle == null) InitializeStyles();
             if (WindowToolGroup.titleStyle == null) WindowToolGroup.InitializeStyles();
-
+            WindowToolGroup.window = this;
+            
             DrawLayout();
         }
 
@@ -204,11 +207,12 @@ namespace AUnityLocal.Editor
 
         private Rect DrawStatusBar(Rect windowRect)
         {
-            int StatusBarHeight = 52;
-            if (!showProgress)
-            {
-                StatusBarHeight = 29;
-            }
+            // int StatusBarHeight = 52;
+            // if (!showProgress)
+            // {
+            //     StatusBarHeight = 29;
+            // }
+            int StatusBarHeight = 29;
             Rect statusRect = new Rect(0, windowRect.height - StatusBarHeight, windowRect.width, StatusBarHeight);
 
             // 绘制状态栏背景
@@ -222,13 +226,24 @@ namespace AUnityLocal.Editor
 
             
             GUI.BeginGroup(statusRect);
+            EditorGUI.DrawRect(new Rect(statusRect.width/2f-2, 0, 4, statusRect.height),
+                EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));            
             if (showProgress)
             {
-                var progressBarRect = new Rect(5, 6, statusRect.width-10, 20);
+                var progressBarRect = new Rect(statusRect.width/2f+2+5, 6, statusRect.width/2/2-10, 20);
                 EditorGUI.DrawRect(progressBarRect,Color.cyan);
-                EditorGUI.ProgressBar(progressBarRect, statusProgress, $"进度: {(statusProgress * 100):F1}%");    
+                EditorGUI.ProgressBar(progressBarRect, progress, $"进度: {(progress * 100):F1}% -- {progressMsg}");    
             }
             GUI.Label(new Rect(5, statusRect.height-20-3, statusRect.width-10, 20), statusInfo,EditorStyles.boldLabel);
+            
+            // float buttonWidth = 100f;
+            // float spacing = 5f;
+            // float buttonHeight = windowRect.height;
+            // if(GUI.Button(new Rect(windowRect.width-buttonWidth-1, 3, buttonWidth,buttonHeight ),"清理",EditorStyles.toolbarButton)) //EditorStyles.miniButtonRight
+            // {
+            //     WindowToolGroupReorderableListObject.ClearAll();
+            // }
+                
             GUI.EndGroup();
             // // 状态信息内容
             // GUILayout.BeginArea(new Rect(statusRect.x + 2, statusRect.y + 2,
@@ -459,5 +474,27 @@ namespace AUnityLocal.Editor
                 DestroyImmediate(splitterStyle.normal.background);
             }
         }
+
+        public void SetProgressBar(float progress,string progressInfo = "")
+        {
+            showProgress = true;
+            this.progress = progress;
+            progressMsg = progressInfo;
+            Repaint();
+        }
+
+        public void SetStatusInfo(string info)
+        {
+            statusInfo = info;
+            Repaint();
+        }
+
+        public void SetProgressBarShow(bool showProgressBar)
+        {
+            return;
+            showProgress = showProgressBar;
+            Repaint();
+        }
+
     }
 }

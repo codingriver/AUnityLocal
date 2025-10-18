@@ -34,83 +34,14 @@ namespace AUnityLocal.Editor
             return null;
         }
         
-        /// <summary>
-        /// 获取Hierarchy中物体的相对路径
-        /// </summary>
-        /// <param name="child"></param>
-        /// <param name="parent"></param>
-        /// <returns></returns>
-        public static string GetRelativePath(Transform child, Transform parent=null)
-        {
-            if (child == null) return "";
 
-            List<string> path = new List<string>();
-            Transform current = child;
-
-            while (current != null && current != parent)
-            {
-                path.Insert(0, current.name);
-                current = current.parent;
-            }
-
-            if (parent != null && current != parent)
-            {
-                return "不是子节点";
-            }
-
-            return string.Join("/", path);
-        }
-
-        public static List<string> GetAllChildrenPaths(string assetPath, bool includeSelf = false)
+        public static List<string> GetAllChildrenFullName(string assetPath, bool includeSelf = false)
         {
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-            var ls= GetAllChildrenPaths(prefab, includeSelf);
+            var ls= prefab.transform.GetAllChildrenFullName(includeSelf);
             return ls;
         }
         
-        
-        /// <summary>
-        /// 获取物体所有子节点的相对路径
-        /// </summary>
-        /// <param name="parent">父物体</param>
-        /// <param name="includeSelf">是否包含自身</param>
-        /// <returns>所有子节点的相对路径列表</returns>
-        public static List<string> GetAllChildrenPaths(GameObject parent, bool includeSelf = false)
-        {
-            List<string> paths = new List<string>();
-        
-            if (includeSelf)
-            {
-                paths.Add(parent.name);
-            }
-        
-            GetChildrenPathsRecursive(parent.transform, "", paths);
-            return paths;
-        }
-    
-        /// <summary>
-        /// 递归获取子节点路径
-        /// </summary>
-        /// <param name="parent">父Transform</param>
-        /// <param name="currentPath">当前路径</param>
-        /// <param name="paths">路径列表</param>
-        private static void GetChildrenPathsRecursive(Transform parent, string currentPath, List<string> paths)
-        {
-            for (int i = 0; i < parent.childCount; i++)
-            {
-                Transform child = parent.GetChild(i);
-                string childPath = string.IsNullOrEmpty(currentPath) ? child.name : currentPath + "/" + child.name;
-            
-                // 添加当前子节点路径
-                paths.Add(childPath);
-            
-                // 递归处理子节点的子节点
-                if (child.childCount > 0)
-                {
-                    GetChildrenPathsRecursive(child, childPath, paths);
-                }
-            }
-        }
         public static T FindAndGetComponent<T>(string name,bool enable = true) where T : Behaviour
         {
             var go = GameObject.Find(name);
@@ -125,7 +56,7 @@ namespace AUnityLocal.Editor
             }
             return null;
         }
-        public static void SetGameObject(string name,bool active = true)
+        public static void FindAndSetGameObject(string name,bool active = true)
         {
             var go = GameObject.Find(name);
             if (go != null)
@@ -159,13 +90,13 @@ namespace AUnityLocal.Editor
             {
                 if (root != null && com.transform.IsChildOf(root))
                 {
-                    string relativePath = Tools.GetRelativePath(com.transform, root);
+                    string relativePath = com.transform.FullName(root);
                     sb.AppendLine(relativePath);
                     Debug.Log($"选中节点 {com.name} 相对于根节点 {root.name} 的路径: {relativePath}");
                 }
                 else
                 {
-                    string relativePath = Tools.GetRelativePath(com.transform, null);
+                    string relativePath = com.transform.FullName();
                     sb.AppendLine(relativePath);
                     if (root != null)
                         Debug.LogWarning($"选中节点 {com.name} 不是根节点 {root.name} 的子节点");
@@ -278,7 +209,7 @@ namespace AUnityLocal.Editor
                     if (importer != null)
                     {
                         sb.AppendLine(assetPath);
-                        var ls= Tools.GetAllChildrenPaths(assetPath);
+                        var ls= Tools.GetAllChildrenFullName(assetPath);
                         sb.AppendLine(ls.ToStr(null,spacing:"\n"));
                     }
                 }
@@ -361,8 +292,8 @@ namespace AUnityLocal.Editor
                 // 检查是否包含ROOT或以TAG_开头
                 if (nodeName.Contains("ROOT") || nodeName.StartsWith("TAG_")||rendererTransforms.Contains(transform))
                 {
-                    foundNodes.Add(Editor.Tools.GetRelativePath(transform,modelPrefab.transform));
-                    Debug.Log($"Found node: {nodeName} (Path: {Tools.GetRelativePath(transform)})");
+                    foundNodes.Add(transform.FullName(modelPrefab.transform));
+                    Debug.Log($"Found node: {nodeName} (Path: {transform.FullName()})");
                 }
             }
         

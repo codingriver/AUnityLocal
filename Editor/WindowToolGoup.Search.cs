@@ -37,6 +37,25 @@ namespace AUnityLocal.Editor
             shareObjectList.Clear();
             shareStringList.Clear();
         }
+        protected virtual bool IsNameMatch<T>(T o,string searchName, bool exactMatch) where T:UnityEngine.Object
+        {
+            string objectName= o.IsValid()?o.name:string.Empty;   
+            if (string.IsNullOrEmpty(objectName))
+            {
+                return false;
+            }
+            
+            return objectName.IsMatch(searchName, exactMatch);
+        }
+        protected virtual bool IsTextMatch<T>(T uitext,string searchName, bool exactMatch) where T:UnityEngine.UI.Text
+        {
+            string objectName= uitext.IsValid()?uitext.text:string.Empty;   
+            if (string.IsNullOrEmpty(objectName))
+            {
+                return false;
+            }
+            return objectName.IsMatch(searchName, exactMatch);
+        }            
     }
 
     [WindowToolGroup(500, WindowArea.RightMid)]
@@ -156,7 +175,7 @@ namespace AUnityLocal.Editor
             foreach (var o in list)
             {
                 // 检查当前物体
-                if (IsNameMatch(o.name))
+                if (IsNameMatch(o,searchName,exactMatch))
                 {
                     shareObjectList.Add(o);
                 }
@@ -182,7 +201,7 @@ namespace AUnityLocal.Editor
                     continue;
                 }
 
-                if (IsNameMatch(obj.name))
+                if (IsNameMatch(obj,searchName,exactMatch))
                 {
                     shareObjectList.Add(obj);
                 }
@@ -192,7 +211,7 @@ namespace AUnityLocal.Editor
         private void SearchInChildren(Transform parent)
         {
             // 检查当前物体
-            if (IsNameMatch(parent.name))
+            if (IsNameMatch(parent.gameObject,searchName,exactMatch))
             {
                 shareObjectList.Add(parent.gameObject);
             }
@@ -207,23 +226,7 @@ namespace AUnityLocal.Editor
                 }
             }
         }
-
-        private bool IsNameMatch(string objectName)
-        {
-            if (string.IsNullOrEmpty(objectName))
-            {
-                return true;
-            }
-            
-            if (exactMatch)
-            {
-                return objectName.Equals(searchName, System.StringComparison.OrdinalIgnoreCase);
-            }
-            else
-            {
-                return objectName.IndexOf(searchName, System.StringComparison.OrdinalIgnoreCase) >= 0;
-            }
-        }        
+ 
     }
     
     [WindowToolGroup(450, WindowArea.RightMid)]
@@ -355,12 +358,17 @@ namespace AUnityLocal.Editor
         private bool HasMatchingTextComponent(GameObject obj,out Text matchedTextComponent)
         {
             matchedTextComponent = null;
+            
+            if (obj.IsNull())
+            {
+                return false;
+            }            
             // 获取所有Text组件（包括子类）
             Text[] textComponents = obj.GetComponents<Text>();
             
             foreach (Text textComponent in textComponents)
             {
-                if (textComponent == null)
+                if (textComponent.IsNull())
                     continue;
                 
                 // 如果需要检查Text组件启用状态
@@ -368,7 +376,7 @@ namespace AUnityLocal.Editor
                     continue;
                 
                 // 检查文本内容是否匹配
-                if (IsTextMatch(textComponent))
+                if (IsTextMatch(textComponent, searchText, exactMatch))
                 {
                     matchedTextComponent = textComponent;
                     return true;
@@ -377,21 +385,6 @@ namespace AUnityLocal.Editor
             
             return false;
         }
-        private bool IsTextMatch(Text textComponent)
-        {
-            string textContent = textComponent.text;
-            if (string.IsNullOrEmpty(textContent))
-                return false;
-                
-            if (exactMatch)
-            {
-                return textContent.Equals(searchText, System.StringComparison.OrdinalIgnoreCase);
-            }
-            else
-            {
-                return textContent.IndexOf(searchText, System.StringComparison.OrdinalIgnoreCase) >= 0;
-            }
-        }        
     }    
     
     [WindowToolGroup(460, WindowArea.RightMid)]
@@ -585,7 +578,15 @@ namespace AUnityLocal.Editor
                     }
                     catch (System.Exception e)
                     {
-                        Debug.LogWarning($"无法设置 {go.name} 上的 {component.GetType().Name} 组件状态: {e.Message}");
+                        if (obj.IsValid())
+                        {
+                            Debug.LogWarning($"无法设置 {go.name} 上的 {component.GetType().Name} 组件状态: {e.Message}");    
+                        }
+                        else
+                        {
+                            Debug.LogWarning(e);
+                        }
+                        
                     }
                 }
             }
@@ -628,7 +629,7 @@ namespace AUnityLocal.Editor
                     
                 foreach (var type in allTypes)
                 {
-                    if (type.Name.IndexOf(componentNameSearch, StringComparison.OrdinalIgnoreCase) >= 0)
+                    if (type.Name.IsMatch(componentNameSearch))
                     {
                         matchedComponentTypes.Add(type);
                     }
@@ -967,13 +968,6 @@ namespace AUnityLocal.Editor
             GUI.enabled = true;
             
             GUILayout.EndHorizontal();
-            
-            // 显示搜索进度
-            if (isSearching)
-            {
-                EditorGUILayout.Space();
-                EditorGUI.ProgressBar(GUILayoutUtility.GetRect(0, 20), searchProgress, searchProgressMessage);
-            }
         }
         
         private void RefreshLayerList()
@@ -1054,7 +1048,7 @@ namespace AUnityLocal.Editor
 
             isSearching = true;
             searchProgress = 0f;
-            
+            window.SetProgressBar(searchProgress, "开始搜索...");
             try
             {
                 if (parentTransform == null)
@@ -1080,6 +1074,7 @@ namespace AUnityLocal.Editor
             finally
             {
                 isSearching = false;
+                window.SetProgressBarShow(false);
             }
         }
         
@@ -1099,7 +1094,7 @@ namespace AUnityLocal.Editor
             
             isSearching = true;
             searchProgress = 0f;
-            
+            window.SetProgressBar(searchProgress, "开始搜索...");
             try
             {
                 List<Object> list = new List<Object>();
@@ -1118,7 +1113,7 @@ namespace AUnityLocal.Editor
                     
                     searchProgress = (float)(i + 1) / total;
                     searchProgressMessage = $"正在组合搜索 {obj?.name} ({i + 1}/{total})";
-                    
+                    window.SetProgressBar(searchProgress, searchProgressMessage);
                     if (i % 10 == 0) // 每处理10个物体刷新一次UI
                     {
                         await System.Threading.Tasks.Task.Yield();
@@ -1136,6 +1131,7 @@ namespace AUnityLocal.Editor
             finally
             {
                 isSearching = false;
+                window.SetProgressBarShow(false);
             }
         }
         
@@ -1161,8 +1157,8 @@ namespace AUnityLocal.Editor
                 }
                 
                 searchProgress = (float)(i + 1) / total;
-                searchProgressMessage = $"正在搜索 {go.name} ({i + 1}/{total})";
-                
+                searchProgressMessage = $"正在搜索 {go?.name} ({i + 1}/{total})";
+                window.SetProgressBar(searchProgress, searchProgressMessage);
                 if (i % 50 == 0) // 每处理50个物体刷新一次UI
                 {
                     await System.Threading.Tasks.Task.Yield();
@@ -1194,7 +1190,7 @@ namespace AUnityLocal.Editor
                 
                 searchProgress = (float)(i + 1) / total;
                 searchProgressMessage = $"正在搜索 {child.name} ({i + 1}/{total})";
-                
+                window.SetProgressBar(searchProgress, searchProgressMessage);
                 if (i % 20 == 0) // 每处理20个物体刷新一次UI
                 {
                     await System.Threading.Tasks.Task.Yield();
@@ -1204,6 +1200,10 @@ namespace AUnityLocal.Editor
         
         private void GetAllChildren(Transform parent, List<Transform> result)
         {
+            if (!parent.IsValid())
+            {
+                return;
+            }
             result.Add(parent);
             
             for (int i = 0; i < parent.childCount; i++)

@@ -54,7 +54,7 @@ namespace AUnityLocal.Editor
         public const int heightMin = 20;
         public const int heightMid = 25;
         public const int heightMax = 32;
-        
+        public static WindowToolEditor window=null;
         
         public abstract void OnGUI(Rect contentRect);
         public  bool DrawButton(string text, string tooltip, Color? color = null, params GUILayoutOption[] options)
@@ -97,6 +97,8 @@ namespace AUnityLocal.Editor
             GUI.backgroundColor = originalColor;
             return result;
         }             
+        
+        
         public static void InitializeStyles()
         {
             // 标题样式
@@ -832,12 +834,12 @@ namespace AUnityLocal.Editor
                 }
             }
 
-            Tools.SetGameObject("Troops_root", false);
-            Tools.SetGameObject("rss_root", false);
-            Tools.SetGameObject("lod3_root", false);
-            Tools.SetGameObject("CityRoot", false);
-            Tools.SetGameObject("fogSystem", false);
-            Tools.SetGameObject("BillBuffer", false);
+            Tools.FindAndSetGameObject("Troops_root", false);
+            Tools.FindAndSetGameObject("rss_root", false);
+            Tools.FindAndSetGameObject("lod3_root", false);
+            Tools.FindAndSetGameObject("CityRoot", false);
+            Tools.FindAndSetGameObject("fogSystem", false);
+            Tools.FindAndSetGameObject("BillBuffer", false);
 
             Tools.ToggleGameStats();
         }        
