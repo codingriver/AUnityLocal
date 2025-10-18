@@ -95,8 +95,8 @@ namespace AUnityLocal.Editor
             float spacing = 5f;
 
             // clear按钮
-            Rect cRect = new Rect(rect.xMax - buttonWidth*6- spacing * 3, rect.y, buttonWidth*2, rect.height);
-            if (GUI.Button(cRect, "Clear", EditorStyles.miniButtonMid))
+            Rect cRect = new Rect(rect.xMax - buttonWidth*8- spacing * 4, rect.y, buttonWidth*2, rect.height);
+            if (GUI.Button(cRect, "Clear", EditorStyles.miniButtonLeft))
             {
                 foreach (var item in _dataList)
                 {
@@ -105,9 +105,17 @@ namespace AUnityLocal.Editor
                 _dataList.Clear();                
             }                 
             // 自定义按钮（在最左边）
+            Rect customButtonRect1 = new Rect(rect.xMax - buttonWidth * 6 - spacing * 3, rect.y, buttonWidth*2,
+                rect.height);
+            if (GUI.Button(customButtonRect1, "Copy", EditorStyles.miniButtonMid))
+            {
+                // 自定义按钮逻辑
+                HandleCopy();
+            }            
+            // 自定义按钮（在最左边）
             Rect customButtonRect = new Rect(rect.xMax - buttonWidth * 4 - spacing * 2, rect.y, buttonWidth*2,
                 rect.height);
-            if (GUI.Button(customButtonRect, "Paste", EditorStyles.miniButtonLeft))
+            if (GUI.Button(customButtonRect, "Paste", EditorStyles.miniButtonMid))
             {
                 // 自定义按钮逻辑
                 HandlePaste();
@@ -310,6 +318,23 @@ namespace AUnityLocal.Editor
                 Debug.LogError($"Paste error: {ex}");
             }
         }
+        
+        private void HandleCopy()
+        {
+            try
+            {
+                string str =dataList.ToStr("\n");
+                str=str.RemoveFirstAndLastLine();
+                Debug.Log($"{str}");
+                EditorGUIUtility.systemCopyBuffer = str;
+                
+            }
+            catch (System.Exception ex)
+            {
+                ShowPasteMessage($"{ex.Message}", false);
+                Debug.LogError($"Copy error: {ex}");
+            }
+        }        
         private void ShowPasteMessage(string message, bool success)
         {
             if (success)
@@ -727,15 +752,27 @@ namespace AUnityLocal.Editor
                 }
                 else if (typeof(UnityEngine.Object).IsAssignableFrom(dataType))
                 {
-                    // 计算各个控件的rect
-                    float buttonWidth = 50f;
-                    float spacing = 5f;
+
                     // Unity对象引用
                     UnityEngine.Object obj = data as UnityEngine.Object;
+                    
+                    // 计算各个控件的rect
+                    float buttonWidth = 40f;
+                    float spacing = 5f;      
+                    
+
+                    string content = _dataFieldLabel;
+                    float contentWidth = 0f;
+                    if(obj is UnityEngine.UI.Text uitext)
+                    {
+                        contentWidth = 50f;
+                       content = uitext.text;
+                       EditorGUI.TextField(new Rect(rect.x,rect.y,contentWidth,rect.height), content);
+                    }
                     Rect objectFieldRect = new Rect(
-                        rect.x, 
+                        rect.x+contentWidth+spacing, 
                         rect.y, 
-                        rect.width - buttonWidth - spacing, 
+                        rect.width - buttonWidth - spacing*2-contentWidth, 
                         rect.height
                     );
                     Rect buttonRect = new Rect(
@@ -744,16 +781,23 @@ namespace AUnityLocal.Editor
                         buttonWidth, 
                         rect.height
                     );
-                    
                     newData = (T)(object)EditorGUI.ObjectField(objectFieldRect, _dataFieldLabel, obj, dataType, true);
                     if (obj == null)
                     {
                         GUI.enabled = false;
                     }
-                    if (GUI.Button(buttonRect, "Select"))
+                    if (GUI.Button(buttonRect,  new GUIContent("选择",content)))
                     {
                         EditorGUIUtility.PingObject(obj);
-                        Selection.activeGameObject = obj as GameObject;
+                        if (obj is UnityEngine.UI.Text textcom)
+                        {
+                            Selection.activeGameObject =  textcom.gameObject;    
+                        }
+                        else
+                        {
+                            Selection.activeGameObject = obj as GameObject;    
+                        }
+                        
                     }
                     GUI.enabled = true;
                 }

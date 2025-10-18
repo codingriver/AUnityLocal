@@ -300,9 +300,9 @@ namespace AUnityLocal.Editor
             foreach (var o in list)
             {
                 GameObject obj = o as GameObject;
-                if (obj != null && HasMatchingTextComponent(obj))
+                if (obj != null && HasMatchingTextComponent(obj,out var textCom))
                 {
-                    shareObjectList.Add(obj);
+                    shareObjectList.Add(textCom);
                 }
             }
             
@@ -326,9 +326,9 @@ namespace AUnityLocal.Editor
                     continue;
                 }
                 
-                if (HasMatchingTextComponent(obj))
+                if (HasMatchingTextComponent(obj,out var textCom))
                 {
-                    shareObjectList.Add(obj);
+                    shareObjectList.Add(textCom);
                 }
             }
         }
@@ -336,9 +336,9 @@ namespace AUnityLocal.Editor
         private void SearchInChildren(Transform parent)
         {
             // 检查当前物体
-            if (HasMatchingTextComponent(parent.gameObject))
+            if (HasMatchingTextComponent(parent.gameObject,out var textCom))
             {
-                shareObjectList.Add(parent.gameObject);
+                shareObjectList.Add(textCom);
             }
 
             // 递归检查所有子物体
@@ -352,8 +352,9 @@ namespace AUnityLocal.Editor
             }
         }
 
-        private bool HasMatchingTextComponent(GameObject obj)
+        private bool HasMatchingTextComponent(GameObject obj,out Text matchedTextComponent)
         {
+            matchedTextComponent = null;
             // 获取所有Text组件（包括子类）
             Text[] textComponents = obj.GetComponents<Text>();
             
@@ -367,17 +368,18 @@ namespace AUnityLocal.Editor
                     continue;
                 
                 // 检查文本内容是否匹配
-                if (IsTextMatch(textComponent.text))
+                if (IsTextMatch(textComponent))
                 {
+                    matchedTextComponent = textComponent;
                     return true;
                 }
             }
             
             return false;
         }
-
-        private bool IsTextMatch(string textContent)
+        private bool IsTextMatch(Text textComponent)
         {
+            string textContent = textComponent.text;
             if (string.IsNullOrEmpty(textContent))
                 return false;
                 

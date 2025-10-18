@@ -321,10 +321,7 @@ namespace AUnityLocal.Editor
                 if (GUILayout.Button(new GUIContent("Clear", "Clear 数据"), EditorStyles.toolbarButton))
                 {  
                     // Clear
-                    WindowToolGroupReorderableListObject.Clear();
-                    WindowToolGroupReorderableListString.Clear();
-                    WindowToolGroupReorderableListInt.Clear();
-                    WindowToolGroupReorderableListBool.Clear();
+                    WindowToolGroupReorderableListObject.ClearAll();
                 }                    
             }
         

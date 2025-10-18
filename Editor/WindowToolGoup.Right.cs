@@ -46,6 +46,7 @@ namespace AUnityLocal.Editor
         }
         public static  void SetData(List<TData> _dataList)
         {
+            ClearAll();
             dataList.Clear();
             dataList.AddRange(_dataList);
         }
@@ -53,6 +54,14 @@ namespace AUnityLocal.Editor
         {
             dataList.Clear();
         }        
+        public static void ClearAll()
+        {
+            WindowToolGroupReorderableListObject.Clear();
+            WindowToolGroupReorderableListString.Clear();
+            WindowToolGroupReorderableListInt.Clear();
+            WindowToolGroupReorderableListBool.Clear();
+            WindowToolGroupReorderableListUIText.Clear();
+        }                
 
         public override bool Show
         {
@@ -91,6 +100,11 @@ namespace AUnityLocal.Editor
     {
         
     }    
+    [WindowToolGroup(500, WindowArea.Right)]
+    public class WindowToolGroupReorderableListUIText : WindowToolGroupReorderableList<UnityEngine.UI.Text>
+    {
+        
+    }        
     [WindowToolGroup(500, WindowArea.Right)]
     public class WindowToolGroupReorderableListBool : WindowToolGroupReorderableList<bool>
     {
