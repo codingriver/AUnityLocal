@@ -63,6 +63,7 @@ namespace AUnityLocal.Editor
             WindowToolGroup.window = this;
             NormalizeWeights(); // 确保权重总和为1
             areaGroups = WindowToolGroup.InitializeGroups();
+            InitializeStatusBarButtons();
         }
 
         // 标准化权重，确保总和为1.0
@@ -205,67 +206,145 @@ namespace AUnityLocal.Editor
                 EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));
         }
 
-        private Rect DrawStatusBar(Rect windowRect)
+private Rect DrawStatusBar(Rect windowRect)
+{
+    int StatusBarHeight = 29;
+    Rect statusRect = new Rect(0, windowRect.height - StatusBarHeight, windowRect.width, StatusBarHeight);
+
+    // 绘制状态栏背景
+    EditorGUI.DrawRect(statusRect,
+        EditorGUIUtility.isProSkin ? new Color(0.25f, 0.25f, 0.25f) : new Color(0.9f, 0.9f, 0.9f));
+
+    // 绘制顶部分割线
+    Rect statusSeparator = new Rect(0, statusRect.y, windowRect.width, 3);
+    EditorGUI.DrawRect(statusSeparator,
+        EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));
+
+    GUI.BeginGroup(statusRect);
+    
+    // 绘制中央分割线
+    EditorGUI.DrawRect(new Rect(statusRect.width/2f-2, 0, 4, statusRect.height),
+        EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));
+    
+    // 进度条显示
+    if (showProgress)
+    {
+        var progressBarRect = new Rect(statusRect.width/2f+2+5, 6, statusRect.width/2/2-10, 20);
+        EditorGUI.DrawRect(progressBarRect, Color.cyan);
+        EditorGUI.ProgressBar(progressBarRect, progress, $"进度: {(progress * 100):F1}% -- {progressMsg}");    
+    }
+    
+    // 状态信息显示
+    GUI.Label(new Rect(5, statusRect.height-20-3, statusRect.width-10, 20), statusInfo, EditorStyles.boldLabel);
+
+    // 右侧按钮区域
+    DrawRightAlignedButtons(statusRect);
+
+    GUI.EndGroup();
+
+    return statusRect;
+}
+
+// 定义按钮数据结构
+[System.Serializable]
+public class StatusBarButton
+{
+    public string text;
+    public System.Action onClick;
+    public bool enabled = true;
+    public float width = 60f;
+
+    public StatusBarButton(string text, System.Action onClick, float width = 60f, bool enabled = true)
+    {
+        this.text = text;
+        this.onClick = onClick;
+        this.width = width;
+        this.enabled = enabled;
+    }
+}
+
+// 按钮列表（在类的字段中定义）
+private List<StatusBarButton> statusBarButtons = new List<StatusBarButton>();
+
+
+private void DrawRightAlignedButtons(Rect statusRect)
+{
+    if (statusBarButtons == null || statusBarButtons.Count == 0)
+        return;
+
+    float buttonHeight = statusRect.height - 2;
+    float buttonSpacing = 0f;
+    float rightMargin = 0f;
+    float topMargin = 3f; // 调整为1，因为工具栏按钮有自己的边距
+
+    // 计算所有按钮的总宽度
+    float totalButtonsWidth = 0f;
+    for (int i = 0; i < statusBarButtons.Count; i++)
+    {
+        totalButtonsWidth += statusBarButtons[i].width;
+        if (i < statusBarButtons.Count - 1)
+            totalButtonsWidth += buttonSpacing;
+    }
+
+    // 从右侧开始绘制按钮
+    float currentX = statusRect.width - rightMargin - totalButtonsWidth;
+
+    for (int i = 0; i < statusBarButtons.Count; i++)
+    {
+        var button = statusBarButtons[i];
+        Rect buttonRect = new Rect(currentX, topMargin, button.width, buttonHeight);
+
+        // 设置按钮状态
+        GUI.enabled = button.enabled;
+        
+        // 创建自定义样式来控制高度
+        GUIStyle customToolbarButton = new GUIStyle(EditorStyles.toolbarButton);
+        customToolbarButton.fixedHeight = buttonHeight;
+        
+        if (GUI.Button(buttonRect, button.text, customToolbarButton))
         {
-            // int StatusBarHeight = 52;
-            // if (!showProgress)
-            // {
-            //     StatusBarHeight = 29;
-            // }
-            int StatusBarHeight = 29;
-            Rect statusRect = new Rect(0, windowRect.height - StatusBarHeight, windowRect.width, StatusBarHeight);
-
-            // 绘制状态栏背景
-            EditorGUI.DrawRect(statusRect,
-                EditorGUIUtility.isProSkin ? new Color(0.25f, 0.25f, 0.25f) : new Color(0.9f, 0.9f, 0.9f));
-
-            // 绘制顶部分割线
-            Rect statusSeparator = new Rect(0, statusRect.y, windowRect.width, 3);
-            EditorGUI.DrawRect(statusSeparator,
-                EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));
-
-            
-            GUI.BeginGroup(statusRect);
-            EditorGUI.DrawRect(new Rect(statusRect.width/2f-2, 0, 4, statusRect.height),
-                EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));            
-            if (showProgress)
-            {
-                var progressBarRect = new Rect(statusRect.width/2f+2+5, 6, statusRect.width/2/2-10, 20);
-                EditorGUI.DrawRect(progressBarRect,Color.cyan);
-                EditorGUI.ProgressBar(progressBarRect, progress, $"进度: {(progress * 100):F1}% -- {progressMsg}");    
-            }
-            GUI.Label(new Rect(5, statusRect.height-20-3, statusRect.width-10, 20), statusInfo,EditorStyles.boldLabel);
-            
-            // float buttonWidth = 100f;
-            // float spacing = 5f;
-            // float buttonHeight = windowRect.height;
-            // if(GUI.Button(new Rect(windowRect.width-buttonWidth-1, 3, buttonWidth,buttonHeight ),"清理",EditorStyles.toolbarButton)) //EditorStyles.miniButtonRight
-            // {
-            //     WindowToolGroupReorderableListObject.ClearAll();
-            // }
-                
-            GUI.EndGroup();
-            // // 状态信息内容
-            // GUILayout.BeginArea(new Rect(statusRect.x + 2, statusRect.y + 2,
-            //     statusRect.width - 4, statusRect.height-4));
-            //
-            // //信息
-            // GUILayout.FlexibleSpace();
-            // GUILayout.Label(statusInfo, EditorStyles.boldLabel);
-            //
-            // // 显示进度条
-            // if (showProgress)
-            // {
-            //     GUILayout.FlexibleSpace();
-            //     GUILayout.Space(2);
-            //     Rect progressRect = GUILayoutUtility.GetRect(0, 20, GUILayout.ExpandWidth(true));
-            //     EditorGUI.ProgressBar(progressRect, statusProgress, $"进度: {(statusProgress * 100):F1}%");
-            // }
-            //
-            // GUILayout.EndArea();
-
-            return statusRect;
+            button.onClick?.Invoke();
         }
+
+        // 恢复GUI状态
+        GUI.enabled = true;
+
+        // 移动到下一个按钮位置
+        currentX += button.width + buttonSpacing;
+    }
+}
+
+
+
+// 动态添加按钮的方法
+public void AddStatusBarButton(string text, System.Action onClick, float width = 60f, bool enabled = true)
+{
+    if (statusBarButtons == null)
+        statusBarButtons = new List<StatusBarButton>();
+    
+    statusBarButtons.Add(new StatusBarButton(text, onClick, width, enabled));
+}
+
+// 移除按钮的方法
+public void RemoveStatusBarButton(string text)
+{
+    if (statusBarButtons == null) return;
+    
+    for (int i = statusBarButtons.Count - 1; i >= 0; i--)
+    {
+        if (statusBarButtons[i].text == text)
+        {
+            statusBarButtons.RemoveAt(i);
+            break;
+        }
+    }
+}
+
+// 清空所有按钮
+public void ClearStatusBarButtons()
+{
+    statusBarButtons?.Clear();
+}
         private void DrawMainContent(Rect windowRect, Rect statusRect)
         {
             float mainAreaY = 31; // 标题高度 + 分割线
@@ -329,17 +408,7 @@ namespace AUnityLocal.Editor
             // 面板标题
             GUILayout.BeginHorizontal(EditorStyles.toolbar,GUILayout.Height(25));
             GUILayout.Label(title, EditorStyles.boldLabel);
-            
-            if (area == WindowArea.Right)
-            {
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button(new GUIContent("Clear", "Clear 数据"), EditorStyles.toolbarButton))
-                {  
-                    // Clear
-                    WindowToolGroupReorderableListObject.ClearAll();
-                }                    
-            }
-        
+
             GUILayout.EndHorizontal();
             // 面板内容区域
             Rect contentRect = new Rect(5, 30, rect.width - 10, rect.height - 35);
@@ -491,10 +560,26 @@ namespace AUnityLocal.Editor
 
         public void SetProgressBarShow(bool showProgressBar)
         {
-            return;
             showProgress = showProgressBar;
             Repaint();
         }
+        
+        
+        private void OnRefreshClicked()
+        {
+            Debug.Log("按钮被点击");
+            // 实现保存逻辑
+        }
+        // 初始化按钮的方法（在适当的地方调用，比如OnEnable）
+        private void InitializeStatusBarButtons()
+        {
+            statusBarButtons.Clear();
+            statusBarButtons.Add(new StatusBarButton("Test1", OnRefreshClicked, 50f));
+            statusBarButtons.Add(new StatusBarButton("清理", WindowToolGroupReorderableListObject.ClearAll, 60f));
+            
+        }
 
+
+        
     }
 }
