@@ -8,6 +8,7 @@ using System.Threading;
 using UnityEditor;
 using UnityEngine;
 using UnityEditorInternal;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
@@ -18,26 +19,7 @@ namespace AUnityLocal.Editor
     {
         public override string title { get; } = "搜索";
         public override string tip { get; } = "";
-
-        public static List<Object> shareObjectList = new List<Object>();
-        public static List<string> shareStringList = new List<string>();
-
-        public static void SetData(List<Object> _objectList)
-        {
-            shareObjectList = _objectList;
-        }
-
-        public static void SetData(List<string> _stringList)
-        {
-            shareStringList = _stringList;
-        }
-
-        public static void Clear()
-        {
-            shareObjectList.Clear();
-            shareStringList.Clear();
-        }
-
+        
         protected virtual bool IsNameMatch<T>(T o, string searchName, bool exactMatch) where T : UnityEngine.Object
         {
             string objectName = o.IsValid() ? o.name : string.Empty;
@@ -1422,7 +1404,7 @@ namespace AUnityLocal.Editor
 
                 if (DrawButton("导出日志"))
                 {
-                    ExportLog();
+                    SaveLog();
                 }
 
                 GUILayout.EndHorizontal();
@@ -1838,57 +1820,16 @@ namespace AUnityLocal.Editor
             logBuilder.AppendLine(message);
         }
 
-        private void ExportLog()
+        private void SaveLog()
         {
-            if (logBuilder.Length == 0)
-            {
-                EditorUtility.DisplayDialog("提示", "没有日志内容可导出", "确定");
-                return;
-            }
-
+            StringBuilder finalLog = new StringBuilder(logBuilder.ToString());
+            finalLog.AppendLine("----------------------------------------");
+            finalLog.AppendLine($"检查完成时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            finalLog.AppendLine($"总计检查对象: {totalChecked}");
+            finalLog.AppendLine($"发现Missing组件: {missingCount}");
+            finalLog.AppendLine($"涉及资源数量: {missingComponents.GroupBy(m => m.assetPath).Count()}");
             string fileName = $"MissingComponentCheck_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt";
-            string defaultPath = Path.Combine(Application.dataPath, "..", "Logs");
-
-            if (!Directory.Exists(defaultPath))
-            {
-                Directory.CreateDirectory(defaultPath);
-            }
-
-            string filePath = EditorUtility.SaveFilePanel(
-                "导出Missing组件检查日志",
-                defaultPath,
-                fileName,
-                "txt"
-            );
-
-            if (!string.IsNullOrEmpty(filePath))
-            {
-                try
-                {
-                    // 添加总结信息
-                    StringBuilder finalLog = new StringBuilder(logBuilder.ToString());
-                    finalLog.AppendLine("----------------------------------------");
-                    finalLog.AppendLine($"检查完成时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                    finalLog.AppendLine($"总计检查对象: {totalChecked}");
-                    finalLog.AppendLine($"发现Missing组件: {missingCount}");
-                    finalLog.AppendLine($"涉及资源数量: {missingComponents.GroupBy(m => m.assetPath).Count()}");
-
-                    File.WriteAllText(filePath, finalLog.ToString(), System.Text.Encoding.UTF8);
-                    logFilePath = filePath;
-
-                    EditorUtility.DisplayDialog("成功", $"日志已导出到:\n{filePath}", "确定");
-
-                    // 询问是否打开文件
-                    if (EditorUtility.DisplayDialog("打开文件", "是否要打开导出的日志文件？", "是", "否"))
-                    {
-                        Application.OpenURL("file://" + filePath);
-                    }
-                }
-                catch (Exception e)
-                {
-                    EditorUtility.DisplayDialog("错误", $"导出日志失败:\n{e.Message}", "确定");
-                }
-            }
+            SaveLog(finalLog, fileName);
         }
 
         private bool DrawButton(string text)
@@ -1905,7 +1846,7 @@ namespace AUnityLocal.Editor
 
 
 [WindowToolGroup(505, WindowArea.RightMid)]
-public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
+public class WindowToolGroupSearchMissingSprite : WindowToolGroup
 {
     public override string title { get; } = "Missing Sprite搜索";
     public override string tip { get; } = "搜索场景或Prefab中的Missing Sprite引用";
@@ -2073,7 +2014,7 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
 
             if (DrawButton("导出日志"))
             {
-                ExportLog();
+                SaveLog();
             }
 
             GUILayout.EndHorizontal();
@@ -2194,8 +2135,10 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
 
         // 初始化日志
         InitializeLog();
-
-        window.SetProgressBar(searchProgress, "开始检查Missing Sprite...");
+        
+        searchProgressMessage = $"开始检查Missing Sprite...";
+        window.SetProgressBar(searchProgress); 
+        window.SetStatusInfo(searchProgressMessage);        
 
         try
         {
@@ -2220,11 +2163,13 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
 
             WindowToolGroupReorderableListObject.SetData(shareObjectList);
             Debug.Log($"Missing Sprite检查完成 - 检查了 {totalChecked} 个对象，发现 {missingCount} 个Missing Sprite");
+            window.SetStatusInfo($"Missing Sprite检查完成 - 检查了 {totalChecked} 个对象，发现 {missingCount} 个Missing Sprite");
         }
         catch (Exception e)
         {
             Debug.LogError($"检查Missing Sprite时出错: {e.Message}");
             AddLog($"Error: {e.Message}");
+            window.SetStatusInfo($"Missing Sprite检查异常");
         }
         finally
         {
@@ -2241,13 +2186,12 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
 
         if (parentTransform == null)
         {
-            allObjects = Object.FindObjectsOfType<GameObject>(includeInactive);
+            // allObjects = Object.FindObjectsOfType<GameObject>(includeInactive);
+            allObjects = SceneManager.GetActiveScene().GetRootGameObjects();
         }
         else
         {
-            List<Transform> childs = new List<Transform>();
-            parentTransform.GetAllChildren(childs, true);
-            allObjects = childs.Select(a=>a.gameObject).ToArray();
+            allObjects = new GameObject[]{parentTransform.gameObject};
         }
 
         int total = allObjects.Length;
@@ -2266,12 +2210,13 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
             if (!includeInactive && !go.activeInHierarchy)
                 continue;
 
-            CheckGameObjectForMissingSprites(go, "Scene");
+            CheckGameObjectForMissingSprites(go, "Scene",null,includeInactive);
             totalChecked++;
 
             searchProgress = (float)(i + 1) / total;
             searchProgressMessage = $"正在检查场景对象 {go.name} ({i + 1}/{total})";
-            window.SetProgressBar(searchProgress, searchProgressMessage);
+            window.SetProgressBar(searchProgress, $"({i + 1}/{total})");
+            window.SetStatusInfo(searchProgressMessage);
 
             if (i % 50 == 0)
             {
@@ -2306,8 +2251,9 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
             }
 
             searchProgress = (float)(i + 1) / total;
+            window.SetProgressBar(searchProgress, $"({i + 1}/{total})");
             searchProgressMessage = $"正在检查Prefab {Path.GetFileName(prefabPath)} ({i + 1}/{total})";
-            window.SetProgressBar(searchProgress, searchProgressMessage);
+            window.SetStatusInfo(searchProgressMessage);
 
             if (i % batchSize == 0)
             {
@@ -2316,31 +2262,35 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
         }
     }
 
-    private bool CheckGameObjectForMissingSprites(GameObject go, string assetPath, GameObject sceneObject=null)
+    private bool CheckGameObjectForMissingSprites(GameObject go, string assetPath, GameObject sceneObject=null,bool includeInactive=true)
     {
         bool hasMissing = false;
 
         // 检查SpriteRenderer
         if (selectedCheckType == CheckType.SpriteRenderer || selectedCheckType == CheckType.Both)
         {
-            var spriteRenderers = go.GetComponentsInChildren<SpriteRenderer>(true);
+            var spriteRenderers = go.GetComponentsInChildren<SpriteRenderer>(includeInactive);
             foreach (var sr in spriteRenderers)
             {
-                if (sr.sprite == null && sr != null)
+                if (sr.sprite==null)
                 {
-                    string componentPath = sr.gameObject.transform.FullName();
-                    var missingInfo = new MissingSpriteInfo(
-                        assetPath,
-                        componentPath,
-                        "SpriteRenderer",
-                        sceneObject ?? sr.gameObject
-                    );
+                    SerializedProperty sp = new SerializedObject(sr).FindProperty("m_Sprite");
+                    if (sp != null && sp.objectReferenceValue == null && sp.objectReferenceInstanceIDValue != 0)
+                    {
+                        string componentPath = sr.gameObject.transform.FullName();
+                        var missingInfo = new MissingSpriteInfo(
+                            assetPath,
+                            componentPath,
+                            "SpriteRenderer",
+                            sceneObject ?? sr.gameObject
+                        );
                     
-                    missingSprites.Add(missingInfo);
-                    missingCount++;
-                    hasMissing = true;
+                        missingSprites.Add(missingInfo);
+                        missingCount++;
+                        hasMissing = true;
                     
-                    AddLog($"Missing Sprite in SpriteRenderer: {assetPath} -> {componentPath}");
+                        AddLog($"Missing Sprite in SpriteRenderer: {assetPath} -> {componentPath}");                        
+                    }
                 }
             }
         }
@@ -2351,21 +2301,25 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
             var images = go.GetComponentsInChildren<UnityEngine.UI.Image>(true);
             foreach (var img in images)
             {
-                if (img.sprite == null && img != null)
+                if (img.sprite==null)
                 {
-                    string componentPath = img.transform.FullName();;
-                    var missingInfo = new MissingSpriteInfo(
-                        assetPath,
-                        componentPath,
-                        "UI.Image",
-                        sceneObject ?? img.gameObject
-                    );
+                    SerializedProperty sp = new SerializedObject(img).FindProperty("m_Sprite");
+                    if (sp != null && sp.objectReferenceValue == null && sp.objectReferenceInstanceIDValue != 0)
+                    {
+                        string componentPath = img.gameObject.transform.FullName();
+                        var missingInfo = new MissingSpriteInfo(
+                            assetPath,
+                            componentPath,
+                            "UI.Image",
+                            sceneObject ?? img.gameObject
+                        );
                     
-                    missingSprites.Add(missingInfo);
-                    missingCount++;
-                    hasMissing = true;
+                        missingSprites.Add(missingInfo);
+                        missingCount++;
+                        hasMissing = true;
                     
-                    AddLog($"Missing Sprite in UI.Image: {assetPath} -> {componentPath}");
+                        AddLog($"Missing Sprite in UI.Image: {assetPath} -> {componentPath}");                        
+                    }
                 }
             }
         }
@@ -2417,42 +2371,17 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroupSearch
         logBuilder.AppendLine($"[{System.DateTime.Now:HH:mm:ss}] {message}");
     }
 
-    private void ExportLog()
+    private void SaveLog()
     {
-        if (logBuilder.Length == 0)
-        {
-            EditorUtility.DisplayDialog("提示", "没有日志内容可导出", "确定");
-            return;
-        }
-
+        // 添加汇总信息
+        logBuilder.AppendLine("----------------------------------------");
+        logBuilder.AppendLine($"检查完成 - {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        logBuilder.AppendLine($"总计检查对象: {totalChecked}");
+        logBuilder.AppendLine($"发现Missing Sprite: {missingCount}");
         string fileName = $"MissingSprite_Log_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt";
-        logFilePath = EditorUtility.SaveFilePanel("保存日志文件", "", fileName, "txt");
-        
-        if (!string.IsNullOrEmpty(logFilePath))
-        {
-            try
-            {
-                // 添加汇总信息
-                logBuilder.AppendLine("----------------------------------------");
-                logBuilder.AppendLine($"检查完成 - {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                logBuilder.AppendLine($"总计检查对象: {totalChecked}");
-                logBuilder.AppendLine($"发现Missing Sprite: {missingCount}");
-                
-                File.WriteAllText(logFilePath, logBuilder.ToString());
-                EditorUtility.DisplayDialog("成功", $"日志已保存到: {logFilePath}", "确定");
-                
-                // 询问是否打开文件
-                if (EditorUtility.DisplayDialog("打开文件", "是否要打开日志文件？", "是", "否"))
-                {
-                    System.Diagnostics.Process.Start(logFilePath);
-                }
-            }
-            catch (System.Exception e)
-            {
-                EditorUtility.DisplayDialog("错误", $"保存日志文件失败: {e.Message}", "确定");
-            }
-        }
+        SaveLog(logBuilder,fileName);
     }
+    
 
     private bool DrawButton(string text)
     {

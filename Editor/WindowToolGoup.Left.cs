@@ -37,6 +37,25 @@ namespace AUnityLocal.Editor
     
     public abstract class WindowToolGroup
     {
+        
+        public static List<Object> shareObjectList = new List<Object>();
+        public static List<string> shareStringList = new List<string>();
+
+        public static void SetData(List<Object> _objectList)
+        {
+            shareObjectList = _objectList;
+        }
+
+        public static void SetData(List<string> _stringList)
+        {
+            shareStringList = _stringList;
+        }
+
+        public static void Clear()
+        {
+            shareObjectList.Clear();
+            shareStringList.Clear();
+        }        
         public abstract string title { get; }
         public virtual string tip { get; }=string.Empty;
         public virtual bool Show { get; }=true;
@@ -269,6 +288,41 @@ namespace AUnityLocal.Editor
         
             Debug.Log($"Initialized {groupInfos.Count} groups across {areaGroups.Count} areas");
             return areaGroups;
+        }
+        
+        
+        public virtual void SaveLog(StringBuilder logBuilder,string fileName)
+        {
+            if (logBuilder.Length == 0)
+            {
+                EditorUtility.DisplayDialog("提示", "没有日志内容可导出", "确定");
+                return;
+            }
+            string logFilePath = EditorUtility.SaveFilePanel("保存日志文件", "", fileName, "txt");
+        
+            if (!string.IsNullOrEmpty(logFilePath))
+            {
+                try
+                {
+                    File.WriteAllText(logFilePath, logBuilder.ToString());
+                    EditorUtility.DisplayDialog("成功", $"日志已保存到: {logFilePath}", "确定");
+                    window.SetStatusInfo($"日志已保存到: {logFilePath}");
+                    // 询问是否打开文件
+                    if (EditorUtility.DisplayDialog("打开文件", "是否要打开日志文件？", "是", "否"))
+                    {
+                        System.Diagnostics.Process.Start(logFilePath);
+                    }
+                    // // 询问是否打开文件
+                    // if (EditorUtility.DisplayDialog("打开文件", "是否要打开导出的日志文件？", "是", "否"))
+                    // {
+                    //     Application.OpenURL("file://" + filePath);
+                    // }                    
+                }
+                catch (System.Exception e)
+                {
+                    EditorUtility.DisplayDialog("错误", $"保存日志文件失败: {e.Message}", "确定");
+                }
+            }
         }
         
         public virtual void OnDestroy()
