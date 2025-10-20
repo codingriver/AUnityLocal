@@ -1363,10 +1363,10 @@ namespace AUnityLocal.Editor
                 StartMissingComponentCheck();
             }
 
-            if (DrawButton("组合检查"))
-            {
-                StartCombinedCheck();
-            }
+            // if (DrawButton("组合检查"))
+            // {
+            //     StartCombinedCheck();
+            // }
 
             GUI.enabled = true;
 
@@ -2399,6 +2399,513 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroup
         base.OnDestroy();
     }
 }
-
+//
+// [WindowToolGroup(506, WindowArea.RightMid)]
+// public class WindowToolGroupFindAssetReferences : WindowToolGroup
+// {
+//     public override string title { get; } = "资源引用查找";
+//     public override string tip { get; } = "查找指定资源在Project或Scene中的所有引用";
+//
+//     // 目标资源
+//     private UnityEngine.Object targetAsset = null;
+//     private string targetAssetPath = "";
+//
+//     // 搜索选项
+//     private SearchTarget searchTarget = SearchTarget.Project;
+//     private bool includeInactive = true;
+//     private string searchDirectory = "Assets/";
+//     private Transform parentTransform = null;
+//
+//     // 检查参数
+//     private int batchSize = 40;
+//
+//     // 进度相关
+//     private bool isSearching = false;
+//     private float searchProgress = 0f;
+//     private string searchProgressMessage = "";
+//     private CancellationTokenSource cancellationTokenSource;
+//
+//     // 结果相关
+//     private List<AssetReferenceInfo> assetReferences = new List<AssetReferenceInfo>();
+//     private Vector2 resultScrollPosition = Vector2.zero;
+//     private bool showResults = false;
+//     private int totalChecked = 0;
+//     private int referenceCount = 0;
+//
+//     // 日志相关
+//     private StringBuilder logBuilder = new StringBuilder();
+//
+//     // 检查类型选项
+//     private ReferenceType selectedReferenceType = ReferenceType.All;
+//
+//     public enum SearchTarget
+//     {
+//         Project, // Project中的所有资源
+//         Scene // 当前Scene中的对象
+//     }
+//
+//     private enum ReferenceType
+//     {
+//         All,
+//         Components,
+//         Materials,
+//         Prefabs,
+//         ScriptableObjects,
+//         Scenes
+//     }
+//
+//     private class AssetReferenceInfo
+//     {
+//         public string ReferencePath;
+//         public string ReferenceType;
+//     }
+//     public override void OnGUI(Rect contentRect)
+//     {
+//         // 第一步：选择目标资源
+//         EditorGUILayout.LabelField("目标资源", EditorStyles.boldLabel);
+//         EditorGUILayout.BeginVertical("box");
+//
+//         var newTargetAsset = EditorGUILayout.ObjectField("选择资源:", targetAsset, typeof(UnityEngine.Object), false);
+//         if (newTargetAsset != targetAsset)
+//         {
+//             targetAsset = newTargetAsset;
+//             targetAssetPath = targetAsset != null ? AssetDatabase.GetAssetPath(targetAsset) : "";
+//             ClearResults(); // 清除之前的结果
+//         }
+//
+//         if (targetAsset != null)
+//         {
+//             EditorGUILayout.LabelField($"资源路径: {targetAssetPath}", EditorStyles.miniLabel);
+//             EditorGUILayout.LabelField($"资源类型: {targetAsset.GetType().Name}", EditorStyles.miniLabel);
+//         }
+//
+//         EditorGUILayout.EndVertical();
+//         EditorGUILayout.Space();
+//
+//         // 第二步：选择搜索范围
+//         EditorGUILayout.LabelField("搜索选项", EditorStyles.boldLabel);
+//         EditorGUILayout.BeginVertical("box");
+//
+//         if (searchTarget == SearchTarget.Project)
+//         {
+//             EditorGUILayout.BeginHorizontal();
+//             searchDirectory = EditorGUILayout.TextField("搜索目录:", searchDirectory);
+//
+//             GUIContent folderContent = new GUIContent("浏览", EditorGUIUtility.IconContent("Folder Icon").image);
+//             if (GUILayout.Button(folderContent, GUILayout.Width(70), GUILayout.Height(20)))
+//             {
+//                 string selectedPath = EditorUtility.OpenFolderPanel("选择搜索目录", "Assets", "");
+//                 if (!string.IsNullOrEmpty(selectedPath))
+//                 {
+//                     if (selectedPath.StartsWith(Application.dataPath))
+//                     {
+//                         searchDirectory = "Assets" + selectedPath.Substring(Application.dataPath.Length);
+//                     }
+//                     else
+//                     {
+//                         EditorUtility.DisplayDialog("错误", "请选择项目内的Assets目录下的文件夹", "确定");
+//                     }
+//                 }
+//             }
+//
+//             EditorGUILayout.EndHorizontal();
+//
+//             // 引用类型过滤
+//             selectedReferenceType = (ReferenceType)EditorGUILayout.EnumPopup("引用类型:", selectedReferenceType);
+//         }
+//
+//         EditorGUILayout.EndVertical();
+//         EditorGUILayout.Space();
+//
+//         // 搜索按钮
+//         GUILayout.BeginHorizontal();
+//
+//         GUI.enabled = !isSearching && targetAsset != null;
+//         if (DrawButton("开始查找引用"))
+//         {
+//             StartFindReferences();
+//         }
+//
+//         GUI.enabled = true;
+//
+//         if (isSearching && DrawButton("取消"))
+//         {
+//             CancelSearch();
+//         }
+//
+//         GUILayout.EndHorizontal();
+//
+//         // 显示进度
+//         if (isSearching)
+//         {
+//             EditorGUILayout.Space();
+//             EditorGUILayout.LabelField($"进度: {searchProgressMessage}");
+//             EditorGUILayout.LabelField($"已检查: {totalChecked}, 发现引用: {referenceCount}");
+//         }
+//
+//         // 显示结果
+//         if (assetReferences.Count > 0)
+//         {
+//             EditorGUILayout.Space();
+//             EditorGUILayout.LabelField("查找结果", EditorStyles.boldLabel);
+//
+//             GUILayout.BeginHorizontal();
+//             if (DrawButton($"显示结果 ({assetReferences.Count})"))
+//             {
+//                 showResults = !showResults;
+//             }
+//
+//             if (DrawButton("清除结果"))
+//             {
+//                 ClearResults();
+//             }
+//
+//             if (DrawButton("导出日志"))
+//             {
+//                 SaveLog();
+//             }
+//
+//             GUILayout.EndHorizontal();
+//
+//             if (showResults)
+//             {
+//                 DrawResultsList();
+//             }
+//         }
+//     }
+//
+//     private void DrawResultsList()
+//     {
+//         EditorGUILayout.Space();
+//         EditorGUILayout.LabelField($"引用列表 (总计: {assetReferences.Count})", EditorStyles.boldLabel);
+//
+//         Rect scrollRect = GUILayoutUtility.GetRect(0, 300, GUILayout.ExpandWidth(true));
+//         float lineHeight = 100f;
+//         float totalHeight = assetReferences.Count * lineHeight;
+//
+//         resultScrollPosition = GUI.BeginScrollView(
+//             scrollRect,
+//             resultScrollPosition,
+//             new Rect(0, 0, scrollRect.width - 20, totalHeight),
+//             false,
+//             true
+//         );
+//
+//         for (int i = 0; i < assetReferences.Count; i++)
+//         {
+//             var reference = assetReferences[i];
+//             Rect itemRect = new Rect(0, i * lineHeight, scrollRect.width - 20, lineHeight - 5);
+//
+//             GUI.Box(itemRect, "", EditorStyles.helpBox);
+//
+//             Rect contentRect = new Rect(itemRect.x + 5, itemRect.y + 5, itemRect.width - 10, itemRect.height - 10);
+//
+//             // 资源路径
+//             Rect pathRect = new Rect(contentRect.x, contentRect.y, contentRect.width, 16);
+//             GUI.Label(pathRect, $"文件: {reference.ReferencePath}", EditorStyles.boldLabel);
+//             
+//             // 组件类型和属性
+//             Rect componentRect = new Rect(contentRect.x, pathRect.yMax + 2, contentRect.width, 16);
+//             GUI.Label(componentRect, $"组件: {reference.ReferenceType}");
+//             
+//
+//             // 按钮
+//             Rect buttonRect = new Rect(contentRect.x, componentRect.yMax + 5, 80, 18);
+//
+//             if (GUI.Button(buttonRect, "选择"))
+//             {
+//                 var obj = AssetDatabase.LoadAssetAtPath<Object>(reference.ReferencePath);
+//                 EditorGUIUtility.PingObject(obj);                
+//             }
+//
+//             buttonRect.x += 85;
+//             if (GUI.Button(buttonRect, "复制路径"))
+//             {
+//                 EditorGUIUtility.systemCopyBuffer = reference.ReferencePath;
+//             }
+//         }
+//
+//         GUI.EndScrollView();
+//     }
+//     
+//
+//     private async void StartFindReferences()
+//     {
+//         if (targetAsset == null)
+//         {
+//             Debug.LogWarning("请先选择要查找引用的资源");
+//             return;
+//         }
+//         shareStringList.Clear();
+//         ClearResults();
+//         isSearching = true;
+//         searchProgress = 0f;
+//         totalChecked = 0;
+//         referenceCount = 0;
+//         cancellationTokenSource = new CancellationTokenSource();
+//
+//         InitializeLog();
+//
+//         searchProgressMessage = $"开始查找 {targetAsset.name} 的引用...";
+//         window.SetProgressBar(searchProgress);
+//         window.SetStatusInfo(searchProgressMessage);
+//
+//         try
+//         {
+//             await FindReferencesInProject();
+//
+//             // 更新共享列表
+//             foreach (var reference in assetReferences)
+//             {
+//                 if (!shareStringList.Contains(reference.ReferencePath))
+//                 {
+//                     shareStringList.Add(reference.ReferencePath);
+//                 }
+//             }
+//
+//             WindowToolGroupReorderableListString.SetData(shareStringList);
+//             Debug.Log($"引用查找完成 - 检查了 {totalChecked} 个对象，发现 {referenceCount} 个引用");
+//             window.SetStatusInfo($"引用查找完成 - 检查了 {totalChecked} 个对象，发现 {referenceCount} 个引用");
+//         }
+//         catch (Exception e)
+//         {
+//             Debug.LogError($"查找引用时出错: {e.Message}");
+//             AddLog($"Error: {e.Message}");
+//             window.SetStatusInfo($"引用查找异常");
+//         }
+//         finally
+//         {
+//             isSearching = false;
+//             window.SetProgressBarShow(false);
+//             cancellationTokenSource = null;
+//         }
+//     }
+//     
+//     
+//
+//     private async System.Threading.Tasks.Task FindReferencesInProject()
+//     {
+//         string[] guids;
+//
+//         if (selectedReferenceType == ReferenceType.All)
+//         {
+//             guids = AssetDatabase.FindAssets("", new[] { searchDirectory });
+//         }
+//         else
+//         {
+//             string filter = GetFilterForReferenceType(selectedReferenceType);
+//             guids = AssetDatabase.FindAssets(filter, new[] { searchDirectory });
+//         }
+//
+//         int total = guids.Length;
+//
+//         for (int i = 0; i < guids.Length; i++)
+//         {
+//             if (cancellationTokenSource.Token.IsCancellationRequested)
+//                 break;
+//
+//             string assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+//
+//             // 跳过目标资源本身
+//             if (assetPath == targetAssetPath)
+//             {
+//                 totalChecked++;
+//                 continue;
+//             }
+//
+//             await CheckAssetForReferences(assetPath, i, total);
+//
+//             if (i % batchSize == 0)
+//             {
+//                 await System.Threading.Tasks.Task.Yield();
+//             }
+//         }
+//     }
+//
+//     private string GetFilterForReferenceType(ReferenceType referenceType)
+//     {
+//         switch (referenceType)
+//         {
+//             case ReferenceType.Components:
+//                 return "t:MonoScript";
+//             case ReferenceType.Materials:
+//                 return "t:Material";
+//             case ReferenceType.Prefabs:
+//                 return "t:Prefab";
+//             case ReferenceType.ScriptableObjects:
+//                 return "t:ScriptableObject";
+//             case ReferenceType.Scenes:
+//                 return "t:Scene";
+//             default:
+//                 return "";
+//         }
+//     }
+//
+//     private async System.Threading.Tasks.Task CheckAssetForReferences(string assetPath, int index, int total)
+//     {
+//         totalChecked++;
+//
+//         searchProgress = (float)index / total;
+//         searchProgressMessage = $"正在检查资源 {Path.GetFileName(assetPath)} ({index + 1}/{total})";
+//         window.SetProgressBar(searchProgress, $"({index + 1}/{total})");
+//         window.SetStatusInfo(searchProgressMessage);
+//
+//         try
+//         {
+//             CheckAssetReferences( assetPath);
+//         }
+//         catch (Exception e)
+//         {
+//             AddLog($"检查资源 {assetPath} 时出错: {e.Message}");
+//         }
+//     }
+//     
+//     
+//     
+//
+//     private void CheckAssetReferences(string assetPath)
+//         {
+//             try
+//             {
+//                 // 获取目标资源的GUID
+//                 string targetGuid = AssetDatabase.AssetPathToGUID(targetAssetPath);
+//                 if (string.IsNullOrEmpty(targetGuid))
+//                     return;
+//                 
+//                 // 读取资源文件内容
+//                 string assetText = File.ReadAllText(assetPath);
+//                 
+//                 // 检查是否包含目标GUID
+//                 if (assetText.Contains(targetGuid))
+//                 {
+//                     // 确定资源类型
+//                     string assetType = GetAssetType(assetPath);
+//                     
+//                     lock (assetReferences)
+//                     {
+//                         referenceCount++;
+//                         assetReferences.Add(new AssetReferenceInfo 
+//                         { 
+//                             ReferencePath = assetPath, 
+//                             ReferenceType = assetType
+//                         });
+//                         
+//                         AddLog($"发现引用: {assetPath}, 类型: {assetType}");
+//                     }
+//                 }
+//             }
+//             catch (Exception e)
+//             {
+//                 AddLog($"检查资源 {assetPath} 时出错: {e.Message}");
+//             }
+//         }
+//
+//         private string GetAssetType(string assetPath)
+//         {
+//             UnityEngine.Object asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
+//             if (asset != null)
+//                 return asset.GetType().Name;
+//                 
+//             // 根据文件扩展名猜测类型
+//             string extension = Path.GetExtension(assetPath).ToLower();
+//             switch (extension)
+//             {
+//                 case ".prefab": return "GameObject";
+//                 case ".mat": return "Material";
+//                 case ".shader": return "Shader";
+//                 case ".texture2d": return "Texture2D";
+//                 case ".spriteatlas": return "SpriteAtlas";
+//                 case ".anim": return "AnimationClip";
+//                 case ".controller": return "AnimatorController";
+//                 case ".fbx": return "Model";
+//                 case ".unity": return "Scene";
+//                 default: return "Unknown";
+//             }
+//         }    
+//     private string GetGameObjectPath(GameObject go)
+//     {
+//         string path = go.name;
+//         Transform parent = go.transform.parent;
+//
+//         while (parent != null)
+//         {
+//             path = parent.name + "/" + path;
+//             parent = parent.parent;
+//         }
+//
+//         return path;
+//     }
+//
+//     private void CancelSearch()
+//     {
+//         if (cancellationTokenSource != null)
+//         {
+//             cancellationTokenSource.Cancel();
+//             isSearching = false;
+//             window.SetProgressBarShow(false);
+//             window.SetStatusInfo("搜索已取消");
+//             AddLog("搜索被用户取消");
+//         }
+//     }
+//
+//     private void ClearResults()
+//     {
+//         assetReferences.Clear();
+//         showResults = false;
+//         totalChecked = 0;
+//         referenceCount = 0;
+//         logBuilder.Clear();
+//     }
+//
+//     private void InitializeLog()
+//     {
+//         logBuilder.Clear();
+//         logBuilder.AppendLine($"=== 资源引用查找日志 ===");
+//         logBuilder.AppendLine($"目标资源: {targetAsset.name} ({targetAssetPath})");
+//         logBuilder.AppendLine($"搜索范围: {searchTarget}");
+//         logBuilder.AppendLine($"开始时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+//         logBuilder.AppendLine();
+//     }
+//
+//     private void AddLog(string message)
+//     {
+//         logBuilder.AppendLine($"[{System.DateTime.Now:HH:mm:ss}] {message}");
+//     }
+//
+//     private void SaveLog()
+//     {
+//         string logPath = EditorUtility.SaveFilePanel(
+//             "保存引用查找日志",
+//             Application.dataPath,
+//             $"AssetReferences_{targetAsset.name}_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt",
+//             "txt"
+//         );
+//
+//         if (!string.IsNullOrEmpty(logPath))
+//         {
+//             try
+//             {
+//                 logBuilder.AppendLine();
+//                 logBuilder.AppendLine($"=== 搜索结果汇总 ===");
+//                 logBuilder.AppendLine($"总检查数量: {totalChecked}");
+//                 logBuilder.AppendLine($"发现引用数量: {referenceCount}");
+//                 logBuilder.AppendLine($"完成时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+//
+//                 File.WriteAllText(logPath, logBuilder.ToString());
+//                 Debug.Log($"日志已保存到: {logPath}");
+//                 EditorUtility.RevealInFinder(logPath);
+//             }
+//             catch (Exception e)
+//             {
+//                 Debug.LogError($"保存日志失败: {e.Message}");
+//             }
+//         }
+//     }
+//
+//     private bool DrawButton(string text)
+//     {
+//         return GUILayout.Button(text, GUILayout.Height(25));
+//     }
+// }
 
 }

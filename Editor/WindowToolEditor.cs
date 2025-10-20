@@ -14,19 +14,13 @@ namespace AUnityLocal.Editor
         private float centerRightWeight = 0.3f; // 30%
         private float rightWeight = 0.2f; // 20%
 
-        string title = "WindowTool 工具窗口";
-        string title1 = "左侧面板";
-        string title2 = "中间左侧";
-        string title3 = "搜索";
-        string title4 = "结果";        
-        
         // 分割线拖拽状态
         private bool isDraggingSplitter1 = false;
         private bool isDraggingSplitter2 = false;
         private bool isDraggingSplitter3 = false;
 
         // 状态信息
-        
+
         private string statusInfo = "准备就绪";
         private float progress = 0.7f;
         private string progressMsg = string.Empty;
@@ -47,21 +41,25 @@ namespace AUnityLocal.Editor
         private GUIStyle sectionHeaderStyle;
         private GUIStyle buttonStyle;
         private GUIStyle boxStyle;
+
         private GUIStyle fieldStyle;
+
         // 在类的字段中添加
         private GUIStyle customToolbarButtonStyle;
-        
-        
+
+
         private Vector2 scrollPosition;
-        
-        [MenuItem("AUnityLocal/WindowTool")]
+
+        [MenuItem("AUnityLocal/WindowTool", false, 100)]
         public static void ShowWindow()
         {
             WindowToolEditor window = GetWindow<WindowToolEditor>("WindowTool 工具");
             window.minSize = new Vector2(1000, 600);
             window.Show();
         }
-        Dictionary<WindowArea, List<WindowToolGroup>>  areaGroups = new Dictionary<WindowArea, List<WindowToolGroup>>();
+
+        Dictionary<WindowArea, List<WindowToolGroup>> areaGroups = new Dictionary<WindowArea, List<WindowToolGroup>>();
+
         private void OnEnable()
         {
             WindowToolGroup.window = this;
@@ -115,12 +113,13 @@ namespace AUnityLocal.Editor
             statusStyle = new GUIStyle(EditorStyles.helpBox);
             statusStyle.padding = new RectOffset(10, 10, 5, 5);
             statusStyle.alignment = TextAnchor.MiddleLeft;
-            
+
             customToolbarButtonStyle = new GUIStyle(EditorStyles.toolbarButton);
             // 可以在这里设置其他属性
-            customToolbarButtonStyle.alignment = TextAnchor.MiddleCenter;            
+            customToolbarButtonStyle.alignment = TextAnchor.MiddleCenter;
             InitializeStyles2();
         }
+
         public void InitializeStyles2()
         {
             // 标题样式
@@ -165,7 +164,8 @@ namespace AUnityLocal.Editor
                 fontSize = 11,
                 fixedHeight = 20
             };
-        }        
+        }
+
         private Texture2D CreateColorTexture(Color color)
         {
             Texture2D texture = new Texture2D(1, 1);
@@ -179,7 +179,7 @@ namespace AUnityLocal.Editor
             if (headerStyle == null) InitializeStyles();
             if (WindowToolGroup.titleStyle == null) WindowToolGroup.InitializeStyles();
             WindowToolGroup.window = this;
-            
+
             DrawLayout();
         }
 
@@ -214,145 +214,143 @@ namespace AUnityLocal.Editor
                 EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));
         }
 
-private Rect DrawStatusBar(Rect windowRect)
-{
-    int StatusBarHeight = 29;
-    Rect statusRect = new Rect(0, windowRect.height - StatusBarHeight, windowRect.width, StatusBarHeight);
+        private Rect DrawStatusBar(Rect windowRect)
+        {
+            int StatusBarHeight = 29;
+            Rect statusRect = new Rect(0, windowRect.height - StatusBarHeight, windowRect.width, StatusBarHeight);
 
-    // 绘制状态栏背景
-    EditorGUI.DrawRect(statusRect,
-        EditorGUIUtility.isProSkin ? new Color(0.25f, 0.25f, 0.25f) : new Color(0.9f, 0.9f, 0.9f));
+            // 绘制状态栏背景
+            EditorGUI.DrawRect(statusRect,
+                EditorGUIUtility.isProSkin ? new Color(0.25f, 0.25f, 0.25f) : new Color(0.9f, 0.9f, 0.9f));
 
-    // 绘制顶部分割线
-    Rect statusSeparator = new Rect(0, statusRect.y, windowRect.width, 3);
-    EditorGUI.DrawRect(statusSeparator,
-        EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));
+            // 绘制顶部分割线
+            Rect statusSeparator = new Rect(0, statusRect.y, windowRect.width, 3);
+            EditorGUI.DrawRect(statusSeparator,
+                EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));
 
-    GUI.BeginGroup(statusRect);
-    
-    // 绘制中央分割线
-    EditorGUI.DrawRect(new Rect(statusRect.width/2f-2, 0, 4, statusRect.height),
-        EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));
-    
-    // 进度条显示
-    if (showProgress)
-    {
-        var progressBarRect = new Rect(statusRect.width/2f+2+5, 6, statusRect.width/2/2-10, 20);
-        EditorGUI.DrawRect(progressBarRect, Color.cyan);
-        EditorGUI.ProgressBar(progressBarRect, progress, $"进度: {(progress * 100):F1}% -- {progressMsg}");    
-    }
-    
-    // 状态信息显示
-    GUI.Label(new Rect(5, statusRect.height-20-3, statusRect.width-10, 20), statusInfo, EditorStyles.boldLabel);
+            GUI.BeginGroup(statusRect);
 
-    // 右侧按钮区域
-    DrawRightAlignedButtons(statusRect);
+            // 绘制中央分割线
+            EditorGUI.DrawRect(new Rect(statusRect.width / 2f - 2, 0, 4, statusRect.height),
+                EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.5f, 0.5f, 0.5f));
 
-    GUI.EndGroup();
+            // 进度条显示
+            if (showProgress)
+            {
+                var progressBarRect = new Rect(statusRect.width / 2f + 2 + 5, 6, statusRect.width / 2 / 2 - 10, 20);
+                EditorGUI.DrawRect(progressBarRect, Color.cyan);
+                EditorGUI.ProgressBar(progressBarRect, progress, $"进度: {(progress * 100):F1}% -- {progressMsg}");
+            }
 
-    return statusRect;
-}
+            // 状态信息显示
+            GUI.Label(new Rect(5, statusRect.height - 20 - 3, statusRect.width - 10, 20), statusInfo,
+                EditorStyles.boldLabel);
+
+            // 右侧按钮区域
+            DrawRightAlignedButtons(statusRect);
+
+            GUI.EndGroup();
+
+            return statusRect;
+        }
 
 // 定义按钮数据结构
-[System.Serializable]
-public class StatusBarButton
-{
-    public string text;
-    public System.Action onClick;
-    public bool enabled = true;
-    public float width = 60f;
+        [System.Serializable]
+        public class StatusBarButton
+        {
+            public string text;
+            public System.Action onClick;
+            public bool enabled = true;
+            public float width = 60f;
 
-    public StatusBarButton(string text, System.Action onClick, float width = 60f, bool enabled = true)
-    {
-        this.text = text;
-        this.onClick = onClick;
-        this.width = width;
-        this.enabled = enabled;
-    }
-}
-
-
+            public StatusBarButton(string text, System.Action onClick, float width = 60f, bool enabled = true)
+            {
+                this.text = text;
+                this.onClick = onClick;
+                this.width = width;
+                this.enabled = enabled;
+            }
+        }
 
 
 // 修改后的绘制方法
-private void DrawRightAlignedButtons(Rect statusRect)
-{
-    if (statusBarButtons == null || statusBarButtons.Count == 0)
-        return;
-
-    float buttonHeight = statusRect.height - 2;
-    float buttonSpacing = 0f;
-    float rightMargin = 0f;
-    float topMargin = 3f;
-
-    // 更新样式的高度
-    customToolbarButtonStyle.fixedHeight = buttonHeight;
-
-    // 计算所有按钮的总宽度
-    float totalButtonsWidth = 0f;
-    for (int i = 0; i < statusBarButtons.Count; i++)
-    {
-        totalButtonsWidth += statusBarButtons[i].width;
-        if (i < statusBarButtons.Count - 1)
-            totalButtonsWidth += buttonSpacing;
-    }
-
-    // 从右侧开始绘制按钮
-    float currentX = statusRect.width - rightMargin - totalButtonsWidth;
-
-    for (int i = 0; i < statusBarButtons.Count; i++)
-    {
-        var button = statusBarButtons[i];
-        Rect buttonRect = new Rect(currentX, topMargin, button.width, buttonHeight);
-
-        // 设置按钮状态
-        GUI.enabled = button.enabled;
-        
-        if (GUI.Button(buttonRect, button.text, customToolbarButtonStyle))
+        private void DrawRightAlignedButtons(Rect statusRect)
         {
-            button.onClick?.Invoke();
+            if (statusBarButtons == null || statusBarButtons.Count == 0)
+                return;
+
+            float buttonHeight = statusRect.height - 2;
+            float buttonSpacing = 0f;
+            float rightMargin = 0f;
+            float topMargin = 3f;
+
+            // 更新样式的高度
+            customToolbarButtonStyle.fixedHeight = buttonHeight;
+
+            // 计算所有按钮的总宽度
+            float totalButtonsWidth = 0f;
+            for (int i = 0; i < statusBarButtons.Count; i++)
+            {
+                totalButtonsWidth += statusBarButtons[i].width;
+                if (i < statusBarButtons.Count - 1)
+                    totalButtonsWidth += buttonSpacing;
+            }
+
+            // 从右侧开始绘制按钮
+            float currentX = statusRect.width - rightMargin - totalButtonsWidth;
+
+            for (int i = 0; i < statusBarButtons.Count; i++)
+            {
+                var button = statusBarButtons[i];
+                Rect buttonRect = new Rect(currentX, topMargin, button.width, buttonHeight);
+
+                // 设置按钮状态
+                GUI.enabled = button.enabled;
+
+                if (GUI.Button(buttonRect, button.text, customToolbarButtonStyle))
+                {
+                    button.onClick?.Invoke();
+                }
+
+                // 恢复GUI状态
+                GUI.enabled = true;
+
+                // 移动到下一个按钮位置
+                currentX += button.width + buttonSpacing;
+            }
         }
-
-        // 恢复GUI状态
-        GUI.enabled = true;
-
-        // 移动到下一个按钮位置
-        currentX += button.width + buttonSpacing;
-    }
-}
-
-
 
 
 // 动态添加按钮的方法
-public void AddStatusBarButton(string text, System.Action onClick, float width = 60f, bool enabled = true)
-{
-    if (statusBarButtons == null)
-        statusBarButtons = new List<StatusBarButton>();
-    
-    statusBarButtons.Add(new StatusBarButton(text, onClick, width, enabled));
-}
+        public void AddStatusBarButton(string text, System.Action onClick, float width = 60f, bool enabled = true)
+        {
+            if (statusBarButtons == null)
+                statusBarButtons = new List<StatusBarButton>();
+
+            statusBarButtons.Add(new StatusBarButton(text, onClick, width, enabled));
+        }
 
 // 移除按钮的方法
-public void RemoveStatusBarButton(string text)
-{
-    if (statusBarButtons == null) return;
-    
-    for (int i = statusBarButtons.Count - 1; i >= 0; i--)
-    {
-        if (statusBarButtons[i].text == text)
+        public void RemoveStatusBarButton(string text)
         {
-            statusBarButtons.RemoveAt(i);
-            break;
+            if (statusBarButtons == null) return;
+
+            for (int i = statusBarButtons.Count - 1; i >= 0; i--)
+            {
+                if (statusBarButtons[i].text == text)
+                {
+                    statusBarButtons.RemoveAt(i);
+                    break;
+                }
+            }
         }
-    }
-}
 
 // 清空所有按钮
-public void ClearStatusBarButtons()
-{
-    statusBarButtons?.Clear();
-}
+        public void ClearStatusBarButtons()
+        {
+            statusBarButtons?.Clear();
+        }
+
         private void DrawMainContent(Rect windowRect, Rect statusRect)
         {
             float mainAreaY = 31; // 标题高度 + 分割线
@@ -369,7 +367,7 @@ public void ClearStatusBarButtons()
             // 左侧区域
             float leftWidth = availableWidth * leftWeight;
             Rect leftRect = new Rect(currentX, mainRect.y, leftWidth, mainRect.height);
-            DrawPanel(leftRect, title1, ref leftScrollPos,WindowArea.Left);
+            DrawPanel(leftRect, title1, ref leftScrollPos, WindowArea.Left);
             currentX += leftWidth;
 
             // 分割线1
@@ -380,7 +378,7 @@ public void ClearStatusBarButtons()
             // 中间左侧区域
             float centerLeftWidth = availableWidth * centerLeftWeight;
             Rect centerLeftRect = new Rect(currentX, mainRect.y, centerLeftWidth, mainRect.height);
-            DrawPanel(centerLeftRect, title2, ref centerLeftScrollPos,WindowArea.LeftMid);
+            DrawPanel(centerLeftRect, title2, ref centerLeftScrollPos, WindowArea.LeftMid);
             currentX += centerLeftWidth;
 
             // 分割线2
@@ -414,7 +412,7 @@ public void ClearStatusBarButtons()
             GUILayout.BeginArea(rect);
 
             // 面板标题
-            GUILayout.BeginHorizontal(EditorStyles.toolbar,GUILayout.Height(25));
+            GUILayout.BeginHorizontal(EditorStyles.toolbar, GUILayout.Height(25));
             GUILayout.Label(title, EditorStyles.boldLabel);
 
             GUILayout.EndHorizontal();
@@ -424,7 +422,7 @@ public void ClearStatusBarButtons()
 
             scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
             DrawContent(contentRect, area);
-            EditorGUILayout.EndScrollView();   
+            EditorGUILayout.EndScrollView();
 
             GUILayout.EndArea();
             GUILayout.EndArea();
@@ -527,18 +525,19 @@ public void ClearStatusBarButtons()
                         EditorGUILayout.BeginVertical(boxStyle);
                         if (!string.IsNullOrEmpty(group.title))
                         {
-                            EditorGUILayout.LabelField(group.title, sectionHeaderStyle);    
+                            EditorGUILayout.LabelField(group.title, sectionHeaderStyle);
                         }
+
                         if (!string.IsNullOrEmpty(group.tip))
                         {
                             GUILayout.Space(5);
                             GUILayout.Label(group.tip);
                         }
+
                         group.OnGUI(rect);
-                        EditorGUILayout.EndVertical();                        
+                        EditorGUILayout.EndVertical();
                     }
                 }
-                    
             }
         }
 
@@ -552,7 +551,7 @@ public void ClearStatusBarButtons()
             }
         }
 
-        public void SetProgressBar(float progress,string progressInfo = "")
+        public void SetProgressBar(float progress, string progressInfo = "")
         {
             showProgress = true;
             this.progress = progress;
@@ -571,25 +570,35 @@ public void ClearStatusBarButtons()
             showProgress = showProgressBar;
             Repaint();
         }
-        
-        
+
+
         private void OnRefreshClicked()
         {
             Debug.Log("按钮被点击");
             // 实现保存逻辑
         }
-        
+
+        private void OnCleanClicked()
+        {
+            WindowToolGroupReorderableListObject.ClearAll();
+            Selection.activeGameObject = null;
+            // 实现清理逻辑
+        }
+
         // 按钮列表（在类的字段中定义）
         private List<StatusBarButton> statusBarButtons = new List<StatusBarButton>();
+
         // 初始化按钮的方法（在适当的地方调用，比如OnEnable）
         private void InitializeStatusBarButtons()
         {
             statusBarButtons.Clear();
             statusBarButtons.Add(new StatusBarButton("Test1", OnRefreshClicked, 50f));
-            statusBarButtons.Add(new StatusBarButton("清理", WindowToolGroupReorderableListObject.ClearAll, 60f));
+            statusBarButtons.Add(new StatusBarButton("清理", OnCleanClicked, 60f));
         }
-
-
-        
+        string title = "WindowTool 工具窗口";
+        string title1 = "左侧面板";
+        string title2 = "中间左侧";
+        string title3 = "搜索";
+        string title4 = "结果";        
     }
 }
