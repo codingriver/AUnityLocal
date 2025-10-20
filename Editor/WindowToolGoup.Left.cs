@@ -270,6 +270,11 @@ namespace AUnityLocal.Editor
             Debug.Log($"Initialized {groupInfos.Count} groups across {areaGroups.Count} areas");
             return areaGroups;
         }
+        
+        public virtual void OnDestroy()
+        {
+            
+        }
 
     }
     /// <summary>

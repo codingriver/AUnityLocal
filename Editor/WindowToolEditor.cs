@@ -48,6 +48,10 @@ namespace AUnityLocal.Editor
         private GUIStyle buttonStyle;
         private GUIStyle boxStyle;
         private GUIStyle fieldStyle;
+        // 在类的字段中添加
+        private GUIStyle customToolbarButtonStyle;
+        
+        
         private Vector2 scrollPosition;
         
         [MenuItem("AUnityLocal/WindowTool")]
@@ -111,6 +115,10 @@ namespace AUnityLocal.Editor
             statusStyle = new GUIStyle(EditorStyles.helpBox);
             statusStyle.padding = new RectOffset(10, 10, 5, 5);
             statusStyle.alignment = TextAnchor.MiddleLeft;
+            
+            customToolbarButtonStyle = new GUIStyle(EditorStyles.toolbarButton);
+            // 可以在这里设置其他属性
+            customToolbarButtonStyle.alignment = TextAnchor.MiddleCenter;            
             InitializeStyles2();
         }
         public void InitializeStyles2()
@@ -263,10 +271,10 @@ public class StatusBarButton
     }
 }
 
-// 按钮列表（在类的字段中定义）
-private List<StatusBarButton> statusBarButtons = new List<StatusBarButton>();
 
 
+
+// 修改后的绘制方法
 private void DrawRightAlignedButtons(Rect statusRect)
 {
     if (statusBarButtons == null || statusBarButtons.Count == 0)
@@ -275,7 +283,10 @@ private void DrawRightAlignedButtons(Rect statusRect)
     float buttonHeight = statusRect.height - 2;
     float buttonSpacing = 0f;
     float rightMargin = 0f;
-    float topMargin = 3f; // 调整为1，因为工具栏按钮有自己的边距
+    float topMargin = 3f;
+
+    // 更新样式的高度
+    customToolbarButtonStyle.fixedHeight = buttonHeight;
 
     // 计算所有按钮的总宽度
     float totalButtonsWidth = 0f;
@@ -297,11 +308,7 @@ private void DrawRightAlignedButtons(Rect statusRect)
         // 设置按钮状态
         GUI.enabled = button.enabled;
         
-        // 创建自定义样式来控制高度
-        GUIStyle customToolbarButton = new GUIStyle(EditorStyles.toolbarButton);
-        customToolbarButton.fixedHeight = buttonHeight;
-        
-        if (GUI.Button(buttonRect, button.text, customToolbarButton))
+        if (GUI.Button(buttonRect, button.text, customToolbarButtonStyle))
         {
             button.onClick?.Invoke();
         }
@@ -313,6 +320,7 @@ private void DrawRightAlignedButtons(Rect statusRect)
         currentX += button.width + buttonSpacing;
     }
 }
+
 
 
 
@@ -570,13 +578,15 @@ public void ClearStatusBarButtons()
             Debug.Log("按钮被点击");
             // 实现保存逻辑
         }
+        
+        // 按钮列表（在类的字段中定义）
+        private List<StatusBarButton> statusBarButtons = new List<StatusBarButton>();
         // 初始化按钮的方法（在适当的地方调用，比如OnEnable）
         private void InitializeStatusBarButtons()
         {
             statusBarButtons.Clear();
             statusBarButtons.Add(new StatusBarButton("Test1", OnRefreshClicked, 50f));
             statusBarButtons.Add(new StatusBarButton("清理", WindowToolGroupReorderableListObject.ClearAll, 60f));
-            
         }
 
 
