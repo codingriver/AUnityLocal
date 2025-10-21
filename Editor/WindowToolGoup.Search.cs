@@ -1331,18 +1331,7 @@ namespace AUnityLocal.Editor
                 GUIContent folderContent = new GUIContent("浏览", EditorGUIUtility.IconContent("Folder Icon").image);
                 if (GUILayout.Button(folderContent, GUILayout.Width(70), GUILayout.Height(20)))
                 {
-                    string selectedPath = EditorUtility.OpenFolderPanel("选择Prefab目录", "Assets", "");
-                    if (!string.IsNullOrEmpty(selectedPath))
-                    {
-                        if (selectedPath.StartsWith(Application.dataPath))
-                        {
-                            searchDirectory = "Assets" + selectedPath.Substring(Application.dataPath.Length);
-                        }
-                        else
-                        {
-                            EditorUtility.DisplayDialog("错误", "请选择项目内的Assets目录下的文件夹", "确定");
-                        }
-                    }
+                    searchDirectory = Tools.SelectFolder(searchDirectory, "选择Prefab目录");
                 }
 
                 EditorGUILayout.EndHorizontal();
@@ -1943,18 +1932,7 @@ public class WindowToolGroupSearchMissingSprite : WindowToolGroup
             GUIContent folderContent = new GUIContent("浏览", EditorGUIUtility.IconContent("Folder Icon").image);
             if (GUILayout.Button(folderContent, GUILayout.Width(70), GUILayout.Height(20)))
             {
-                string selectedPath = EditorUtility.OpenFolderPanel("选择Prefab目录", "Assets", "");
-                if (!string.IsNullOrEmpty(selectedPath))
-                {
-                    if (selectedPath.StartsWith(Application.dataPath))
-                    {
-                        searchDirectory = "Assets" + selectedPath.Substring(Application.dataPath.Length);
-                    }
-                    else
-                    {
-                        EditorUtility.DisplayDialog("错误", "请选择项目内的Assets目录下的文件夹", "确定");
-                    }
-                }
+                searchDirectory = Tools.SelectFolder(searchDirectory, "选择Prefab目录");
             }
 
             EditorGUILayout.EndHorizontal();

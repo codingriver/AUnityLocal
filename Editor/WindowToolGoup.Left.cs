@@ -975,27 +975,17 @@ public class WindowToolGroupAnimationHero : WindowToolGroup
     public override void OnGUI(Rect contentRect)
     {
         checking = EditorGUILayout.Toggle("检查数据", checking);
-        EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("目标路径:", GUILayout.Width(60));
-        folderPath = EditorGUILayout.TextField(folderPath);
-        if (GUILayout.Button("浏览", GUILayout.Width(50)))
-        {
-            string selectedPath = EditorUtility.OpenFolderPanel("选择Prefab目录", "Assets", "");
-            if (!string.IsNullOrEmpty(selectedPath))
-            {
-                // 转换为相对于Assets的路径
-                string assetsPath = Application.dataPath;
-                if (selectedPath.StartsWith(assetsPath))
-                {
-                    folderPath = "Assets" + selectedPath.Substring(assetsPath.Length);
-                }
-                else
-                {
-                    Debug.LogWarning("请选择项目Assets目录下的文件夹");
-                }
-            }
-        }
-        EditorGUILayout.EndHorizontal();
+        // EditorGUILayout.BeginHorizontal();
+        // EditorGUILayout.LabelField("目标路径:", GUILayout.Width(60));
+        // GUI.enabled = false;
+        // folderPath = EditorGUILayout.TextField(folderPath);
+        // GUI.enabled = true;
+        // if (GUILayout.Button("浏览", GUILayout.Width(50)))
+        // {
+        //     folderPath = Tools.SelectFolder(folderPath);
+        // }
+        // EditorGUILayout.EndHorizontal();
+        Tools.OnGUISelectFolder(ref folderPath);
         // 新增的AnimationHero sortingOrder操作按钮
         EditorGUILayout.BeginHorizontal();
         if (DrawButton("读取AnimationBase SortingOrder", Color.green))

@@ -16,24 +16,228 @@ namespace AUnityLocal.Editor
     {
         public static StringBuilder sb = new StringBuilder();
 
-        public static string SelectFolder(string path=null)
-        {
-            string dataPath = Application.dataPath;
-            string selectedPath = EditorUtility.OpenFolderPanel("选择路径", dataPath, "");
+        #region OnGUI
 
-            if (!string.IsNullOrEmpty(selectedPath))
+        public static void OnGUISelectFolder(ref string folderPath, string btnName = "浏览", string title = "目标路径:",
+            string defaultName = "")
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(title, GUILayout.Width(60));
+            // GUI.enabled = false;
+            folderPath = EditorGUILayout.TextField(folderPath);
+            // GUI.enabled = true;
+            if (GUILayout.Button(btnName, GUILayout.Width(50)))
             {
-                if (selectedPath.StartsWith(dataPath))
+                folderPath = Tools.SelectFolder(folderPath, title, defaultName);
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        #endregion
+
+
+
+        /// <summary>
+        /// 选择文件夹，支持传入默认路径参数
+        /// </summary>
+        /// <param name="path">可选的默认路径，如果提供则直接返回（经过验证）</param>
+        /// <param name="title">文件夹选择对话框标题</param>
+        /// <param name="defaultName">默认文件夹名称</param>
+        /// <returns>相对于Assets的路径，失败返回null</returns>
+        public static string SelectFolder(string path = null, string title = "选择路径", string defaultName = "")
+        {
+            // 如果没有传入路径或传入路径无效，则打开文件夹选择对话框
+            string dataPath = Application.dataPath;
+            // 确定默认打开路径
+            string defaultPath = dataPath;
+            // 如果传入了路径参数，优先验证并使用传入的路径
+            if (!string.IsNullOrEmpty(path))
+            {
+                Debug.Log($"使用传入路径参数: {path}");
+
+                // 验证传入的路径
+                string validatedPath = ValidateAndNormalizePath(path);
+                if (!string.IsNullOrEmpty(validatedPath))
                 {
-                    return "Assets/" + selectedPath.Substring(dataPath.Length + 1);
+                    Debug.Log($"传入路径验证成功: {validatedPath}");
+                    defaultPath = validatedPath;
                 }
                 else
                 {
-                    Debug.LogWarning("不能在Assets目录之外!");
+                    Debug.LogWarning($"传入路径无效: {path}，将打开文件夹选择对话框");
                 }
             }
 
-            return null;
+            if (!string.IsNullOrEmpty(path))
+            {
+                // 尝试从传入路径推导默认打开位置
+                string parentPath = GetParentPathForDialog(path);
+                if (!string.IsNullOrEmpty(parentPath))
+                {
+                    defaultPath = parentPath;
+                }
+            }
+
+            Debug.Log($"打开文件夹选择对话框，默认路径: {defaultPath}");
+            string selectedPath = EditorUtility.OpenFolderPanel(title, defaultPath, defaultName);
+
+            if (!string.IsNullOrEmpty(selectedPath))
+            {
+                return ConvertToAssetsRelativePath(selectedPath);
+            }
+
+            Debug.Log("用户取消了文件夹选择");
+            return ConvertToAssetsRelativePath(path);
+        }
+
+        /// <summary>
+        /// 验证并规范化路径
+        /// </summary>
+        /// <param name="path">要验证的路径</param>
+        /// <returns>规范化后的相对路径，无效则返回null</returns>
+        private static string ValidateAndNormalizePath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return null;
+            }
+
+            // 规范化路径分隔符
+            path = path.Replace('\\', '/');
+
+            // 如果是相对路径（以Assets开头）
+            if (path.StartsWith("Assets/") || path == "Assets")
+            {
+                // 验证Assets相对路径是否存在
+                if (AssetDatabase.IsValidFolder(path))
+                {
+                    return path;
+                }
+                else
+                {
+                    Debug.LogWarning($"Assets相对路径不存在: {path}");
+                    return "Assets";
+                }
+            }
+
+            // 如果是绝对路径
+            if (System.IO.Path.IsPathRooted(path))
+            {
+                return ConvertToAssetsRelativePath(path);
+            }
+
+            // 尝试作为相对于Assets的路径处理
+            string assetsRelativePath = "Assets/" + path.TrimStart('/');
+            if (AssetDatabase.IsValidFolder(assetsRelativePath))
+            {
+                return assetsRelativePath;
+            }
+
+            Debug.LogWarning($"无法验证路径: {path}");
+            return "Assets";
+        }
+
+        /// <summary>
+        /// 将绝对路径转换为相对于Assets的路径
+        /// </summary>
+        /// <param name="absolutePath">绝对路径</param>
+        /// <returns>相对路径，失败返回null</returns>
+        private static string ConvertToAssetsRelativePath(string absolutePath)
+        {
+            if (string.IsNullOrEmpty(absolutePath))
+            {
+                return null;
+            }
+
+            string dataPath = Application.dataPath;
+
+            // 规范化路径分隔符
+            absolutePath = absolutePath.Replace('\\', '/');
+            dataPath = dataPath.Replace('\\', '/');
+
+            if (absolutePath.StartsWith(dataPath))
+            {
+                if (absolutePath.Length == dataPath.Length)
+                {
+                    // 选择的就是Assets目录
+                    return "Assets";
+                }
+                else
+                {
+                    // 转换为Assets相对路径
+                    string relativePath = "Assets" + absolutePath.Substring(dataPath.Length);
+                    Debug.Log($"转换路径: {absolutePath} -> {relativePath}");
+                    return relativePath;
+                }
+            }
+            else if (absolutePath.StartsWith("Assets/"))
+            {
+                return absolutePath;
+            }
+            else
+            {
+                Debug.LogWarning($"选择的路径不在Assets目录内: {absolutePath}");
+                return "Assets";
+            }
+        }
+
+        /// <summary>
+        /// 从给定路径获取用于对话框的父级路径
+        /// </summary>
+        /// <param name="path">输入路径</param>
+        /// <returns>父级绝对路径</returns>
+        private static string GetParentPathForDialog(string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path))
+                {
+                    return null;
+                }
+
+                // 如果是Assets相对路径，转换为绝对路径
+                if (path.StartsWith("Assets"))
+                {
+                    string dataPath = Application.dataPath;
+                    if (path == "Assets")
+                    {
+                        return dataPath;
+                    }
+                    else
+                    {
+                        string absolutePath = dataPath + path.Substring("Assets".Length);
+                        if (System.IO.Directory.Exists(absolutePath))
+                        {
+                            return absolutePath;
+                        }
+                        else
+                        {
+                            // 如果目录不存在，返回父目录
+                            return System.IO.Path.GetDirectoryName(absolutePath);
+                        }
+                    }
+                }
+
+                // 如果是绝对路径
+                if (System.IO.Path.IsPathRooted(path))
+                {
+                    if (System.IO.Directory.Exists(path))
+                    {
+                        return path;
+                    }
+                    else
+                    {
+                        return System.IO.Path.GetDirectoryName(path);
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"获取父级路径失败: {ex.Message}");
+            }
+
+            return Application.dataPath;
         }
 
 
