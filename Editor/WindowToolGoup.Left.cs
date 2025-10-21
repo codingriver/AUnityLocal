@@ -5,8 +5,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using FxProNS;
-using Skyunion;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -14,7 +12,8 @@ using UnityEngine.SceneManagement;
 using UnityEditorInternal;
 using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
-
+using Skyunion;
+using Data;
 namespace AUnityLocal.Editor
 {
     
@@ -962,6 +961,369 @@ namespace AUnityLocal.Editor
         }
         
     }
+    
+    
+
+[WindowToolGroup(500)]
+public class WindowToolGroupAnimationHero : WindowToolGroup
+{
+    public override string title { get; } = "部队简化模式设置SortingOrder";
+    public override string tip { get; } = "部队阵型简化模式RenderSprite的Prefab设置SortingOrder用来合批";
+    
+    private bool checking = true;
+    private string folderPath = "Assets/BundleAssets/Troop/troop_unit_hero";  // 
+    public override void OnGUI(Rect contentRect)
+    {
+        checking = EditorGUILayout.Toggle("检查数据", checking);
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("目标路径:", GUILayout.Width(60));
+        folderPath = EditorGUILayout.TextField(folderPath);
+        if (GUILayout.Button("浏览", GUILayout.Width(50)))
+        {
+            string selectedPath = EditorUtility.OpenFolderPanel("选择Prefab目录", "Assets", "");
+            if (!string.IsNullOrEmpty(selectedPath))
+            {
+                // 转换为相对于Assets的路径
+                string assetsPath = Application.dataPath;
+                if (selectedPath.StartsWith(assetsPath))
+                {
+                    folderPath = "Assets" + selectedPath.Substring(assetsPath.Length);
+                }
+                else
+                {
+                    Debug.LogWarning("请选择项目Assets目录下的文件夹");
+                }
+            }
+        }
+        EditorGUILayout.EndHorizontal();
+        // 新增的AnimationHero sortingOrder操作按钮
+        EditorGUILayout.BeginHorizontal();
+        if (DrawButton("读取AnimationBase SortingOrder", Color.green))
+        {
+            ReadAnimationHeroSortingOrder();
+        }
+
+        if (DrawButton("设置AnimationBase SortingOrder",  Color.yellow))
+        {
+            SetAnimationHeroSortingOrder();
+        }
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.BeginHorizontal();
+        if (DrawButton("读取怪物的AnimationBase SortingOrder", Color.green))
+        {
+            ReadAnimationBaseSortingOrderOfMonster();
+        }
+
+        if (DrawButton("设置怪物AnimationBase SortingOrder",  Color.yellow))
+        {
+            WriteAnimationBaseSortingOrderOfMonster();
+        }
+        EditorGUILayout.EndHorizontal();        
+        
+    }
+    
+    /// <summary>
+    /// 读取选中Prefab中AnimationHero的sortingOrder参数并打印
+    /// </summary>
+    private void ReadAnimationHeroSortingOrder()
+    {
+        var selectedObjects = Tools.GetSelectedPrefabPaths();
+        if (selectedObjects == null || selectedObjects.Count == 0)
+        {
+            Debug.LogWarning("请先选中要处理的Prefab文件");
+            return;
+        }
+        shareStringList.Clear();
+        foreach (var assetPath in selectedObjects)
+        {
+            if (!assetPath.EndsWith(".prefab"))
+            {
+                Debug.LogWarning($"跳过非Prefab文件: {assetPath.FileName()}");
+                continue;
+            }
+
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            if (prefab == null)
+            {
+                Debug.LogError($"无法加载Prefab: {assetPath}");
+                continue;
+            }
+
+            // 查找组件
+            var component = prefab.GetComponent<AnimationBase>();
+            if (component == null)
+            {
+                component = prefab.GetComponentInChildren<AnimationBase>();
+            }
+
+            int sortingOrder = -1;
+            if (component != null)
+            {
+                sortingOrder = component.sortingOrder;
+                Debug.Log($"Prefab: {prefab.name}, SortingOrder: {component.sortingOrder}");
+            }
+            else
+            {
+                Debug.LogWarning($"Prefab {prefab.name} 中未找到AnimationBase组件");
+            }
+            shareStringList.Add($"{sortingOrder} - ({assetPath.FileName()})");
+        }
+        WindowToolGroupReorderableListString.SetData(shareStringList);
+    }
+
+    /// <summary>
+    /// 设置选中Prefab中AnimationBase的sortingOrder参数为文件名最后一个下划线后的数字
+    /// </summary>
+    private void SetAnimationHeroSortingOrder()
+    {
+        var selectedObjects = Tools.GetSelectedPrefabPaths();
+        if (selectedObjects == null || selectedObjects.Count == 0)
+        {
+            Debug.LogWarning("请先选中要处理的Prefab文件");
+            return;
+        }
+        shareStringList.Clear();
+        foreach (var assetPath in selectedObjects)
+        {
+            if (!assetPath.EndsWith(".prefab"))
+            {
+                Debug.LogWarning($"跳过非Prefab文件: {Path.GetFileNameWithoutExtension(assetPath)}");
+                continue;
+            }
+
+            // 从文件名提取数字
+            int sortingOrderValue = ExtractSortingOrderFromFileName(assetPath.FileName());
+            if (sortingOrderValue == -1)
+            {
+                Debug.LogError($"无法从文件名 {assetPath.FileName()} 中提取有效的数字（最后一个下划线后应为数字）");
+                continue;
+            }
+
+            if (checking)
+            {
+                // 只打印，不实际修改
+                Debug.Log($"[预览] Prefab: {assetPath.FileName()}, 将设置SortingOrder为: {sortingOrderValue}");
+                shareStringList.Add($"{sortingOrderValue} - ({assetPath.FileName()})");
+            }
+            else
+            {
+                // 实际修改Prefab
+                ModifyPrefabSortingOrder(assetPath, sortingOrderValue);
+            }
+        }
+        WindowToolGroupReorderableListString.SetData(shareStringList);
+        if (!checking)
+        {
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("AnimationHero SortingOrder 设置完成！");
+        }
+    }
+
+    /// <summary>
+    /// 从文件名中提取最后一个下划线后的数字
+    /// </summary>
+    /// <param name="fileName">文件名</param>
+    /// <returns>提取的数字，如果无法提取则返回-1</returns>
+    private int ExtractSortingOrderFromFileName(string fileName)
+    {
+        int lastUnderscoreIndex = fileName.LastIndexOf('_');
+        if (lastUnderscoreIndex == -1 || lastUnderscoreIndex == fileName.Length - 1)
+        {
+            return -1;
+        }
+
+        string numberPart = fileName.Substring(lastUnderscoreIndex + 1);
+        if (int.TryParse(numberPart, out int result))
+        {
+            return result;
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// 修改Prefab中AnimationHero的sortingOrder
+    /// </summary>
+    /// <param name="prefabPath">Prefab路径</param>
+    /// <param name="sortingOrder">要设置的sortingOrder值</param>
+    private void ModifyPrefabSortingOrder(string prefabPath, int sortingOrder)
+    {
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (prefab == null)
+        {
+            Debug.LogError($"无法加载Prefab: {prefabPath}");
+            return;
+        }
+
+        // 使用PrefabUtility来正确修改Prefab
+        string tempPath = "Assets/temp_prefab_instance.prefab";
+        GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        
+        if (instance == null)
+        {
+            Debug.LogError($"无法实例化Prefab: {prefabPath}");
+            return;
+        }
+
+        try
+        {
+            // 查找组件
+            var component = instance.GetComponent<AnimationBase>();
+            if (component == null)
+            {
+                component = instance.GetComponentInChildren<AnimationBase>();
+            }
+
+            if (component != null)
+            {
+                // 记录修改前的值
+                int oldValue = component.sortingOrder;
+                
+                // 设置新值
+                component.sortingOrder = sortingOrder;
+                
+                // 应用修改到Prefab
+                PrefabUtility.ApplyPrefabInstance(instance, InteractionMode.AutomatedAction);
+                
+                Debug.Log($"Prefab: {prefab.name}, SortingOrder: {oldValue} -> {sortingOrder}");
+                shareStringList.Add($"{oldValue} -> {sortingOrder} - ({prefab.name})");
+            }
+            else
+            {
+                Debug.LogError($"Prefab {prefab.name} 中未找到组件");
+            }
+        }
+        finally
+        {
+            // 清理临时实例
+            GameObject.DestroyImmediate(instance);
+        }
+    }
+
+    public void ReadAnimationBaseSortingOrderOfMonster()
+    {
+        shareStringList.Clear();
+        
+        var all_barbarianAssetList=GetMonsterAssetList();
+        foreach (string assetPath in all_barbarianAssetList)
+        {
+            string asset_path = "Assets/" + assetPath + ".prefab";
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(asset_path);
+            if (prefab == null)
+            {
+                Debug.LogError($"无法加载Prefab: {assetPath}");
+                continue;
+            }
+
+            // 查找组件
+            var component = prefab.GetComponent<AnimationBase>();
+            if (component == null)
+            {
+                component = prefab.GetComponentInChildren<AnimationBase>();
+            }
+
+            int sortingOrder = -1;
+            if (component != null)
+            {
+                sortingOrder = component.sortingOrder;
+                Debug.Log($"Prefab: {prefab.name}, SortingOrder: {component.sortingOrder}");
+            }
+            else
+            {
+                Debug.LogWarning($"Prefab {prefab.name} 中未找到AnimationBase组件");
+            }
+            shareStringList.Add($"{sortingOrder} - ({assetPath.FileName()})");            
+        }
+        WindowToolGroupReorderableListString.SetData(shareStringList);
+    }      
+    public void WriteAnimationBaseSortingOrderOfMonster()
+    {
+        shareStringList.Clear();
+        int order = 101;
+        var all_barbarianAssetList=GetMonsterAssetList();
+        foreach (string assetPath in all_barbarianAssetList)
+        {
+            string asset_path = "Assets/" + assetPath + ".prefab";
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(asset_path);
+            if (prefab == null)
+            {
+                Debug.LogError($"无法加载Prefab: {assetPath}");
+                continue;
+            }
+
+            // 查找组件
+            var component = prefab.GetComponent<AnimationBase>();
+            if (component == null)
+            {
+                component = prefab.GetComponentInChildren<AnimationBase>();
+            }
+
+            int sortingOrder = -1;
+            if (component != null)
+            {
+                sortingOrder = order++;
+                if (!checking)
+                {
+                    component.sortingOrder = sortingOrder;
+                    EditorUtility.SetDirty(prefab);
+                }
+                
+                Debug.Log($"Prefab: {prefab.name}, SortingOrder: {component.sortingOrder}");
+            }
+            else
+            {
+                Debug.LogError($"Prefab {prefab.name} 中未找到AnimationBase组件");
+            }
+            shareStringList.Add($"{sortingOrder} - ({assetPath.FileName()})");            
+        }
+        WindowToolGroupReorderableListString.SetData(shareStringList);
+        AssetDatabase.SaveAssets();
+    }      
+    static List<string> GetMonsterAssetList()
+    {
+        DataService.Instance.Init();
+        GameHelper.AddPreloadAssets();
+        
+        List<string> barbarianFormationAssetList = TroopProxy.GetMonsterFormationPrefabList();
+        
+        //收集怪物的asset
+        List<string> all_barbarianAssetList = new List<string>();
+        foreach (string asset in barbarianFormationAssetList)
+        {
+            string asset_path = "Assets/" + asset + ".prefab";
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(asset_path);
+            if (prefab == null)
+                continue;
+
+            BarbarianConfig[] components = prefab.GetComponentsInChildren<BarbarianConfig>();
+            foreach (var component in components)
+            {
+                foreach (var config in component.m_UnitDummys)
+                {
+                    string unitPrefab = config.unitPrefab;
+                    if (string.IsNullOrEmpty(unitPrefab))
+                        continue;
+
+                    if (!all_barbarianAssetList.Contains(unitPrefab))
+                        all_barbarianAssetList.Add(unitPrefab);
+                }
+            }
+        }
+        all_barbarianAssetList.Sort();        
+        return all_barbarianAssetList;        
+    }
+    static string FixAssetPath(string path)
+    {
+        string strPath = "Assets/" + path;
+        strPath = strPath.Replace('\\', '/');
+        if (!Path.HasExtension(strPath))
+        {
+            strPath = strPath + ".prefab";
+        }
+        return strPath;
+    }       
+}    
     // [WindowToolGroup( 500)]
     // public class WindowToolGroupT : WindowToolGroup
     // {
