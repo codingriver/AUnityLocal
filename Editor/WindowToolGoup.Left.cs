@@ -20,7 +20,7 @@ namespace AUnityLocal.Editor
     /// <summary>
     /// 模板
     /// </summary>
-    [WindowToolGroup(500,WindowArea.Left)]
+    [WindowToolGroup(1500,WindowArea.Left)]
     public class WindowToolGroupT : WindowToolGroup
     {
         public override string title { get; } = "";
@@ -39,6 +39,7 @@ namespace AUnityLocal.Editor
         
         public static List<Object> shareObjectList = new List<Object>();
         public static List<string> shareStringList = new List<string>();
+        public static StringBuilder shareStringBuilder = new StringBuilder();
 
         public static void SetData(List<Object> _objectList)
         {

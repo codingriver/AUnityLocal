@@ -19,7 +19,7 @@ namespace AUnityLocal.Editor
     {
         public override string title { get; } = "搜索";
         public override string tip { get; } = "";
-        
+
         protected virtual bool IsNameMatch<T>(T o, string searchName, bool exactMatch) where T : UnityEngine.Object
         {
             string objectName = o.IsValid() ? o.name : string.Empty;
@@ -1295,27 +1295,30 @@ namespace AUnityLocal.Editor
                 this.gameObject = gameObject;
             }
         }
+
         private SearchTarget searchTarget = SearchTarget.Assets;
+
         // 将原来的两个bool改为一个枚举
         public enum SearchTarget
         {
-            Scene,      // 场景中的物体
-            Assets     // Prefab文件
+            Scene, // 场景中的物体
+            Assets // Prefab文件
         }
+
         public override void OnGUI(Rect contentRect)
         {
             // 第一步：选择搜索范围
             EditorGUILayout.LabelField("搜索选项", EditorStyles.boldLabel);
             EditorGUILayout.BeginVertical("box");
-        
+
             // 单选按钮组
             EditorGUILayout.LabelField("检查目标:", EditorStyles.label);
             EditorGUI.indentLevel++;
-        
+
             searchTarget = (SearchTarget)EditorGUILayout.EnumPopup("选择检查目标", searchTarget);
             searchInScene = (searchTarget == SearchTarget.Scene);
             searchInPrefabs = (searchTarget == SearchTarget.Assets);
-            
+
             if (searchInScene)
             {
                 parentTransform =
@@ -1340,7 +1343,7 @@ namespace AUnityLocal.Editor
             EditorGUILayout.Space();
             EditorGUI.indentLevel--;
             EditorGUILayout.EndVertical();
-            
+
             EditorGUILayout.Space();
 
             // 搜索按钮
@@ -1585,7 +1588,7 @@ namespace AUnityLocal.Editor
                     GameObject obj = objectsToCheck[i] as GameObject;
                     if (obj != null)
                     {
-                        bool hasMissing = CheckGameObjectForMissingComponents(obj, GetAssetPath(obj),obj);
+                        bool hasMissing = CheckGameObjectForMissingComponents(obj, GetAssetPath(obj), obj);
                         if (hasMissing)
                         {
                             shareObjectList.Add(obj);
@@ -1701,7 +1704,7 @@ namespace AUnityLocal.Editor
         private void CheckPrefabForMissingComponents(GameObject prefab, string assetPath)
         {
             // 检查根对象
-            CheckGameObjectForMissingComponents(prefab, assetPath,prefab);
+            CheckGameObjectForMissingComponents(prefab, assetPath, prefab);
 
             // 检查所有子对象
             Transform[] children = prefab.GetComponentsInChildren<Transform>(true);
@@ -1709,7 +1712,7 @@ namespace AUnityLocal.Editor
             {
                 if (child.gameObject != prefab) // 跳过根对象，已经检查过了
                 {
-                    CheckGameObjectForMissingComponents(child.gameObject, assetPath,prefab);
+                    CheckGameObjectForMissingComponents(child.gameObject, assetPath, prefab);
                 }
             }
         }
@@ -1834,1056 +1837,1232 @@ namespace AUnityLocal.Editor
     }
 
 
-[WindowToolGroup(505, WindowArea.RightMid)]
-public class WindowToolGroupSearchMissingSprite : WindowToolGroup
-{
-    public override string title { get; } = "Missing Sprite搜索";
-    public override string tip { get; } = "搜索场景或Prefab中的Missing Sprite引用";
-
-    // 搜索选项
-    private bool searchInScene = false;
-    private bool searchInPrefabs = true;
-    private bool includeInactive = true;
-    private string searchDirectory = "Assets/";
-    private Transform parentTransform = null;
-
-    // 检查参数
-    private int batchSize = 40;
-
-    // 进度相关
-    private bool isSearching = false;
-    private float searchProgress = 0f;
-    private string searchProgressMessage = "";
-    private CancellationTokenSource cancellationTokenSource;
-
-    // 结果相关
-    private List<MissingSpriteInfo> missingSprites = new List<MissingSpriteInfo>();
-    private Vector2 resultScrollPosition = Vector2.zero;
-    private bool showResults = false;
-    private int totalChecked = 0;
-    private int missingCount = 0;
-
-    // 日志相关
-    private StringBuilder logBuilder = new StringBuilder();
-    private string logFilePath = "";
-
-    // 检查类型选项
-    private CheckType selectedCheckType = CheckType.Both;
-
-    private enum CheckType
+    [WindowToolGroup(505, WindowArea.RightMid)]
+    public class WindowToolGroupSearchMissingSprite : WindowToolGroup
     {
-        SpriteRenderer,
-        UIImage,
-        Both
-    }
+        public override string title { get; } = "Missing Sprite搜索";
+        public override string tip { get; } = "搜索场景或Prefab中的Missing Sprite引用";
 
-    private struct MissingSpriteInfo
-    {
-        public string assetPath;
-        public string gameObjectPath;
-        public string componentType;
-        public GameObject gameObject; // 用于场景对象
+        // 搜索选项
+        private bool searchInScene = false;
+        private bool searchInPrefabs = true;
+        private bool includeInactive = true;
+        private string searchDirectory = "Assets/";
+        private Transform parentTransform = null;
 
-        public MissingSpriteInfo(string assetPath, string gameObjectPath, string componentType,
-            GameObject gameObject = null)
-        {
-            this.assetPath = assetPath;
-            this.gameObjectPath = gameObjectPath;
-            this.componentType = componentType;
-            this.gameObject = gameObject;
-        }
-    }
+        // 检查参数
+        private int batchSize = 40;
 
-    private SearchTarget searchTarget = SearchTarget.Assets;
-    
-    // 将原来的两个bool改为一个枚举
-    public enum SearchTarget
-    {
-        Scene,      // 场景中的物体
-        Assets     // Prefab文件
-    }
+        // 进度相关
+        private bool isSearching = false;
+        private float searchProgress = 0f;
+        private string searchProgressMessage = "";
+        private CancellationTokenSource cancellationTokenSource;
 
-    public override void OnGUI(Rect contentRect)
-    {
-        // 第一步：选择搜索范围
-        EditorGUILayout.LabelField("搜索选项", EditorStyles.boldLabel);
-        EditorGUILayout.BeginVertical("box");
+        // 结果相关
+        private List<MissingSpriteInfo> missingSprites = new List<MissingSpriteInfo>();
+        private Vector2 resultScrollPosition = Vector2.zero;
+        private bool showResults = false;
+        private int totalChecked = 0;
+        private int missingCount = 0;
 
-        // 单选按钮组
-        EditorGUILayout.LabelField("检查目标:", EditorStyles.label);
-        EditorGUI.indentLevel++;
-
-        searchTarget = (SearchTarget)EditorGUILayout.EnumPopup("选择检查目标", searchTarget);
-        searchInScene = (searchTarget == SearchTarget.Scene);
-        searchInPrefabs = (searchTarget == SearchTarget.Assets);
-        
-        if (searchInScene)
-        {
-            parentTransform =
-                (Transform)EditorGUILayout.ObjectField("限制在父对象下:", parentTransform, typeof(Transform), true);
-            includeInactive = EditorGUILayout.Toggle("包含未激活对象:", includeInactive);
-        }
-
-        if (searchInPrefabs)
-        {
-            EditorGUILayout.BeginHorizontal();
-            searchDirectory = EditorGUILayout.TextField("Prefab搜索目录:", searchDirectory);
-
-            GUIContent folderContent = new GUIContent("浏览", EditorGUIUtility.IconContent("Folder Icon").image);
-            if (GUILayout.Button(folderContent, GUILayout.Width(70), GUILayout.Height(20)))
-            {
-                searchDirectory = Tools.SelectFolder(searchDirectory, "选择Prefab目录");
-            }
-
-            EditorGUILayout.EndHorizontal();
-        }
+        // 日志相关
+        private StringBuilder logBuilder = new StringBuilder();
+        private string logFilePath = "";
 
         // 检查类型选项
-        selectedCheckType = (CheckType)EditorGUILayout.EnumPopup("检查类型:", selectedCheckType);
+        private CheckType selectedCheckType = CheckType.Both;
 
-        EditorGUILayout.Space();
-        EditorGUI.indentLevel--;
-        EditorGUILayout.EndVertical();
-        
-        EditorGUILayout.Space();
-
-        // 搜索按钮
-        GUILayout.BeginHorizontal();
-
-        GUI.enabled = !isSearching && (searchInScene || searchInPrefabs);
-        if (DrawButton("开始检查"))
+        private enum CheckType
         {
-            StartMissingSpriteCheck();
+            SpriteRenderer,
+            UIImage,
+            Both
         }
 
-        GUI.enabled = true;
-
-        if (isSearching && DrawButton("取消"))
+        private struct MissingSpriteInfo
         {
-            CancelCheck();
+            public string assetPath;
+            public string gameObjectPath;
+            public string componentType;
+            public GameObject gameObject; // 用于场景对象
+
+            public MissingSpriteInfo(string assetPath, string gameObjectPath, string componentType,
+                GameObject gameObject = null)
+            {
+                this.assetPath = assetPath;
+                this.gameObjectPath = gameObjectPath;
+                this.componentType = componentType;
+                this.gameObject = gameObject;
+            }
         }
 
-        GUILayout.EndHorizontal();
+        private SearchTarget searchTarget = SearchTarget.Assets;
 
-        // 显示进度
-        if (isSearching)
+        // 将原来的两个bool改为一个枚举
+        public enum SearchTarget
         {
+            Scene, // 场景中的物体
+            Assets // Prefab文件
+        }
+
+        public override void OnGUI(Rect contentRect)
+        {
+            // 第一步：选择搜索范围
+            EditorGUILayout.LabelField("搜索选项", EditorStyles.boldLabel);
+            EditorGUILayout.BeginVertical("box");
+
+            // 单选按钮组
+            EditorGUILayout.LabelField("检查目标:", EditorStyles.label);
+            EditorGUI.indentLevel++;
+
+            searchTarget = (SearchTarget)EditorGUILayout.EnumPopup("选择检查目标", searchTarget);
+            searchInScene = (searchTarget == SearchTarget.Scene);
+            searchInPrefabs = (searchTarget == SearchTarget.Assets);
+
+            if (searchInScene)
+            {
+                parentTransform =
+                    (Transform)EditorGUILayout.ObjectField("限制在父对象下:", parentTransform, typeof(Transform), true);
+                includeInactive = EditorGUILayout.Toggle("包含未激活对象:", includeInactive);
+            }
+
+            if (searchInPrefabs)
+            {
+                EditorGUILayout.BeginHorizontal();
+                searchDirectory = EditorGUILayout.TextField("Prefab搜索目录:", searchDirectory);
+
+                GUIContent folderContent = new GUIContent("浏览", EditorGUIUtility.IconContent("Folder Icon").image);
+                if (GUILayout.Button(folderContent, GUILayout.Width(70), GUILayout.Height(20)))
+                {
+                    searchDirectory = Tools.SelectFolder(searchDirectory, "选择Prefab目录");
+                }
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            // 检查类型选项
+            selectedCheckType = (CheckType)EditorGUILayout.EnumPopup("检查类型:", selectedCheckType);
+
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField($"进度: {searchProgressMessage}");
-            EditorGUILayout.LabelField($"已检查: {totalChecked}, 发现Missing Sprite: {missingCount}");
-        }
+            EditorGUI.indentLevel--;
+            EditorGUILayout.EndVertical();
 
-        // 显示结果
-        if (missingSprites.Count > 0)
-        {
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("第三步：检查结果", EditorStyles.boldLabel);
 
+            // 搜索按钮
             GUILayout.BeginHorizontal();
-            if (DrawButton($"显示结果 ({missingSprites.Count})"))
+
+            GUI.enabled = !isSearching && (searchInScene || searchInPrefabs);
+            if (DrawButton("开始检查"))
             {
-                showResults = !showResults;
+                StartMissingSpriteCheck();
             }
 
-            if (DrawButton("清除结果"))
-            {
-                ClearResults();
-            }
+            GUI.enabled = true;
 
-            if (DrawButton("导出日志"))
+            if (isSearching && DrawButton("取消"))
             {
-                SaveLog();
+                CancelCheck();
             }
 
             GUILayout.EndHorizontal();
 
-            if (showResults)
+            // 显示进度
+            if (isSearching)
             {
-                DrawResultsList();
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField($"进度: {searchProgressMessage}");
+                EditorGUILayout.LabelField($"已检查: {totalChecked}, 发现Missing Sprite: {missingCount}");
+            }
+
+            // 显示结果
+            if (missingSprites.Count > 0)
+            {
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("第三步：检查结果", EditorStyles.boldLabel);
+
+                GUILayout.BeginHorizontal();
+                if (DrawButton($"显示结果 ({missingSprites.Count})"))
+                {
+                    showResults = !showResults;
+                }
+
+                if (DrawButton("清除结果"))
+                {
+                    ClearResults();
+                }
+
+                if (DrawButton("导出日志"))
+                {
+                    SaveLog();
+                }
+
+                GUILayout.EndHorizontal();
+
+                if (showResults)
+                {
+                    DrawResultsList();
+                }
             }
         }
-    }
 
-    private void DrawResultsList()
-    {
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField($"Missing Sprite列表 (总计: {missingSprites.Count})", EditorStyles.boldLabel);
-
-        Rect scrollRect = GUILayoutUtility.GetRect(0, 300, GUILayout.ExpandWidth(true));
-        float lineHeight = 90f; // 每个结果项的高度
-        float totalHeight = missingSprites.Count * lineHeight;
-
-        resultScrollPosition = GUI.BeginScrollView(
-            scrollRect,
-            resultScrollPosition,
-            new Rect(0, 0, scrollRect.width - 20, totalHeight),
-            false,
-            true
-        );
-
-        for (int i = 0; i < missingSprites.Count; i++)
+        private void DrawResultsList()
         {
-            var missing = missingSprites[i];
-            Rect itemRect = new Rect(0, i * lineHeight, scrollRect.width - 20, lineHeight - 5);
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField($"Missing Sprite列表 (总计: {missingSprites.Count})", EditorStyles.boldLabel);
 
-            GUI.Box(itemRect, "", EditorStyles.helpBox);
+            Rect scrollRect = GUILayoutUtility.GetRect(0, 300, GUILayout.ExpandWidth(true));
+            float lineHeight = 90f; // 每个结果项的高度
+            float totalHeight = missingSprites.Count * lineHeight;
 
-            // 内容区域
-            Rect contentRect = new Rect(itemRect.x + 5, itemRect.y + 5, itemRect.width - 10, itemRect.height - 10);
+            resultScrollPosition = GUI.BeginScrollView(
+                scrollRect,
+                resultScrollPosition,
+                new Rect(0, 0, scrollRect.width - 20, totalHeight),
+                false,
+                true
+            );
 
-            // 资源路径
-            Rect pathRect = new Rect(contentRect.x, contentRect.y, contentRect.width, 16);
-            GUI.Label(pathRect, $"资源: {missing.assetPath}", EditorStyles.boldLabel);
-
-            // 对象路径
-            Rect objPathRect = new Rect(contentRect.x, pathRect.yMax + 2, contentRect.width, 16);
-            GUI.Label(objPathRect, $"对象: {missing.gameObjectPath}");
-
-            // 组件类型
-            Rect componentRect = new Rect(contentRect.x, objPathRect.yMax + 2, contentRect.width, 16);
-            GUI.Label(componentRect, $"组件: {missing.componentType}");
-
-            // 按钮
-            Rect buttonRect = new Rect(contentRect.x, componentRect.yMax + 5, 80, 18);
-
-            if (GUI.Button(buttonRect, "选择"))
+            for (int i = 0; i < missingSprites.Count; i++)
             {
-                SelectMissingSprite(missing);
+                var missing = missingSprites[i];
+                Rect itemRect = new Rect(0, i * lineHeight, scrollRect.width - 20, lineHeight - 5);
+
+                GUI.Box(itemRect, "", EditorStyles.helpBox);
+
+                // 内容区域
+                Rect contentRect = new Rect(itemRect.x + 5, itemRect.y + 5, itemRect.width - 10, itemRect.height - 10);
+
+                // 资源路径
+                Rect pathRect = new Rect(contentRect.x, contentRect.y, contentRect.width, 16);
+                GUI.Label(pathRect, $"资源: {missing.assetPath}", EditorStyles.boldLabel);
+
+                // 对象路径
+                Rect objPathRect = new Rect(contentRect.x, pathRect.yMax + 2, contentRect.width, 16);
+                GUI.Label(objPathRect, $"对象: {missing.gameObjectPath}");
+
+                // 组件类型
+                Rect componentRect = new Rect(contentRect.x, objPathRect.yMax + 2, contentRect.width, 16);
+                GUI.Label(componentRect, $"组件: {missing.componentType}");
+
+                // 按钮
+                Rect buttonRect = new Rect(contentRect.x, componentRect.yMax + 5, 80, 18);
+
+                if (GUI.Button(buttonRect, "选择"))
+                {
+                    SelectMissingSprite(missing);
+                }
+
+                buttonRect.x += 85;
+                if (GUI.Button(buttonRect, "复制路径"))
+                {
+                    EditorGUIUtility.systemCopyBuffer = missing.assetPath;
+                }
+
+                if (missing.gameObject != null)
+                {
+                    buttonRect.x += 85;
+                    if (GUI.Button(buttonRect, "定位场景"))
+                    {
+                        Selection.activeGameObject = missing.gameObject;
+                        EditorGUIUtility.PingObject(missing.gameObject);
+                    }
+                }
             }
 
-            buttonRect.x += 85;
-            if (GUI.Button(buttonRect, "复制路径"))
-            {
-                EditorGUIUtility.systemCopyBuffer = missing.assetPath;
-            }
+            GUI.EndScrollView();
+        }
 
+        private void SelectMissingSprite(MissingSpriteInfo missing)
+        {
             if (missing.gameObject != null)
             {
-                buttonRect.x += 85;
-                if (GUI.Button(buttonRect, "定位场景"))
+                // 场景对象
+                Selection.activeGameObject = missing.gameObject;
+                EditorGUIUtility.PingObject(missing.gameObject);
+            }
+            else
+            {
+                // Prefab对象
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(missing.assetPath);
+                if (prefab != null)
                 {
-                    Selection.activeGameObject = missing.gameObject;
-                    EditorGUIUtility.PingObject(missing.gameObject);
+                    Selection.activeObject = prefab;
+                    EditorGUIUtility.PingObject(prefab);
                 }
             }
         }
 
-        GUI.EndScrollView();
-    }
-
-    private void SelectMissingSprite(MissingSpriteInfo missing)
-    {
-        if (missing.gameObject != null)
+        private async void StartMissingSpriteCheck(bool clear = true)
         {
-            // 场景对象
-            Selection.activeGameObject = missing.gameObject;
-            EditorGUIUtility.PingObject(missing.gameObject);
-        }
-        else
-        {
-            // Prefab对象
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(missing.assetPath);
-            if (prefab != null)
+            if (clear)
             {
-                Selection.activeObject = prefab;
-                EditorGUIUtility.PingObject(prefab);
-            }
-        }
-    }
-
-    private async void StartMissingSpriteCheck(bool clear = true)
-    {
-        if (clear)
-        {
-            shareObjectList.Clear();
-            ClearResults();
-        }
-
-        if (!searchInScene && !searchInPrefabs)
-        {
-            Debug.LogWarning("请至少选择一种搜索范围");
-            return;
-        }
-
-        isSearching = true;
-        searchProgress = 0f;
-        totalChecked = 0;
-        missingCount = 0;
-        cancellationTokenSource = new CancellationTokenSource();
-
-        // 初始化日志
-        InitializeLog();
-        
-        searchProgressMessage = $"开始检查Missing Sprite...";
-        window.SetProgressBar(searchProgress); 
-        window.SetStatusInfo(searchProgressMessage);        
-
-        try
-        {
-            if (searchInScene)
-            {
-                await CheckMissingSpriteInScene();
+                shareObjectList.Clear();
+                ClearResults();
             }
 
-            if (searchInPrefabs && !cancellationTokenSource.Token.IsCancellationRequested)
+            if (!searchInScene && !searchInPrefabs)
             {
-                await CheckMissingSpriteInPrefabs();
+                Debug.LogWarning("请至少选择一种搜索范围");
+                return;
             }
 
-            // 更新共享列表
-            foreach (var missing in missingSprites)
-            {
-                if (missing.gameObject != null && !shareObjectList.Contains(missing.gameObject))
-                {
-                    shareObjectList.Add(missing.gameObject);
-                }
-            }
+            isSearching = true;
+            searchProgress = 0f;
+            totalChecked = 0;
+            missingCount = 0;
+            cancellationTokenSource = new CancellationTokenSource();
 
-            WindowToolGroupReorderableListObject.SetData(shareObjectList);
-            Debug.Log($"Missing Sprite检查完成 - 检查了 {totalChecked} 个对象，发现 {missingCount} 个Missing Sprite");
-            window.SetStatusInfo($"Missing Sprite检查完成 - 检查了 {totalChecked} 个对象，发现 {missingCount} 个Missing Sprite");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"检查Missing Sprite时出错: {e.Message}");
-            AddLog($"Error: {e.Message}");
-            window.SetStatusInfo($"Missing Sprite检查异常");
-        }
-        finally
-        {
-            isSearching = false;
-            window.SetProgressBarShow(false);
-            cancellationTokenSource = null;
-        }
-    }
-    
+            // 初始化日志
+            InitializeLog();
 
-    private async System.Threading.Tasks.Task CheckMissingSpriteInScene()
-    {
-        GameObject[] allObjects;
-
-        if (parentTransform == null)
-        {
-            // allObjects = Object.FindObjectsOfType<GameObject>(includeInactive);
-            allObjects = SceneManager.GetActiveScene().GetRootGameObjects();
-        }
-        else
-        {
-            allObjects = new GameObject[]{parentTransform.gameObject};
-        }
-
-        int total = allObjects.Length;
-
-        for (int i = 0; i < total; i++)
-        {
-            if (cancellationTokenSource.Token.IsCancellationRequested)
-                break;
-
-            var go = allObjects[i];
-
-            // 过滤掉预制体和资源文件中的对象
-            if (EditorUtility.IsPersistent(go))
-                continue;
-
-            if (!includeInactive && !go.activeInHierarchy)
-                continue;
-
-            CheckGameObjectForMissingSprites(go, "Scene",null,includeInactive);
-            totalChecked++;
-
-            searchProgress = (float)(i + 1) / total;
-            searchProgressMessage = $"正在检查场景对象 {go.name} ({i + 1}/{total})";
-            window.SetProgressBar(searchProgress, $"({i + 1}/{total})");
+            searchProgressMessage = $"开始检查Missing Sprite...";
+            window.SetProgressBar(searchProgress);
             window.SetStatusInfo(searchProgressMessage);
 
-            if (i % 50 == 0)
+            try
             {
-                await System.Threading.Tasks.Task.Yield();
+                if (searchInScene)
+                {
+                    await CheckMissingSpriteInScene();
+                }
+
+                if (searchInPrefabs && !cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    await CheckMissingSpriteInPrefabs();
+                }
+
+                // 更新共享列表
+                foreach (var missing in missingSprites)
+                {
+                    if (missing.gameObject != null && !shareObjectList.Contains(missing.gameObject))
+                    {
+                        shareObjectList.Add(missing.gameObject);
+                    }
+                }
+
+                WindowToolGroupReorderableListObject.SetData(shareObjectList);
+                Debug.Log($"Missing Sprite检查完成 - 检查了 {totalChecked} 个对象，发现 {missingCount} 个Missing Sprite");
+                window.SetStatusInfo($"Missing Sprite检查完成 - 检查了 {totalChecked} 个对象，发现 {missingCount} 个Missing Sprite");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"检查Missing Sprite时出错: {e.Message}");
+                AddLog($"Error: {e.Message}");
+                window.SetStatusInfo($"Missing Sprite检查异常");
+            }
+            finally
+            {
+                isSearching = false;
+                window.SetProgressBarShow(false);
+                cancellationTokenSource = null;
             }
         }
-    }
-    
-    private async System.Threading.Tasks.Task CheckMissingSpriteInPrefabs()
-    {
-        var prefabFiles = Directory.GetFiles(searchDirectory, "*.prefab", SearchOption.AllDirectories);
-        int total = prefabFiles.Length;
 
-        for (int i = 0; i < total; i++)
+
+        private async System.Threading.Tasks.Task CheckMissingSpriteInScene()
         {
-            if (cancellationTokenSource.Token.IsCancellationRequested)
-                break;
+            GameObject[] allObjects;
 
-            string prefabPath = prefabFiles[i].Replace('\\', '/');
-            
-            // 确保路径是相对于Assets的
-            if (prefabPath.StartsWith(Application.dataPath))
+            if (parentTransform == null)
             {
-                prefabPath = "Assets" + prefabPath.Substring(Application.dataPath.Length);
+                // allObjects = Object.FindObjectsOfType<GameObject>(includeInactive);
+                allObjects = SceneManager.GetActiveScene().GetRootGameObjects();
+            }
+            else
+            {
+                allObjects = new GameObject[] { parentTransform.gameObject };
             }
 
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-            if (prefab != null)
+            int total = allObjects.Length;
+
+            for (int i = 0; i < total; i++)
             {
-                CheckGameObjectForMissingSprites(prefab, prefabPath, prefab);
+                if (cancellationTokenSource.Token.IsCancellationRequested)
+                    break;
+
+                var go = allObjects[i];
+
+                // 过滤掉预制体和资源文件中的对象
+                if (EditorUtility.IsPersistent(go))
+                    continue;
+
+                if (!includeInactive && !go.activeInHierarchy)
+                    continue;
+
+                CheckGameObjectForMissingSprites(go, "Scene", null, includeInactive);
                 totalChecked++;
+
+                searchProgress = (float)(i + 1) / total;
+                searchProgressMessage = $"正在检查场景对象 {go.name} ({i + 1}/{total})";
+                window.SetProgressBar(searchProgress, $"({i + 1}/{total})");
+                window.SetStatusInfo(searchProgressMessage);
+
+                if (i % 50 == 0)
+                {
+                    await System.Threading.Tasks.Task.Yield();
+                }
             }
+        }
 
-            searchProgress = (float)(i + 1) / total;
-            window.SetProgressBar(searchProgress, $"({i + 1}/{total})");
-            searchProgressMessage = $"正在检查Prefab {Path.GetFileName(prefabPath)} ({i + 1}/{total})";
-            window.SetStatusInfo(searchProgressMessage);
+        private async System.Threading.Tasks.Task CheckMissingSpriteInPrefabs()
+        {
+            var prefabFiles = Directory.GetFiles(searchDirectory, "*.prefab", SearchOption.AllDirectories);
+            int total = prefabFiles.Length;
 
-            if (i % batchSize == 0)
+            for (int i = 0; i < total; i++)
             {
-                await System.Threading.Tasks.Task.Yield();
+                if (cancellationTokenSource.Token.IsCancellationRequested)
+                    break;
+
+                string prefabPath = prefabFiles[i].Replace('\\', '/');
+
+                // 确保路径是相对于Assets的
+                if (prefabPath.StartsWith(Application.dataPath))
+                {
+                    prefabPath = "Assets" + prefabPath.Substring(Application.dataPath.Length);
+                }
+
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (prefab != null)
+                {
+                    CheckGameObjectForMissingSprites(prefab, prefabPath, prefab);
+                    totalChecked++;
+                }
+
+                searchProgress = (float)(i + 1) / total;
+                window.SetProgressBar(searchProgress, $"({i + 1}/{total})");
+                searchProgressMessage = $"正在检查Prefab {Path.GetFileName(prefabPath)} ({i + 1}/{total})";
+                window.SetStatusInfo(searchProgressMessage);
+
+                if (i % batchSize == 0)
+                {
+                    await System.Threading.Tasks.Task.Yield();
+                }
             }
+        }
+
+        private bool CheckGameObjectForMissingSprites(GameObject go, string assetPath, GameObject sceneObject = null,
+            bool includeInactive = true)
+        {
+            bool hasMissing = false;
+
+            // 检查SpriteRenderer
+            if (selectedCheckType == CheckType.SpriteRenderer || selectedCheckType == CheckType.Both)
+            {
+                var spriteRenderers = go.GetComponentsInChildren<SpriteRenderer>(includeInactive);
+                foreach (var sr in spriteRenderers)
+                {
+                    if (sr.sprite == null)
+                    {
+                        SerializedProperty sp = new SerializedObject(sr).FindProperty("m_Sprite");
+                        if (sp != null && sp.objectReferenceValue == null && sp.objectReferenceInstanceIDValue != 0)
+                        {
+                            string componentPath = sr.gameObject.transform.FullName();
+                            var missingInfo = new MissingSpriteInfo(
+                                assetPath,
+                                componentPath,
+                                "SpriteRenderer",
+                                sceneObject ?? sr.gameObject
+                            );
+
+                            missingSprites.Add(missingInfo);
+                            missingCount++;
+                            hasMissing = true;
+
+                            AddLog($"Missing Sprite in SpriteRenderer: {assetPath} -> {componentPath}");
+                        }
+                    }
+                }
+            }
+
+            // 检查UI Image
+            if (selectedCheckType == CheckType.UIImage || selectedCheckType == CheckType.Both)
+            {
+                var images = go.GetComponentsInChildren<UnityEngine.UI.Image>(true);
+                foreach (var img in images)
+                {
+                    if (img.sprite == null)
+                    {
+                        SerializedProperty sp = new SerializedObject(img).FindProperty("m_Sprite");
+                        if (sp != null && sp.objectReferenceValue == null && sp.objectReferenceInstanceIDValue != 0)
+                        {
+                            string componentPath = img.gameObject.transform.FullName();
+                            var missingInfo = new MissingSpriteInfo(
+                                assetPath,
+                                componentPath,
+                                "UI.Image",
+                                sceneObject ?? img.gameObject
+                            );
+
+                            missingSprites.Add(missingInfo);
+                            missingCount++;
+                            hasMissing = true;
+
+                            AddLog($"Missing Sprite in UI.Image: {assetPath} -> {componentPath}");
+                        }
+                    }
+                }
+            }
+
+            return hasMissing;
+        }
+
+        private void CancelCheck()
+        {
+            if (cancellationTokenSource != null)
+            {
+                cancellationTokenSource.Cancel();
+                Debug.Log("Missing Sprite检查已取消");
+                AddLog("检查已取消");
+            }
+        }
+
+        private void ClearResults()
+        {
+            missingSprites.Clear();
+            showResults = false;
+            totalChecked = 0;
+            missingCount = 0;
+            logBuilder.Clear();
+        }
+
+        private void InitializeLog()
+        {
+            logBuilder.Clear();
+            logBuilder.AppendLine($"Missing Sprite检查开始 - {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            logBuilder.AppendLine($"检查范围: {(searchInScene ? "场景" : "")} {(searchInPrefabs ? "Prefab" : "")}");
+            logBuilder.AppendLine($"检查类型: {selectedCheckType}");
+
+            if (searchInPrefabs)
+            {
+                logBuilder.AppendLine($"Prefab目录: {searchDirectory}");
+            }
+
+            if (searchInScene && parentTransform != null)
+            {
+                logBuilder.AppendLine($"限制父对象: {parentTransform.FullName()}");
+            }
+
+            logBuilder.AppendLine("----------------------------------------");
+        }
+
+        private void AddLog(string message)
+        {
+            logBuilder.AppendLine($"[{System.DateTime.Now:HH:mm:ss}] {message}");
+        }
+
+        private void SaveLog()
+        {
+            // 添加汇总信息
+            logBuilder.AppendLine("----------------------------------------");
+            logBuilder.AppendLine($"检查完成 - {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            logBuilder.AppendLine($"总计检查对象: {totalChecked}");
+            logBuilder.AppendLine($"发现Missing Sprite: {missingCount}");
+            string fileName = $"MissingSprite_Log_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt";
+            SaveLog(logBuilder, fileName);
+        }
+
+
+        private bool DrawButton(string text)
+        {
+            return GUILayout.Button(text, GUILayout.Height(25));
+        }
+
+        public override void OnDestroy()
+        {
+            if (cancellationTokenSource != null)
+            {
+                cancellationTokenSource.Cancel();
+                cancellationTokenSource = null;
+            }
+
+            base.OnDestroy();
         }
     }
 
-    private bool CheckGameObjectForMissingSprites(GameObject go, string assetPath, GameObject sceneObject=null,bool includeInactive=true)
+    /// <summary>
+    /// 资源依赖查看工具
+    /// </summary>
+    [WindowToolGroup(506, WindowArea.RightMid)]
+    public class AssetDependencyTool : WindowToolGroup
     {
-        bool hasMissing = false;
+        public override string title { get; } = "资源依赖查看器";
+        public override string tip { get; } = "查看指定资源的依赖关系";
 
-        // 检查SpriteRenderer
-        if (selectedCheckType == CheckType.SpriteRenderer || selectedCheckType == CheckType.Both)
+        private Object targetAsset;
+        private int depth = 0;
+        private Vector2 scrollPosition;
+        private List<string> dependencies = new List<string>();
+        private bool showFullPath = false;
+        private string searchFilter = "";
+        private bool isChecking = false;
+
+        // 过滤选项
+        private bool filterScripts = true; // 默认过滤脚本
+        private bool filterCode = true; // 默认过滤代码文件
+        private bool showFilterOptions = false;
+
+        // 层级显示选项
+        private bool showLayerInfo = false; // 是否显示层级信息
+
+        // 脚本和代码文件扩展名
+        private readonly HashSet<string> scriptExtensions = new HashSet<string>
         {
-            var spriteRenderers = go.GetComponentsInChildren<SpriteRenderer>(includeInactive);
-            foreach (var sr in spriteRenderers)
+            ".cs", ".js", ".boo", ".dll", ".asmdef", ".asmref"
+        };
+
+        private readonly HashSet<string> codeExtensions = new HashSet<string>
+        {
+            ".cs", ".js", ".boo", ".cpp", ".c", ".h", ".hpp", ".cc", ".cxx",
+            ".py", ".java", ".kt", ".swift", ".ts", ".jsx", ".vue", ".php",
+            ".rb", ".go", ".rs", ".scala", ".sh", ".bat", ".ps1"
+        };
+
+        public override void OnGUI(Rect contentRect)
+        {
+            GUILayout.BeginVertical();
+
+            // 资源选择区域
+            GUILayout.Label("目标资源:", EditorStyles.boldLabel);
+            targetAsset = EditorGUILayout.ObjectField(targetAsset, typeof(Object), false);
+
+            GUILayout.Space(5);
+
+            // 深度设置
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("深度层次:", GUILayout.Width(60));
+            depth = EditorGUILayout.IntField(depth, GUILayout.Width(50));
+            depth = Mathf.Max(0, depth);
+
+            string depthDescription = depth == 0 ? "(全部依赖)" : $"(第1层到第{depth}层)";
+            GUILayout.Label(depthDescription, EditorStyles.miniLabel);
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(5);
+
+            // 基本选项设置
+            GUILayout.BeginHorizontal();
+            showFullPath = EditorGUILayout.Toggle("显示完整路径", showFullPath);
+            showLayerInfo = EditorGUILayout.Toggle("显示层级信息", showLayerInfo);
+            GUILayout.EndHorizontal();
+
+            // 过滤选项区域
+            GUILayout.BeginHorizontal();
+            showFilterOptions = EditorGUILayout.Foldout(showFilterOptions, "过滤选项", true);
+            GUILayout.EndHorizontal();
+
+            if (showFilterOptions)
             {
-                if (sr.sprite==null)
+                EditorGUI.indentLevel++;
+
+                GUILayout.BeginVertical("box");
+
+                // 文件类型过滤
+                GUILayout.Label("文件类型过滤:", EditorStyles.boldLabel);
+
+                GUILayout.BeginHorizontal();
+                bool newFilterScripts = EditorGUILayout.Toggle("过滤脚本文件", filterScripts);
+                if (newFilterScripts != filterScripts)
                 {
-                    SerializedProperty sp = new SerializedObject(sr).FindProperty("m_Sprite");
-                    if (sp != null && sp.objectReferenceValue == null && sp.objectReferenceInstanceIDValue != 0)
+                    filterScripts = newFilterScripts;
+                    if (dependencies.Count > 0) RefreshDependencies();
+                }
+
+                if (GUILayout.Button("?", GUILayout.Width(20)))
+                {
+                    EditorUtility.DisplayDialog("脚本文件",
+                        "包括: .cs, .js, .boo, .dll, .asmdef, .asmref 等Unity脚本相关文件", "确定");
+                }
+
+                GUILayout.EndHorizontal();
+
+                GUILayout.BeginHorizontal();
+                bool newFilterCode = EditorGUILayout.Toggle("过滤代码文件", filterCode);
+                if (newFilterCode != filterCode)
+                {
+                    filterCode = newFilterCode;
+                    if (dependencies.Count > 0) RefreshDependencies();
+                }
+
+                if (GUILayout.Button("?", GUILayout.Width(20)))
+                {
+                    EditorUtility.DisplayDialog("代码文件",
+                        "包括: .cs, .cpp, .py, .java, .ts, .php 等各种编程语言文件", "确定");
+                }
+
+                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
+
+                EditorGUI.indentLevel--;
+            }
+
+            // 搜索过滤
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("搜索:", GUILayout.Width(40));
+            searchFilter = EditorGUILayout.TextField(searchFilter);
+            if (GUILayout.Button("清空", GUILayout.Width(40)))
+            {
+                searchFilter = "";
+            }
+
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(5);
+
+            // 操作按钮
+            GUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("刷新依赖"))
+            {
+                RefreshDependencies();
+            }
+
+            GUI.enabled = dependencies.Count > 0;
+            if (GUILayout.Button("复制列表"))
+            {
+                CopyDependenciesToClipboard();
+            }
+
+            GUI.enabled = true;
+            GUI.enabled = shareStringBuilder.Length > 0;
+            if (GUILayout.Button("复制带层级列表"))
+            {
+                EditorGUIUtility.systemCopyBuffer = shareStringBuilder.ToString();
+            }
+
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(5);
+
+            // 依赖列表显示
+            if (dependencies.Count > 0)
+            {
+                var filteredDeps = FilterDependencies();
+                var allDeps = GetAllDependencies(); // 获取未过滤的总数
+                shareStringBuilder.Clear();
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"显示: {filteredDeps.Count} / 总计: {allDeps.Count}", EditorStyles.boldLabel);
+
+                // 显示过滤状态
+                if (filterScripts || filterCode)
+                {
+                    var filterInfo = new List<string>();
+                    if (filterScripts) filterInfo.Add("脚本");
+                    if (filterCode) filterInfo.Add("代码");
+                    GUILayout.Label($"(已过滤: {string.Join(", ", filterInfo)})", EditorStyles.miniLabel);
+                }
+
+                GUILayout.EndHorizontal();
+
+                scrollPosition =
+                    GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(200), GUILayout.ExpandHeight(true));
+
+                // 如果显示层级信息且depth > 0，按层级分组显示
+                if (showLayerInfo && depth > 0)
+                {
+                    shareStringBuilder.AppendLine($"资源: {AssetDatabase.GetAssetPath(targetAsset)}");
+                    shareStringBuilder.AppendLine($"依赖深度: {(depth == 0 ? "全部" : depth.ToString())}");
+                    shareStringBuilder.AppendLine($"依赖数量: {filteredDeps.Count}");
+                    shareStringBuilder.AppendLine($"显示: {filteredDeps.Count} / 总计: {allDeps.Count}");
+                    DisplayDependenciesByLayer(filteredDeps);
+                }
+                else
+                {
+                    // 按类型分组显示
+                    DisplayDependenciesByType(filteredDeps);
+                }
+
+                GUILayout.EndScrollView();
+            }
+            else if (targetAsset != null)
+            {
+                GUILayout.Label("该资源没有依赖项", EditorStyles.centeredGreyMiniLabel);
+            }
+            else
+            {
+                GUILayout.Label("请选择一个资源", EditorStyles.centeredGreyMiniLabel);
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// 按层级显示依赖
+        /// </summary>
+        private void DisplayDependenciesByLayer(List<string> filteredDeps)
+        {
+            var layerDeps = GetDependenciesWithLayers();
+            // 按层级分组
+            for (int layer = 1; layer <= depth; layer++)
+            {
+                var layerItems = layerDeps.Where(item => item.layer == layer && filteredDeps.Contains(item.path))
+                    .ToList();
+
+                if (layerItems.Count > 0)
+                {
+                    GUILayout.Space(5);
+                    GUILayout.Label($"第 {layer} 层 ({layerItems.Count}个)", EditorStyles.boldLabel);
+                    shareStringBuilder.AppendLine($"第 {layer} 层 ({layerItems.Count}个)");
+                    // 按类型再次分组
+                    var typeGroups = layerItems.GroupBy(item => GetFileCategory(item.path));
+
+                    foreach (var typeGroup in typeGroups.OrderBy(g => g.Key))
                     {
-                        string componentPath = sr.gameObject.transform.FullName();
-                        var missingInfo = new MissingSpriteInfo(
-                            assetPath,
-                            componentPath,
-                            "SpriteRenderer",
-                            sceneObject ?? sr.gameObject
-                        );
-                    
-                        missingSprites.Add(missingInfo);
-                        missingCount++;
-                        hasMissing = true;
-                    
-                        AddLog($"Missing Sprite in SpriteRenderer: {assetPath} -> {componentPath}");                        
+                        if (typeGroups.Count() > 1)
+                        {
+                            EditorGUI.indentLevel++;
+                            GUILayout.Label($"[{typeGroup.Key}] ({typeGroup.Count()}个)", EditorStyles.miniLabel);
+                            shareStringBuilder.AppendLine($"  [{typeGroup.Key}] ({typeGroup.Count()}个)");
+                            EditorGUI.indentLevel--;
+                        }
+
+                        EditorGUI.indentLevel++;
+                        foreach (var item in typeGroup.OrderBy(i => i.path))
+                        {
+                            DisplayDependencyItem(item.path);
+                            shareStringBuilder.AppendLine($"    {item.path}");
+                        }
+
+                        EditorGUI.indentLevel--;
                     }
                 }
             }
         }
 
-        // 检查UI Image
-        if (selectedCheckType == CheckType.UIImage || selectedCheckType == CheckType.Both)
+        /// <summary>
+        /// 按类型显示依赖
+        /// </summary>
+        private void DisplayDependenciesByType(List<string> filteredDeps)
         {
-            var images = go.GetComponentsInChildren<UnityEngine.UI.Image>(true);
-            foreach (var img in images)
+            var groupedDeps = filteredDeps.GroupBy(dep => GetFileCategory(dep));
+
+            foreach (var group in groupedDeps.OrderBy(g => g.Key))
             {
-                if (img.sprite==null)
+                // 显示分类标题
+                if (groupedDeps.Count() > 1)
                 {
-                    SerializedProperty sp = new SerializedObject(img).FindProperty("m_Sprite");
-                    if (sp != null && sp.objectReferenceValue == null && sp.objectReferenceInstanceIDValue != 0)
-                    {
-                        string componentPath = img.gameObject.transform.FullName();
-                        var missingInfo = new MissingSpriteInfo(
-                            assetPath,
-                            componentPath,
-                            "UI.Image",
-                            sceneObject ?? img.gameObject
-                        );
-                    
-                        missingSprites.Add(missingInfo);
-                        missingCount++;
-                        hasMissing = true;
-                    
-                        AddLog($"Missing Sprite in UI.Image: {assetPath} -> {componentPath}");                        
-                    }
+                    GUILayout.Space(5);
+                    GUILayout.Label($"[{group.Key}] ({group.Count()}个)", EditorStyles.boldLabel);
+                }
+
+                foreach (string dep in group.OrderBy(d => d))
+                {
+                    DisplayDependencyItem(dep);
                 }
             }
         }
 
-        return hasMissing;
-    }
-
-    private void CancelCheck()
-    {
-        if (cancellationTokenSource != null)
+        /// <summary>
+        /// 显示单个依赖项
+        /// </summary>
+        private void DisplayDependencyItem(string dep)
         {
-            cancellationTokenSource.Cancel();
-            Debug.Log("Missing Sprite检查已取消");
-            AddLog("检查已取消");
+            GUILayout.BeginHorizontal();
+
+            string displayName = showFullPath ? dep : System.IO.Path.GetFileName(dep);
+
+            // 根据文件类型设置不同颜色
+            var originalColor = GUI.color;
+            GUI.color = GetFileTypeColor(dep);
+
+            if (GUILayout.Button(displayName, EditorStyles.linkLabel))
+            {
+                // 点击时选中该资源
+                Object asset = AssetDatabase.LoadAssetAtPath<Object>(dep);
+                if (asset != null)
+                {
+                    Selection.activeObject = asset;
+                    EditorGUIUtility.PingObject(asset);
+                }
+            }
+
+            GUI.color = originalColor;
+
+            // 显示文件类型标签
+            string extension = System.IO.Path.GetExtension(dep);
+            if (!string.IsNullOrEmpty(extension))
+            {
+                GUILayout.Label(extension, EditorStyles.miniLabel, GUILayout.Width(40));
+            }
+
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// 获取带层级信息的依赖
+        /// </summary>
+        private List<(string path, int layer)> GetDependenciesWithLayers()
+        {
+            if (targetAsset == null)
+                return new List<(string, int)>();
+
+            string assetPath = AssetDatabase.GetAssetPath(targetAsset);
+            if (string.IsNullOrEmpty(assetPath))
+                return new List<(string, int)>();
+
+            var result = new List<(string path, int layer)>();
+            var visited = new HashSet<string>();
+            var queue = new Queue<(string path, int currentLayer)>();
+
+            queue.Enqueue((assetPath, 0));
+            visited.Add(assetPath);
+
+            while (queue.Count > 0)
+            {
+                var (currentPath, currentLayer) = queue.Dequeue();
+
+                if (depth > 0 && currentLayer >= depth)
+                    continue;
+
+                string[] directDeps = AssetDatabase.GetDependencies(currentPath, false);
+
+                foreach (string dep in directDeps)
+                {
+                    if (dep == currentPath || visited.Contains(dep))
+                        continue;
+
+                    visited.Add(dep);
+                    int nextLayer = currentLayer + 1;
+
+                    // 添加到结果中（如果在指定深度范围内）
+                    if (depth == 0 || nextLayer <= depth)
+                    {
+                        result.Add((dep, nextLayer));
+
+                        // 继续搜索下一层
+                        if (depth == 0 || nextLayer < depth)
+                        {
+                            queue.Enqueue((dep, nextLayer));
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 获取文件分类
+        /// </summary>
+        private string GetFileCategory(string filePath)
+        {
+            string extension = System.IO.Path.GetExtension(filePath).ToLower();
+
+            if (scriptExtensions.Contains(extension))
+                return "脚本文件";
+
+            if (codeExtensions.Contains(extension))
+                return "代码文件";
+
+            // 其他资源类型分类
+            switch (extension)
+            {
+                case ".png":
+                case ".jpg":
+                case ".jpeg":
+                case ".tga":
+                case ".psd":
+                case ".tiff":
+                case ".gif":
+                case ".bmp":
+                case ".exr":
+                case ".hdr":
+                    return "贴图资源";
+
+                case ".fbx":
+                case ".obj":
+                case ".dae":
+                case ".3ds":
+                case ".blend":
+                case ".ma":
+                case ".mb":
+                    return "模型资源";
+
+                case ".wav":
+                case ".mp3":
+                case ".ogg":
+                case ".aiff":
+                case ".flac":
+                    return "音频资源";
+
+                case ".mp4":
+                case ".mov":
+                case ".avi":
+                case ".webm":
+                    return "视频资源";
+
+                case ".mat":
+                    return "材质资源";
+
+                case ".shader":
+                case ".cginc":
+                case ".hlsl":
+                    return "着色器";
+
+                case ".prefab":
+                    return "预制体";
+
+                case ".unity":
+                    return "场景文件";
+
+                case ".asset":
+                    return "资源文件";
+
+                case ".controller":
+                    return "动画控制器";
+
+                case ".anim":
+                    return "动画文件";
+
+                case ".physicMaterial":
+                case ".physicsMaterial2D":
+                    return "物理材质";
+
+                case ".ttf":
+                case ".otf":
+                    return "字体资源";
+
+                case ".txt":
+                case ".json":
+                case ".xml":
+                case ".csv":
+                    return "文本文件";
+
+                default:
+                    return "其他文件";
+            }
+        }
+
+        /// <summary>
+        /// 获取文件类型对应的颜色
+        /// </summary>
+        private Color GetFileTypeColor(string filePath)
+        {
+            string extension = System.IO.Path.GetExtension(filePath).ToLower();
+
+            if (scriptExtensions.Contains(extension))
+                return new Color(0.5f, 0.8f, 1f); // 浅蓝色 - 脚本
+
+            if (codeExtensions.Contains(extension))
+                return new Color(0.8f, 0.5f, 1f); // 浅紫色 - 代码
+
+            switch (extension)
+            {
+                case ".png":
+                case ".jpg":
+                case ".jpeg":
+                case ".tga":
+                case ".psd":
+                case ".tiff":
+                case ".gif":
+                case ".bmp":
+                case ".exr":
+                case ".hdr":
+                    return new Color(1f, 0.8f, 0.5f); // 橙色 - 贴图
+
+                case ".fbx":
+                case ".obj":
+                case ".dae":
+                case ".3ds":
+                case ".blend":
+                case ".ma":
+                case ".mb":
+                    return new Color(0.5f, 1f, 0.5f); // 浅绿色 - 模型
+
+                case ".wav":
+                case ".mp3":
+                case ".ogg":
+                case ".aiff":
+                case ".flac":
+                    return new Color(1f, 0.5f, 0.8f); // 粉色 - 音频
+
+                case ".prefab":
+                    return new Color(0.8f, 1f, 0.5f); // 黄绿色 - 预制体
+
+                case ".mat":
+                    return new Color(0.8f, 0.8f, 0.5f); // 黄色 - 材质
+
+                case ".shader":
+                case ".cginc":
+                case ".hlsl":
+                    return new Color(1f, 0.5f, 0.5f); // 浅红色 - 着色器
+
+                default:
+                    return Color.white; // 默认白色
+            }
+        }
+
+        /// <summary>
+        /// 检查依赖关系
+        /// </summary>
+        private void CheckDependencies()
+        {
+            if (targetAsset == null) return;
+
+            isChecking = true;
+
+            try
+            {
+                string assetPath = AssetDatabase.GetAssetPath(targetAsset);
+                if (string.IsNullOrEmpty(assetPath))
+                {
+                    dependencies.Clear();
+                    return;
+                }
+
+                // 获取依赖关系
+                string[] deps;
+                if (depth == 0)
+                {
+                    // 获取所有依赖
+                    deps = AssetDatabase.GetDependencies(assetPath, true);
+                }
+                else
+                {
+                    // 获取指定深度的依赖
+                    deps = GetDependenciesWithDepth(assetPath, depth);
+                }
+
+                // 排除自身
+                dependencies = deps.Where(dep => dep != assetPath).ToList();
+            }
+            finally
+            {
+                isChecking = false;
+            }
+        }
+
+        /// <summary>
+        /// 获取指定深度的依赖
+        /// </summary>
+        private string[] GetDependenciesWithDepth(string assetPath, int maxDepth)
+        {
+            var result = new HashSet<string>();
+            var visited = new HashSet<string>();
+            var queue = new Queue<(string path, int currentDepth)>();
+
+            queue.Enqueue((assetPath, 0));
+            visited.Add(assetPath);
+
+            while (queue.Count > 0)
+            {
+                var (currentPath, currentDepth) = queue.Dequeue();
+
+                if (currentDepth >= maxDepth)
+                    continue;
+
+                string[] directDeps = AssetDatabase.GetDependencies(currentPath, false);
+
+                foreach (string dep in directDeps)
+                {
+                    if (dep == currentPath || visited.Contains(dep))
+                        continue;
+
+                    visited.Add(dep);
+                    result.Add(dep);
+
+                    // 继续搜索下一层
+                    if (currentDepth + 1 < maxDepth)
+                    {
+                        queue.Enqueue((dep, currentDepth + 1));
+                    }
+                }
+            }
+
+            return result.ToArray();
+        }
+
+        /// <summary>
+        /// 刷新依赖列表
+        /// </summary>
+        private void RefreshDependencies()
+        {
+            if (targetAsset != null)
+            {
+                CheckDependencies();
+            }
+        }
+
+        /// <summary>
+        /// 过滤依赖列表
+        /// </summary>
+        private List<string> FilterDependencies()
+        {
+            var filtered = dependencies.AsEnumerable();
+
+            // 应用文件类型过滤
+            if (filterScripts)
+            {
+                filtered = filtered.Where(dep => !IsScriptFile(dep));
+            }
+
+            if (filterCode)
+            {
+                filtered = filtered.Where(dep => !IsCodeFile(dep));
+            }
+
+            // 应用搜索过滤
+            if (!string.IsNullOrEmpty(searchFilter))
+            {
+                filtered = filtered.Where(dep =>
+                    dep.IndexOf(searchFilter, System.StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            return filtered.ToList();
+        }
+
+        /// <summary>
+        /// 获取所有依赖（未过滤）
+        /// </summary>
+        private List<string> GetAllDependencies()
+        {
+            return dependencies;
+        }
+
+        /// <summary>
+        /// 判断是否为脚本文件
+        /// </summary>
+        private bool IsScriptFile(string filePath)
+        {
+            string extension = System.IO.Path.GetExtension(filePath).ToLower();
+            return scriptExtensions.Contains(extension);
+        }
+
+        /// <summary>
+        /// 判断是否为代码文件
+        /// </summary>
+        private bool IsCodeFile(string filePath)
+        {
+            string extension = System.IO.Path.GetExtension(filePath).ToLower();
+            return codeExtensions.Contains(extension);
+        }
+
+        /// <summary>
+        /// 复制依赖列表到剪贴板
+        /// </summary>
+        private void CopyDependenciesToClipboard()
+        {
+            if (dependencies.Count == 0) return;
+
+            var filteredDeps = FilterDependencies();
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine($"资源: {AssetDatabase.GetAssetPath(targetAsset)}");
+            sb.AppendLine($"依赖深度: {(depth == 0 ? "全部" : depth.ToString())}");
+            sb.AppendLine($"依赖数量: {filteredDeps.Count}");
+            sb.AppendLine("依赖列表:");
+            sb.AppendLine("----------------------------------------");
+
+            foreach (string dep in filteredDeps)
+            {
+                sb.AppendLine(dep);
+            }
+
+            EditorGUIUtility.systemCopyBuffer = sb.ToString();
+            Debug.Log($"已复制 {filteredDeps.Count} 个依赖项到剪贴板");
         }
     }
-
-    private void ClearResults()
-    {
-        missingSprites.Clear();
-        showResults = false;
-        totalChecked = 0;
-        missingCount = 0;
-        logBuilder.Clear();
-    }
-
-    private void InitializeLog()
-    {
-        logBuilder.Clear();
-        logBuilder.AppendLine($"Missing Sprite检查开始 - {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        logBuilder.AppendLine($"检查范围: {(searchInScene ? "场景" : "")} {(searchInPrefabs ? "Prefab" : "")}");
-        logBuilder.AppendLine($"检查类型: {selectedCheckType}");
-        
-        if (searchInPrefabs)
-        {
-            logBuilder.AppendLine($"Prefab目录: {searchDirectory}");
-        }
-        
-        if (searchInScene && parentTransform != null)
-        {
-            logBuilder.AppendLine($"限制父对象: {parentTransform.FullName()}");
-        }
-        
-        logBuilder.AppendLine("----------------------------------------");
-    }
-
-    private void AddLog(string message)
-    {
-        logBuilder.AppendLine($"[{System.DateTime.Now:HH:mm:ss}] {message}");
-    }
-
-    private void SaveLog()
-    {
-        // 添加汇总信息
-        logBuilder.AppendLine("----------------------------------------");
-        logBuilder.AppendLine($"检查完成 - {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        logBuilder.AppendLine($"总计检查对象: {totalChecked}");
-        logBuilder.AppendLine($"发现Missing Sprite: {missingCount}");
-        string fileName = $"MissingSprite_Log_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt";
-        SaveLog(logBuilder,fileName);
-    }
-    
-
-    private bool DrawButton(string text)
-    {
-        return GUILayout.Button(text, GUILayout.Height(25));
-    }
-
-    public override void OnDestroy()
-    {
-        if (cancellationTokenSource != null)
-        {
-            cancellationTokenSource.Cancel();
-            cancellationTokenSource = null;
-        }
-        
-        base.OnDestroy();
-    }
-}
-//
-// [WindowToolGroup(506, WindowArea.RightMid)]
-// public class WindowToolGroupFindAssetReferences : WindowToolGroup
-// {
-//     public override string title { get; } = "资源引用查找";
-//     public override string tip { get; } = "查找指定资源在Project或Scene中的所有引用";
-//
-//     // 目标资源
-//     private UnityEngine.Object targetAsset = null;
-//     private string targetAssetPath = "";
-//
-//     // 搜索选项
-//     private SearchTarget searchTarget = SearchTarget.Project;
-//     private bool includeInactive = true;
-//     private string searchDirectory = "Assets/";
-//     private Transform parentTransform = null;
-//
-//     // 检查参数
-//     private int batchSize = 40;
-//
-//     // 进度相关
-//     private bool isSearching = false;
-//     private float searchProgress = 0f;
-//     private string searchProgressMessage = "";
-//     private CancellationTokenSource cancellationTokenSource;
-//
-//     // 结果相关
-//     private List<AssetReferenceInfo> assetReferences = new List<AssetReferenceInfo>();
-//     private Vector2 resultScrollPosition = Vector2.zero;
-//     private bool showResults = false;
-//     private int totalChecked = 0;
-//     private int referenceCount = 0;
-//
-//     // 日志相关
-//     private StringBuilder logBuilder = new StringBuilder();
-//
-//     // 检查类型选项
-//     private ReferenceType selectedReferenceType = ReferenceType.All;
-//
-//     public enum SearchTarget
-//     {
-//         Project, // Project中的所有资源
-//         Scene // 当前Scene中的对象
-//     }
-//
-//     private enum ReferenceType
-//     {
-//         All,
-//         Components,
-//         Materials,
-//         Prefabs,
-//         ScriptableObjects,
-//         Scenes
-//     }
-//
-//     private class AssetReferenceInfo
-//     {
-//         public string ReferencePath;
-//         public string ReferenceType;
-//     }
-//     public override void OnGUI(Rect contentRect)
-//     {
-//         // 第一步：选择目标资源
-//         EditorGUILayout.LabelField("目标资源", EditorStyles.boldLabel);
-//         EditorGUILayout.BeginVertical("box");
-//
-//         var newTargetAsset = EditorGUILayout.ObjectField("选择资源:", targetAsset, typeof(UnityEngine.Object), false);
-//         if (newTargetAsset != targetAsset)
-//         {
-//             targetAsset = newTargetAsset;
-//             targetAssetPath = targetAsset != null ? AssetDatabase.GetAssetPath(targetAsset) : "";
-//             ClearResults(); // 清除之前的结果
-//         }
-//
-//         if (targetAsset != null)
-//         {
-//             EditorGUILayout.LabelField($"资源路径: {targetAssetPath}", EditorStyles.miniLabel);
-//             EditorGUILayout.LabelField($"资源类型: {targetAsset.GetType().Name}", EditorStyles.miniLabel);
-//         }
-//
-//         EditorGUILayout.EndVertical();
-//         EditorGUILayout.Space();
-//
-//         // 第二步：选择搜索范围
-//         EditorGUILayout.LabelField("搜索选项", EditorStyles.boldLabel);
-//         EditorGUILayout.BeginVertical("box");
-//
-//         if (searchTarget == SearchTarget.Project)
-//         {
-//             EditorGUILayout.BeginHorizontal();
-//             searchDirectory = EditorGUILayout.TextField("搜索目录:", searchDirectory);
-//
-//             GUIContent folderContent = new GUIContent("浏览", EditorGUIUtility.IconContent("Folder Icon").image);
-//             if (GUILayout.Button(folderContent, GUILayout.Width(70), GUILayout.Height(20)))
-//             {
-//                 string selectedPath = EditorUtility.OpenFolderPanel("选择搜索目录", "Assets", "");
-//                 if (!string.IsNullOrEmpty(selectedPath))
-//                 {
-//                     if (selectedPath.StartsWith(Application.dataPath))
-//                     {
-//                         searchDirectory = "Assets" + selectedPath.Substring(Application.dataPath.Length);
-//                     }
-//                     else
-//                     {
-//                         EditorUtility.DisplayDialog("错误", "请选择项目内的Assets目录下的文件夹", "确定");
-//                     }
-//                 }
-//             }
-//
-//             EditorGUILayout.EndHorizontal();
-//
-//             // 引用类型过滤
-//             selectedReferenceType = (ReferenceType)EditorGUILayout.EnumPopup("引用类型:", selectedReferenceType);
-//         }
-//
-//         EditorGUILayout.EndVertical();
-//         EditorGUILayout.Space();
-//
-//         // 搜索按钮
-//         GUILayout.BeginHorizontal();
-//
-//         GUI.enabled = !isSearching && targetAsset != null;
-//         if (DrawButton("开始查找引用"))
-//         {
-//             StartFindReferences();
-//         }
-//
-//         GUI.enabled = true;
-//
-//         if (isSearching && DrawButton("取消"))
-//         {
-//             CancelSearch();
-//         }
-//
-//         GUILayout.EndHorizontal();
-//
-//         // 显示进度
-//         if (isSearching)
-//         {
-//             EditorGUILayout.Space();
-//             EditorGUILayout.LabelField($"进度: {searchProgressMessage}");
-//             EditorGUILayout.LabelField($"已检查: {totalChecked}, 发现引用: {referenceCount}");
-//         }
-//
-//         // 显示结果
-//         if (assetReferences.Count > 0)
-//         {
-//             EditorGUILayout.Space();
-//             EditorGUILayout.LabelField("查找结果", EditorStyles.boldLabel);
-//
-//             GUILayout.BeginHorizontal();
-//             if (DrawButton($"显示结果 ({assetReferences.Count})"))
-//             {
-//                 showResults = !showResults;
-//             }
-//
-//             if (DrawButton("清除结果"))
-//             {
-//                 ClearResults();
-//             }
-//
-//             if (DrawButton("导出日志"))
-//             {
-//                 SaveLog();
-//             }
-//
-//             GUILayout.EndHorizontal();
-//
-//             if (showResults)
-//             {
-//                 DrawResultsList();
-//             }
-//         }
-//     }
-//
-//     private void DrawResultsList()
-//     {
-//         EditorGUILayout.Space();
-//         EditorGUILayout.LabelField($"引用列表 (总计: {assetReferences.Count})", EditorStyles.boldLabel);
-//
-//         Rect scrollRect = GUILayoutUtility.GetRect(0, 300, GUILayout.ExpandWidth(true));
-//         float lineHeight = 100f;
-//         float totalHeight = assetReferences.Count * lineHeight;
-//
-//         resultScrollPosition = GUI.BeginScrollView(
-//             scrollRect,
-//             resultScrollPosition,
-//             new Rect(0, 0, scrollRect.width - 20, totalHeight),
-//             false,
-//             true
-//         );
-//
-//         for (int i = 0; i < assetReferences.Count; i++)
-//         {
-//             var reference = assetReferences[i];
-//             Rect itemRect = new Rect(0, i * lineHeight, scrollRect.width - 20, lineHeight - 5);
-//
-//             GUI.Box(itemRect, "", EditorStyles.helpBox);
-//
-//             Rect contentRect = new Rect(itemRect.x + 5, itemRect.y + 5, itemRect.width - 10, itemRect.height - 10);
-//
-//             // 资源路径
-//             Rect pathRect = new Rect(contentRect.x, contentRect.y, contentRect.width, 16);
-//             GUI.Label(pathRect, $"文件: {reference.ReferencePath}", EditorStyles.boldLabel);
-//             
-//             // 组件类型和属性
-//             Rect componentRect = new Rect(contentRect.x, pathRect.yMax + 2, contentRect.width, 16);
-//             GUI.Label(componentRect, $"组件: {reference.ReferenceType}");
-//             
-//
-//             // 按钮
-//             Rect buttonRect = new Rect(contentRect.x, componentRect.yMax + 5, 80, 18);
-//
-//             if (GUI.Button(buttonRect, "选择"))
-//             {
-//                 var obj = AssetDatabase.LoadAssetAtPath<Object>(reference.ReferencePath);
-//                 EditorGUIUtility.PingObject(obj);                
-//             }
-//
-//             buttonRect.x += 85;
-//             if (GUI.Button(buttonRect, "复制路径"))
-//             {
-//                 EditorGUIUtility.systemCopyBuffer = reference.ReferencePath;
-//             }
-//         }
-//
-//         GUI.EndScrollView();
-//     }
-//     
-//
-//     private async void StartFindReferences()
-//     {
-//         if (targetAsset == null)
-//         {
-//             Debug.LogWarning("请先选择要查找引用的资源");
-//             return;
-//         }
-//         shareStringList.Clear();
-//         ClearResults();
-//         isSearching = true;
-//         searchProgress = 0f;
-//         totalChecked = 0;
-//         referenceCount = 0;
-//         cancellationTokenSource = new CancellationTokenSource();
-//
-//         InitializeLog();
-//
-//         searchProgressMessage = $"开始查找 {targetAsset.name} 的引用...";
-//         window.SetProgressBar(searchProgress);
-//         window.SetStatusInfo(searchProgressMessage);
-//
-//         try
-//         {
-//             await FindReferencesInProject();
-//
-//             // 更新共享列表
-//             foreach (var reference in assetReferences)
-//             {
-//                 if (!shareStringList.Contains(reference.ReferencePath))
-//                 {
-//                     shareStringList.Add(reference.ReferencePath);
-//                 }
-//             }
-//
-//             WindowToolGroupReorderableListString.SetData(shareStringList);
-//             Debug.Log($"引用查找完成 - 检查了 {totalChecked} 个对象，发现 {referenceCount} 个引用");
-//             window.SetStatusInfo($"引用查找完成 - 检查了 {totalChecked} 个对象，发现 {referenceCount} 个引用");
-//         }
-//         catch (Exception e)
-//         {
-//             Debug.LogError($"查找引用时出错: {e.Message}");
-//             AddLog($"Error: {e.Message}");
-//             window.SetStatusInfo($"引用查找异常");
-//         }
-//         finally
-//         {
-//             isSearching = false;
-//             window.SetProgressBarShow(false);
-//             cancellationTokenSource = null;
-//         }
-//     }
-//     
-//     
-//
-//     private async System.Threading.Tasks.Task FindReferencesInProject()
-//     {
-//         string[] guids;
-//
-//         if (selectedReferenceType == ReferenceType.All)
-//         {
-//             guids = AssetDatabase.FindAssets("", new[] { searchDirectory });
-//         }
-//         else
-//         {
-//             string filter = GetFilterForReferenceType(selectedReferenceType);
-//             guids = AssetDatabase.FindAssets(filter, new[] { searchDirectory });
-//         }
-//
-//         int total = guids.Length;
-//
-//         for (int i = 0; i < guids.Length; i++)
-//         {
-//             if (cancellationTokenSource.Token.IsCancellationRequested)
-//                 break;
-//
-//             string assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
-//
-//             // 跳过目标资源本身
-//             if (assetPath == targetAssetPath)
-//             {
-//                 totalChecked++;
-//                 continue;
-//             }
-//
-//             await CheckAssetForReferences(assetPath, i, total);
-//
-//             if (i % batchSize == 0)
-//             {
-//                 await System.Threading.Tasks.Task.Yield();
-//             }
-//         }
-//     }
-//
-//     private string GetFilterForReferenceType(ReferenceType referenceType)
-//     {
-//         switch (referenceType)
-//         {
-//             case ReferenceType.Components:
-//                 return "t:MonoScript";
-//             case ReferenceType.Materials:
-//                 return "t:Material";
-//             case ReferenceType.Prefabs:
-//                 return "t:Prefab";
-//             case ReferenceType.ScriptableObjects:
-//                 return "t:ScriptableObject";
-//             case ReferenceType.Scenes:
-//                 return "t:Scene";
-//             default:
-//                 return "";
-//         }
-//     }
-//
-//     private async System.Threading.Tasks.Task CheckAssetForReferences(string assetPath, int index, int total)
-//     {
-//         totalChecked++;
-//
-//         searchProgress = (float)index / total;
-//         searchProgressMessage = $"正在检查资源 {Path.GetFileName(assetPath)} ({index + 1}/{total})";
-//         window.SetProgressBar(searchProgress, $"({index + 1}/{total})");
-//         window.SetStatusInfo(searchProgressMessage);
-//
-//         try
-//         {
-//             CheckAssetReferences( assetPath);
-//         }
-//         catch (Exception e)
-//         {
-//             AddLog($"检查资源 {assetPath} 时出错: {e.Message}");
-//         }
-//     }
-//     
-//     
-//     
-//
-//     private void CheckAssetReferences(string assetPath)
-//         {
-//             try
-//             {
-//                 // 获取目标资源的GUID
-//                 string targetGuid = AssetDatabase.AssetPathToGUID(targetAssetPath);
-//                 if (string.IsNullOrEmpty(targetGuid))
-//                     return;
-//                 
-//                 // 读取资源文件内容
-//                 string assetText = File.ReadAllText(assetPath);
-//                 
-//                 // 检查是否包含目标GUID
-//                 if (assetText.Contains(targetGuid))
-//                 {
-//                     // 确定资源类型
-//                     string assetType = GetAssetType(assetPath);
-//                     
-//                     lock (assetReferences)
-//                     {
-//                         referenceCount++;
-//                         assetReferences.Add(new AssetReferenceInfo 
-//                         { 
-//                             ReferencePath = assetPath, 
-//                             ReferenceType = assetType
-//                         });
-//                         
-//                         AddLog($"发现引用: {assetPath}, 类型: {assetType}");
-//                     }
-//                 }
-//             }
-//             catch (Exception e)
-//             {
-//                 AddLog($"检查资源 {assetPath} 时出错: {e.Message}");
-//             }
-//         }
-//
-//         private string GetAssetType(string assetPath)
-//         {
-//             UnityEngine.Object asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
-//             if (asset != null)
-//                 return asset.GetType().Name;
-//                 
-//             // 根据文件扩展名猜测类型
-//             string extension = Path.GetExtension(assetPath).ToLower();
-//             switch (extension)
-//             {
-//                 case ".prefab": return "GameObject";
-//                 case ".mat": return "Material";
-//                 case ".shader": return "Shader";
-//                 case ".texture2d": return "Texture2D";
-//                 case ".spriteatlas": return "SpriteAtlas";
-//                 case ".anim": return "AnimationClip";
-//                 case ".controller": return "AnimatorController";
-//                 case ".fbx": return "Model";
-//                 case ".unity": return "Scene";
-//                 default: return "Unknown";
-//             }
-//         }    
-//     private string GetGameObjectPath(GameObject go)
-//     {
-//         string path = go.name;
-//         Transform parent = go.transform.parent;
-//
-//         while (parent != null)
-//         {
-//             path = parent.name + "/" + path;
-//             parent = parent.parent;
-//         }
-//
-//         return path;
-//     }
-//
-//     private void CancelSearch()
-//     {
-//         if (cancellationTokenSource != null)
-//         {
-//             cancellationTokenSource.Cancel();
-//             isSearching = false;
-//             window.SetProgressBarShow(false);
-//             window.SetStatusInfo("搜索已取消");
-//             AddLog("搜索被用户取消");
-//         }
-//     }
-//
-//     private void ClearResults()
-//     {
-//         assetReferences.Clear();
-//         showResults = false;
-//         totalChecked = 0;
-//         referenceCount = 0;
-//         logBuilder.Clear();
-//     }
-//
-//     private void InitializeLog()
-//     {
-//         logBuilder.Clear();
-//         logBuilder.AppendLine($"=== 资源引用查找日志 ===");
-//         logBuilder.AppendLine($"目标资源: {targetAsset.name} ({targetAssetPath})");
-//         logBuilder.AppendLine($"搜索范围: {searchTarget}");
-//         logBuilder.AppendLine($"开始时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-//         logBuilder.AppendLine();
-//     }
-//
-//     private void AddLog(string message)
-//     {
-//         logBuilder.AppendLine($"[{System.DateTime.Now:HH:mm:ss}] {message}");
-//     }
-//
-//     private void SaveLog()
-//     {
-//         string logPath = EditorUtility.SaveFilePanel(
-//             "保存引用查找日志",
-//             Application.dataPath,
-//             $"AssetReferences_{targetAsset.name}_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt",
-//             "txt"
-//         );
-//
-//         if (!string.IsNullOrEmpty(logPath))
-//         {
-//             try
-//             {
-//                 logBuilder.AppendLine();
-//                 logBuilder.AppendLine($"=== 搜索结果汇总 ===");
-//                 logBuilder.AppendLine($"总检查数量: {totalChecked}");
-//                 logBuilder.AppendLine($"发现引用数量: {referenceCount}");
-//                 logBuilder.AppendLine($"完成时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-//
-//                 File.WriteAllText(logPath, logBuilder.ToString());
-//                 Debug.Log($"日志已保存到: {logPath}");
-//                 EditorUtility.RevealInFinder(logPath);
-//             }
-//             catch (Exception e)
-//             {
-//                 Debug.LogError($"保存日志失败: {e.Message}");
-//             }
-//         }
-//     }
-//
-//     private bool DrawButton(string text)
-//     {
-//         return GUILayout.Button(text, GUILayout.Height(25));
-//     }
-// }
-
 }
