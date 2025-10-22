@@ -2536,7 +2536,7 @@ namespace AUnityLocal.Editor
             GUILayout.EndHorizontal();
 
             GUILayout.Space(5);
-
+            shareStringList.Clear();
             // 依赖列表显示
             if (dependencies.Count > 0)
             {
@@ -2558,7 +2558,7 @@ namespace AUnityLocal.Editor
                 GUILayout.EndHorizontal();
 
                 scrollPosition =
-                    GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(200), GUILayout.ExpandHeight(true));
+                    GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(200));
 
                 // 如果显示层级信息且depth > 0，按层级分组显示
                 if (showLayerInfo && depth > 0)
@@ -2576,6 +2576,8 @@ namespace AUnityLocal.Editor
                 }
 
                 GUILayout.EndScrollView();
+                shareStringList.AddRange(filteredDeps);
+                WindowToolGroupReorderableListString.SetData(shareStringList);
             }
             else if (targetAsset != null)
             {

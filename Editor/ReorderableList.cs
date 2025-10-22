@@ -716,7 +716,28 @@ namespace AUnityLocal.Editor
                 // 根据数据类型选择合适的绘制方式
                 if (dataType == typeof(string))
                 {
-                    newData = (T)(object)EditorGUI.TextField(rect, _dataFieldLabel, data?.ToString() ?? "");
+                    if (Tools.GetAssetType(data as string) != AssetType.Invalid)
+                    {
+                        if (GUI.Button(new Rect(rect.x,rect.y,rect.width-50,rect.height),new GUIContent((data as string),(data as string).FileName(true)), EditorStyles.linkLabel))
+                        {
+                            // 点击时选中该资源
+                            UnityEngine.Object asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(data as string);
+                            if (asset != null)
+                            {
+                                Selection.activeObject = asset;
+                                EditorGUIUtility.PingObject(asset);
+                            }
+                        }        
+                        if (GUI.Button(new Rect(rect.x+rect.width-45,rect.y,45,rect.height),new GUIContent("Copy",(data as string).FileName(true))))
+                        {
+                            EditorGUIUtility.systemCopyBuffer = data as string;
+                        }                             
+                    }
+                    else
+                    {
+                        newData = (T)(object)EditorGUI.TextField(rect, _dataFieldLabel, data?.ToString() ?? "");    
+                    }
+                    
                 }
                 else if (dataType == typeof(int))
                 {

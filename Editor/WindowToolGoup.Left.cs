@@ -55,6 +55,7 @@ namespace AUnityLocal.Editor
         {
             shareObjectList.Clear();
             shareStringList.Clear();
+            shareStringBuilder.Clear();
         }        
         public abstract string title { get; }
         public virtual string tip { get; }=string.Empty;

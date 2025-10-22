@@ -1443,5 +1443,32 @@ namespace AUnityLocal.Editor
                 }
             }
         }
+        
+        /// <summary>
+        /// unity 单个资源存在性检查
+        /// </summary>
+        public static bool IsAssetExists(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return false;
+            // 1. 检查是否以Assets/开头或在Packages/中
+            if (!path.StartsWith("Assets/") && !path.StartsWith("Packages/"))
+                return false;
+            
+            // 先检查是否为文件夹
+            if (AssetDatabase.IsValidFolder(path))
+                return true;
+        
+            // 再检查是否为资源文件
+            return AssetDatabase.GetMainAssetTypeAtPath(path) != null;
+        }        
+        /// <summary>
+        /// 获取资源类型
+        /// </summary>
+        public static AssetType GetAssetType(string path)
+        {
+            return AssetTypeExtensions.GetAssetType(path);
+        }           
+        
     }
 }

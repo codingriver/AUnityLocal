@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 using System.Text;
+using UnityEditor;
 
 namespace AUnityLocal
 {
@@ -426,10 +427,20 @@ namespace AUnityLocal
             transform.localRotation = Quaternion.identity;
             transform.localScale = Vector3.one;
         }    
-        public static string FileName(this string path)
+        public static string FileName(this string path,bool ext=false)
         {
-            return Path.GetFileNameWithoutExtension(path);
+            if(ext)
+            {
+                return Path.GetFileName(path);
+            }
+            else
+            {
+                return Path.GetFileNameWithoutExtension(path);
+            }
         }           
+        
+        
+        
         public static T FindAndGetComponent<T>(string name,bool enable = true) where T : Behaviour
         {
             var go = GameObject.Find(name);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using DG.DemiEditor;
 using UnityEngine;
@@ -549,6 +550,7 @@ namespace AUnityLocal.Editor
             {
                 DestroyImmediate(splitterStyle.normal.background);
             }
+            OnCleanClicked();
         }
 
         public void SetProgressBar(float progress, string progressInfo = "")
@@ -571,6 +573,10 @@ namespace AUnityLocal.Editor
             Repaint();
         }
 
+        private void OnDisable()
+        {
+            OnCleanClicked();
+        }
 
         private void OnRefreshClicked()
         {
@@ -582,7 +588,9 @@ namespace AUnityLocal.Editor
         {
             WindowToolGroupReorderableListObject.ClearAll();
             Selection.activeGameObject = null;
+            WindowToolGroup.Clear();
             // 实现清理逻辑
+            Resources.UnloadUnusedAssets();
         }
 
         // 按钮列表（在类的字段中定义）
