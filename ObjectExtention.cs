@@ -141,7 +141,8 @@ namespace AUnityLocal
             }
             else if (item is UnityEngine.UI.Image uiimage)
             {
-                return $"Image({uiimage.sprite?.name ?? "null"})";
+                string str = (uiimage.sprite != null) ? uiimage.sprite.name : "null";
+                return $"Image({str})";
             }
             else if (item is UnityEngine.UI.Button uibutton)
             {

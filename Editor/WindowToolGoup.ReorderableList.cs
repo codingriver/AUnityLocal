@@ -44,6 +44,8 @@ namespace AUnityLocal.Editor
         {
             return dataList;
         }
+
+        public static bool showFullPath = true;
         public static  void SetData(List<TData> _dataList)
         {
             ClearAll();
@@ -79,8 +81,10 @@ namespace AUnityLocal.Editor
             {
 
                 // 进行你的布局逻辑
-                _ReorderableList = new ReorderableList<TData>(dataList, "搜索结果",contentRect.height-50);
+                _ReorderableList = new ReorderableList<TData>(dataList, "搜索结果").Set(contentRect.height-50);
             }
+
+            _ReorderableList.showFullPath = showFullPath;
             _ReorderableList.DoLayoutList();
         }
     }
@@ -104,9 +108,14 @@ namespace AUnityLocal.Editor
     public class WindowToolGroupReorderableListUIText : WindowToolGroupReorderableList<UnityEngine.UI.Text>
     {
         
-    }        
+    }
+    [WindowToolGroup(500, WindowArea.Right)]
+    public class WindowToolGroupReorderableListImage : WindowToolGroupReorderableList<UnityEngine.UI.Image>
+    {
+    }          
     [WindowToolGroup(500, WindowArea.Right)]
     public class WindowToolGroupReorderableListBool : WindowToolGroupReorderableList<bool>
     {
     }        
+    
 }

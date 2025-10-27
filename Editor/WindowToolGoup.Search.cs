@@ -716,9 +716,10 @@ namespace AUnityLocal.Editor
             foreach (var o in list)
             {
                 GameObject obj = o as GameObject;
-                if (obj != null && HasTargetComponent(obj))
+                var com = HasTargetComponent(obj);
+                if (obj != null && com!=null)
                 {
-                    shareObjectList.Add(obj);
+                    shareObjectList.Add(com);
                 }
             }
 
@@ -750,9 +751,9 @@ namespace AUnityLocal.Editor
                     if (EditorUtility.IsPersistent(gameObject))
                         continue;
 
-                    if (!shareObjectList.Contains(gameObject))
+                    if (!shareObjectList.Contains(unityComponent))
                     {
-                        shareObjectList.Add(gameObject);
+                        shareObjectList.Add(unityComponent);
                     }
                 }
             }
@@ -765,11 +766,12 @@ namespace AUnityLocal.Editor
         private void SearchComponentsInChildren(Transform parent)
         {
             // 检查当前物体
-            if (HasTargetComponent(parent.gameObject))
+            var com = HasTargetComponent(parent.gameObject);
+            if (com!=null)
             {
-                if (!shareObjectList.Contains(parent.gameObject))
+                if (!shareObjectList.Contains(com))
                 {
-                    shareObjectList.Add(parent.gameObject);
+                    shareObjectList.Add(com);
                 }
             }
 
@@ -784,12 +786,12 @@ namespace AUnityLocal.Editor
             }
         }
 
-        private bool HasTargetComponent(GameObject obj)
+        private Component HasTargetComponent(GameObject obj)
         {
             if (selectedComponentType == null || obj == null)
-                return false;
+                return null;
 
-            return obj.GetComponent(selectedComponentType) != null;
+            return obj.GetComponent(selectedComponentType) ;
         }
     }
 
@@ -2467,7 +2469,6 @@ namespace AUnityLocal.Editor
                 if (newFilterScripts != filterScripts)
                 {
                     filterScripts = newFilterScripts;
-                    if (dependencies.Count > 0) RefreshDependencies();
                 }
 
                 if (GUILayout.Button("?", GUILayout.Width(20)))
@@ -2483,7 +2484,6 @@ namespace AUnityLocal.Editor
                 if (newFilterCode != filterCode)
                 {
                     filterCode = newFilterCode;
-                    if (dependencies.Count > 0) RefreshDependencies();
                 }
 
                 if (GUILayout.Button("?", GUILayout.Width(20)))
@@ -2514,20 +2514,21 @@ namespace AUnityLocal.Editor
             // 操作按钮
             GUILayout.BeginHorizontal();
 
-            if (GUILayout.Button("刷新依赖"))
+            if (GUILayout.Button("检查依赖"))
             {
                 RefreshDependencies();
+                
             }
 
             GUI.enabled = dependencies.Count > 0;
-            if (GUILayout.Button("复制列表"))
+            if (GUILayout.Button("复制结果"))
             {
                 CopyDependenciesToClipboard();
             }
 
             GUI.enabled = true;
             GUI.enabled = shareStringBuilder.Length > 0;
-            if (GUILayout.Button("复制带层级列表"))
+            if (GUILayout.Button("复制带层级结果"))
             {
                 EditorGUIUtility.systemCopyBuffer = shareStringBuilder.ToString();
             }
@@ -2537,57 +2538,6 @@ namespace AUnityLocal.Editor
 
             GUILayout.Space(5);
             shareStringList.Clear();
-            // 依赖列表显示
-            if (dependencies.Count > 0)
-            {
-                var filteredDeps = FilterDependencies();
-                var allDeps = GetAllDependencies(); // 获取未过滤的总数
-                shareStringBuilder.Clear();
-                GUILayout.BeginHorizontal();
-                GUILayout.Label($"显示: {filteredDeps.Count} / 总计: {allDeps.Count}", EditorStyles.boldLabel);
-
-                // 显示过滤状态
-                if (filterScripts || filterCode)
-                {
-                    var filterInfo = new List<string>();
-                    if (filterScripts) filterInfo.Add("脚本");
-                    if (filterCode) filterInfo.Add("代码");
-                    GUILayout.Label($"(已过滤: {string.Join(", ", filterInfo)})", EditorStyles.miniLabel);
-                }
-
-                GUILayout.EndHorizontal();
-
-                scrollPosition =
-                    GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(200));
-
-                // 如果显示层级信息且depth > 0，按层级分组显示
-                if (showLayerInfo && depth > 0)
-                {
-                    shareStringBuilder.AppendLine($"资源: {AssetDatabase.GetAssetPath(targetAsset)}");
-                    shareStringBuilder.AppendLine($"依赖深度: {(depth == 0 ? "全部" : depth.ToString())}");
-                    shareStringBuilder.AppendLine($"依赖数量: {filteredDeps.Count}");
-                    shareStringBuilder.AppendLine($"显示: {filteredDeps.Count} / 总计: {allDeps.Count}");
-                    DisplayDependenciesByLayer(filteredDeps);
-                }
-                else
-                {
-                    // 按类型分组显示
-                    DisplayDependenciesByType(filteredDeps);
-                }
-
-                GUILayout.EndScrollView();
-                shareStringList.AddRange(filteredDeps);
-                WindowToolGroupReorderableListString.SetData(shareStringList);
-            }
-            else if (targetAsset != null)
-            {
-                GUILayout.Label("该资源没有依赖项", EditorStyles.centeredGreyMiniLabel);
-            }
-            else
-            {
-                GUILayout.Label("请选择一个资源", EditorStyles.centeredGreyMiniLabel);
-            }
-
             GUILayout.EndVertical();
         }
 
@@ -2605,8 +2555,6 @@ namespace AUnityLocal.Editor
 
                 if (layerItems.Count > 0)
                 {
-                    GUILayout.Space(5);
-                    GUILayout.Label($"第 {layer} 层 ({layerItems.Count}个)", EditorStyles.boldLabel);
                     shareStringBuilder.AppendLine($"第 {layer} 层 ({layerItems.Count}个)");
                     // 按类型再次分组
                     var typeGroups = layerItems.GroupBy(item => GetFileCategory(item.path));
@@ -2615,20 +2563,14 @@ namespace AUnityLocal.Editor
                     {
                         if (typeGroups.Count() > 1)
                         {
-                            EditorGUI.indentLevel++;
-                            GUILayout.Label($"[{typeGroup.Key}] ({typeGroup.Count()}个)", EditorStyles.miniLabel);
                             shareStringBuilder.AppendLine($"  [{typeGroup.Key}] ({typeGroup.Count()}个)");
-                            EditorGUI.indentLevel--;
                         }
-
-                        EditorGUI.indentLevel++;
+                        
                         foreach (var item in typeGroup.OrderBy(i => i.path))
                         {
-                            DisplayDependencyItem(item.path);
                             shareStringBuilder.AppendLine($"    {item.path}");
                         }
-
-                        EditorGUI.indentLevel--;
+                        
                     }
                 }
             }
@@ -2646,13 +2588,12 @@ namespace AUnityLocal.Editor
                 // 显示分类标题
                 if (groupedDeps.Count() > 1)
                 {
-                    GUILayout.Space(5);
-                    GUILayout.Label($"[{group.Key}] ({group.Count()}个)", EditorStyles.boldLabel);
+                    shareStringList.Add($"[{group.Key}] ({group.Count()}个)");
                 }
 
                 foreach (string dep in group.OrderBy(d => d))
                 {
-                    DisplayDependencyItem(dep);
+                    shareStringList.Add($"{dep}");
                 }
             }
         }
@@ -2662,35 +2603,11 @@ namespace AUnityLocal.Editor
         /// </summary>
         private void DisplayDependencyItem(string dep)
         {
-            GUILayout.BeginHorizontal();
 
-            string displayName = showFullPath ? dep : System.IO.Path.GetFileName(dep);
-
-            // 根据文件类型设置不同颜色
-            var originalColor = GUI.color;
-            GUI.color = GetFileTypeColor(dep);
-
-            if (GUILayout.Button(displayName, EditorStyles.linkLabel))
-            {
-                // 点击时选中该资源
-                Object asset = AssetDatabase.LoadAssetAtPath<Object>(dep);
-                if (asset != null)
-                {
-                    Selection.activeObject = asset;
-                    EditorGUIUtility.PingObject(asset);
-                }
-            }
-
-            GUI.color = originalColor;
-
-            // 显示文件类型标签
-            string extension = System.IO.Path.GetExtension(dep);
-            if (!string.IsNullOrEmpty(extension))
-            {
-                GUILayout.Label(extension, EditorStyles.miniLabel, GUILayout.Width(40));
-            }
-
-            GUILayout.EndHorizontal();
+            // string displayName = showFullPath ? dep : System.IO.Path.GetFileName(dep);
+            //
+            // // 显示文件类型标签
+            // string extension = System.IO.Path.GetExtension(dep);
         }
 
         /// <summary>
@@ -2839,65 +2756,6 @@ namespace AUnityLocal.Editor
         }
 
         /// <summary>
-        /// 获取文件类型对应的颜色
-        /// </summary>
-        private Color GetFileTypeColor(string filePath)
-        {
-            string extension = System.IO.Path.GetExtension(filePath).ToLower();
-
-            if (scriptExtensions.Contains(extension))
-                return new Color(0.5f, 0.8f, 1f); // 浅蓝色 - 脚本
-
-            if (codeExtensions.Contains(extension))
-                return new Color(0.8f, 0.5f, 1f); // 浅紫色 - 代码
-
-            switch (extension)
-            {
-                case ".png":
-                case ".jpg":
-                case ".jpeg":
-                case ".tga":
-                case ".psd":
-                case ".tiff":
-                case ".gif":
-                case ".bmp":
-                case ".exr":
-                case ".hdr":
-                    return new Color(1f, 0.8f, 0.5f); // 橙色 - 贴图
-
-                case ".fbx":
-                case ".obj":
-                case ".dae":
-                case ".3ds":
-                case ".blend":
-                case ".ma":
-                case ".mb":
-                    return new Color(0.5f, 1f, 0.5f); // 浅绿色 - 模型
-
-                case ".wav":
-                case ".mp3":
-                case ".ogg":
-                case ".aiff":
-                case ".flac":
-                    return new Color(1f, 0.5f, 0.8f); // 粉色 - 音频
-
-                case ".prefab":
-                    return new Color(0.8f, 1f, 0.5f); // 黄绿色 - 预制体
-
-                case ".mat":
-                    return new Color(0.8f, 0.8f, 0.5f); // 黄色 - 材质
-
-                case ".shader":
-                case ".cginc":
-                case ".hlsl":
-                    return new Color(1f, 0.5f, 0.5f); // 浅红色 - 着色器
-
-                default:
-                    return Color.white; // 默认白色
-            }
-        }
-
-        /// <summary>
         /// 检查依赖关系
         /// </summary>
         private void CheckDependencies()
@@ -2982,9 +2840,64 @@ namespace AUnityLocal.Editor
         /// </summary>
         private void RefreshDependencies()
         {
+
+            WindowToolGroupReorderableListString.showFullPath = showFullPath;
+            shareStringList.Clear();
+            shareStringBuilder.Clear();            
             if (targetAsset != null)
             {
+
                 CheckDependencies();
+                if (dependencies.Count > 0)
+                {
+                    var filteredDeps = FilterDependencies();
+                    var allDeps = GetAllDependencies(); // 获取未过滤的总数
+                    
+                    shareStringList.Add($"显示: {filteredDeps.Count} / 总计: {allDeps.Count}");
+                    // 显示过滤状态
+                    if (filterScripts || filterCode)
+                    {
+                        var filterInfo = new List<string>();
+                        if (filterScripts) filterInfo.Add("脚本");
+                        if (filterCode) filterInfo.Add("代码");
+                        shareStringBuilder.AppendLine($"(已过滤: {string.Join(", ", filterInfo)})");
+                    }
+                    
+
+                    // 如果显示层级信息且depth > 0，按层级分组显示
+                    if (showLayerInfo && depth > 0)
+                    {
+                        shareStringBuilder.AppendLine($"资源: {AssetDatabase.GetAssetPath(targetAsset)}");
+                        shareStringBuilder.AppendLine($"依赖深度: {(depth == 0 ? "全部" : depth.ToString())}");
+                        shareStringBuilder.AppendLine($"依赖数量: {filteredDeps.Count}");
+                        shareStringBuilder.AppendLine($"显示: {filteredDeps.Count} / 总计: {allDeps.Count}");
+                        DisplayDependenciesByLayer(filteredDeps);
+                    }
+                    else
+                    {
+                        // 按类型分组显示
+                        DisplayDependenciesByType(filteredDeps);
+                    }
+                    
+                    if(depth > 0&& showLayerInfo)
+                    {
+                        // 处理不同操作系统的换行符
+                        List<string> lines = shareStringBuilder.ToString()
+                            .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                            .ToList();
+
+                        foreach (string line in lines)
+                        {
+                            Console.WriteLine($"'{line}'");
+                        }                
+                        WindowToolGroupReorderableListString.SetData(lines);                             
+                    }
+                    else
+                    {
+                        WindowToolGroupReorderableListString.SetData(shareStringList);
+                    }
+
+                }                
             }
         }
 

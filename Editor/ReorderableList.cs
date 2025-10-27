@@ -38,7 +38,7 @@ namespace AUnityLocal.Editor
         /// </summary>
         public Func<object,List<T>> OnPaste;
 
-        public float height = 130;
+        public float height = 120;
         
         
         // 配置属性
@@ -51,16 +51,23 @@ namespace AUnityLocal.Editor
         // private EditorWindow _parentWindow;
         private Vector2 _scrollPosition;
         
-        public ReorderableList(List<T> dataList, string headerText = "List Items",float height=120,Action<Rect, int, T> _onDrawElement=null,Func<T> _onAddElement=null,Action<T> _onRemoveElement=null, Func<object,List<T>> _onPaste=null)
+        public ReorderableList(List<T> dataList, string headerText = "List Items",Action<Rect, int, T> _onDrawElement=null,Func<T> _onAddElement=null,Action<T> _onRemoveElement=null, Func<object,List<T>> _onPaste=null)
         {
             _dataList = dataList;
             _headerText = headerText;
-            this.height = height;
+            
             OnDrawElement = _onDrawElement;
             OnAddElement = _onAddElement;
             OnRemoveElement = _onRemoveElement;
             OnPaste = _onPaste;
             InitializeReorderableList();
+        }
+        public bool showFullPath = false;
+        public ReorderableList<T> Set(float height=120,bool showFullPath=false)
+        {
+            this.height = height;
+            this.showFullPath = showFullPath;
+            return this;
         }
         public ReorderableList(string headerText = "List Items",float height=130)
         {
@@ -164,7 +171,7 @@ namespace AUnityLocal.Editor
                 else
                 {
                     // 默认绘制逻辑
-                    DrawDefaultDataField(rect, index,_dataList[index]);                    
+                    DrawDefaultElement(rect, index,_dataList[index]);                    
                 }
                 
             }
@@ -705,7 +712,7 @@ namespace AUnityLocal.Editor
         }
         #endregion
 
-        public void DrawDefaultDataField(Rect rect,int index, T data)
+        public void DrawDefaultElement(Rect rect,int index, T data)
         {
             string _dataFieldLabel = string.Empty;
             Type dataType = typeof(T);
@@ -718,10 +725,20 @@ namespace AUnityLocal.Editor
                 {
                     if (Tools.GetAssetType(data as string) != AssetType.Invalid)
                     {
-                        if (GUI.Button(new Rect(rect.x,rect.y,rect.width-50,rect.height),new GUIContent((data as string),(data as string).FileName(true)), EditorStyles.linkLabel))
+                        string str= data as string;
+                        string strToolTip= str;
+                        if (!showFullPath)
+                        {
+                            str= str.FileName(true);
+                        }
+                        else
+                        {
+                            strToolTip= str.FileName(true);
+                        }
+                        if (GUI.Button(new Rect(rect.x,rect.y,rect.width-50,rect.height),new GUIContent(str,strToolTip), EditorStyles.linkLabel))
                         {
                             // 点击时选中该资源
-                            UnityEngine.Object asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(data as string);
+                            UnityEngine.Object asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>((data as string).Trim());
                             if (asset != null)
                             {
                                 Selection.activeObject = asset;

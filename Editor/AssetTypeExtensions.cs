@@ -356,6 +356,8 @@ public static class AssetTypeExtensions
             if (string.IsNullOrEmpty(path))
                 return AssetType.Invalid;
 
+            // path=path.Trim().Replace("\\", "/");
+            path=path.Trim();
             // 检查是否为文件夹
             if (AssetDatabase.IsValidFolder(path))
                 return AssetType.Folder;

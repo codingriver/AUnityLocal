@@ -9,12 +9,6 @@ namespace AUnityLocal.Editor
 {
     public class WindowToolEditor : EditorWindow
     {
-        // 窗口分割权重（总和应为1.0）
-        private float leftWeight = 0.4999f; // 20%
-        private float centerLeftWeight = 0.0001f; // 30%
-        private float centerRightWeight = 0.3f; // 30%
-        private float rightWeight = 0.2f; // 20%
-
         // 分割线拖拽状态
         private bool isDraggingSplitter1 = false;
         private bool isDraggingSplitter2 = false;
@@ -55,7 +49,7 @@ namespace AUnityLocal.Editor
         public static void ShowWindow()
         {
             WindowToolEditor window = GetWindow<WindowToolEditor>("WindowTool 工具");
-            window.minSize = new Vector2(1000, 600);
+            window.minSize = new Vector2(500, 600);
             window.Show();
         }
 
@@ -64,31 +58,11 @@ namespace AUnityLocal.Editor
         private void OnEnable()
         {
             WindowToolGroup.window = this;
-            NormalizeWeights(); // 确保权重总和为1
             areaGroups = WindowToolGroup.InitializeGroups();
             InitializeStatusBarButtons();
         }
 
         // 标准化权重，确保总和为1.0
-        private void NormalizeWeights()
-        {
-            float totalWeight = leftWeight + centerLeftWeight + centerRightWeight + rightWeight;
-            if (totalWeight > 0)
-            {
-                leftWeight /= totalWeight;
-                centerLeftWeight /= totalWeight;
-                centerRightWeight /= totalWeight;
-                rightWeight /= totalWeight;
-            }
-            else
-            {
-                // 如果权重都为0，设置默认值
-                leftWeight = 0.25f;
-                centerLeftWeight = 0.25f;
-                centerRightWeight = 0.25f;
-                rightWeight = 0.25f;
-            }
-        }
 
         private void InitializeStyles()
         {
@@ -358,50 +332,41 @@ namespace AUnityLocal.Editor
             float mainAreaHeight = statusRect.y - mainAreaY;
             Rect mainRect = new Rect(0, mainAreaY, windowRect.width, mainAreaHeight);
 
+            int areaCount = selectedAreas.Count;
+            
             // 计算各区域位置（基于权重）
             float splitterWidth = 3f;
-            float totalSplitterWidth = splitterWidth * 3; // 3个分割线
+            float totalSplitterWidth = splitterWidth * areaCount-1; // 3个分割线
             float availableWidth = mainRect.width - totalSplitterWidth;
-
+            
+            float weight = 1f/areaCount;
             float currentX = 0;
+            for (int i = 0; i < areaCount; i++)
+            {
+                WindowArea area= selectedAreas[i];
+                float width = availableWidth * weight;
+                Rect areaRect = new Rect(currentX, mainRect.y, width, mainRect.height);
+                if(scrollPosArray.Length<=i)
+                {
+                    Array.Resize(ref scrollPosArray, i + 1);
+                }
 
-            // 左侧区域
-            float leftWidth = availableWidth * leftWeight;
-            Rect leftRect = new Rect(currentX, mainRect.y, leftWidth, mainRect.height);
-            DrawPanel(leftRect, title1, ref leftScrollPos, WindowArea.Left);
-            currentX += leftWidth;
-
-            // 分割线1
-            Rect splitter1 = new Rect(currentX, mainRect.y, splitterWidth, mainRect.height);
-            DrawSplitter(splitter1, ref isDraggingSplitter1, 0); // 传入分割线索引
-            currentX += splitterWidth;
-
-            // 中间左侧区域
-            float centerLeftWidth = availableWidth * centerLeftWeight;
-            Rect centerLeftRect = new Rect(currentX, mainRect.y, centerLeftWidth, mainRect.height);
-            DrawPanel(centerLeftRect, title2, ref centerLeftScrollPos, WindowArea.LeftMid);
-            currentX += centerLeftWidth;
-
-            // 分割线2
-            Rect splitter2 = new Rect(currentX, mainRect.y, splitterWidth, mainRect.height);
-            DrawSplitter(splitter2, ref isDraggingSplitter2, 1); // 传入分割线索引
-            currentX += splitterWidth;
-
-            // 中间右侧区域
-            float centerRightWidth = availableWidth * centerRightWeight;
-            Rect centerRightRect = new Rect(currentX, mainRect.y, centerRightWidth, mainRect.height);
-            DrawPanel(centerRightRect, title3, ref centerRightScrollPos, WindowArea.RightMid);
-            currentX += centerRightWidth;
-
-            // 分割线3
-            Rect splitter3 = new Rect(currentX, mainRect.y, splitterWidth, mainRect.height);
-            DrawSplitter(splitter3, ref isDraggingSplitter3, 2); // 传入分割线索引
-            currentX += splitterWidth;
-
-            // 右侧区域
-            float rightWidth = availableWidth * rightWeight;
-            Rect rightRect = new Rect(currentX, mainRect.y, rightWidth, mainRect.height);
-            DrawPanel(rightRect, title4, ref rightScrollPos, WindowArea.Right);
+                string areaTitle = string.Empty;
+                areaTitleDict.TryGetValue(area, out areaTitle);
+                DrawPanel(areaRect, areaTitle, ref scrollPosArray[i], area);
+                currentX += width;
+                if(i!=areaCount-1)
+                {
+                    // 分割线
+                    Rect splitter = new Rect(currentX, mainRect.y, splitterWidth, mainRect.height);
+                    if (isDraggingArray.Length <= i)
+                    {
+                        Array.Resize(ref isDraggingArray, i + 1);
+                    }
+                    DrawSplitter(splitter, ref isDraggingArray[i], i); // 传入分割线索引
+                    currentX += splitterWidth;
+                }
+            }
         }
 
         private void DrawPanel(Rect rect, string title, ref Vector2 scrollPos, WindowArea area)
@@ -434,59 +399,57 @@ namespace AUnityLocal.Editor
             // 绘制分割线
             EditorGUI.DrawRect(rect,
                 EditorGUIUtility.isProSkin ? new Color(0.1f, 0.1f, 0.1f) : new Color(0.6f, 0.6f, 0.6f));
-
-            // 处理鼠标事件
-            EditorGUIUtility.AddCursorRect(rect, MouseCursor.ResizeHorizontal);
-
-            Event e = Event.current;
-            switch (e.type)
-            {
-                case EventType.MouseDown:
-                    if (rect.Contains(e.mousePosition) && e.button == 0)
-                    {
-                        isDragging = true;
-                        e.Use();
-                    }
-
-                    break;
-
-                case EventType.MouseDrag:
-                    if (isDragging)
-                    {
-                        float totalSplitterWidth = 3f * 3; // 3个分割线
-                        float availableWidth = position.width - totalSplitterWidth;
-                        float deltaWeight = e.delta.x / availableWidth;
-
-                        // 根据分割线索引调整相应的权重
-                        switch (splitterIndex)
-                        {
-                            case 0: // 左侧和中间左侧之间的分割线
-                                AdjustWeights(ref leftWeight, ref centerLeftWeight, deltaWeight);
-                                break;
-                            case 1: // 中间左侧和中间右侧之间的分割线
-                                AdjustWeights(ref centerLeftWeight, ref centerRightWeight, deltaWeight);
-                                break;
-                            case 2: // 中间右侧和右侧之间的分割线
-                                AdjustWeights(ref centerRightWeight, ref rightWeight, deltaWeight);
-                                break;
-                        }
-
-                        NormalizeWeights();
-                        Repaint();
-                        e.Use();
-                    }
-
-                    break;
-
-                case EventType.MouseUp:
-                    if (isDragging)
-                    {
-                        isDragging = false;
-                        e.Use();
-                    }
-
-                    break;
-            }
+            //
+            // // 处理鼠标事件
+            // EditorGUIUtility.AddCursorRect(rect, MouseCursor.ResizeHorizontal);
+            //
+            // Event e = Event.current;
+            // switch (e.type)
+            // {
+            //     case EventType.MouseDown:
+            //         if (rect.Contains(e.mousePosition) && e.button == 0)
+            //         {
+            //             isDragging = true;
+            //             e.Use();
+            //         }
+            //
+            //         break;
+            //
+            //     case EventType.MouseDrag:
+            //         if (isDragging)
+            //         {
+            //             float totalSplitterWidth = 3f * 3; // 3个分割线
+            //             float availableWidth = position.width - totalSplitterWidth;
+            //             float deltaWeight = e.delta.x / availableWidth;
+            //
+            //             // 根据分割线索引调整相应的权重
+            //             switch (splitterIndex)
+            //             {
+            //                 case 0: // 左侧和中间左侧之间的分割线
+            //                     AdjustWeights(ref leftWeight, ref centerLeftWeight, deltaWeight);
+            //                     break;
+            //                 case 1: // 中间左侧和中间右侧之间的分割线
+            //                     AdjustWeights(ref centerLeftWeight, ref centerRightWeight, deltaWeight);
+            //                     break;
+            //                 case 2: // 中间右侧和右侧之间的分割线
+            //                     AdjustWeights(ref centerRightWeight, ref rightWeight, deltaWeight);
+            //                     break;
+            //             }
+            //             Repaint();
+            //             e.Use();
+            //         }
+            //
+            //         break;
+            //
+            //     case EventType.MouseUp:
+            //         if (isDragging)
+            //         {
+            //             isDragging = false;
+            //             e.Use();
+            //         }
+            //
+            //         break;
+            // }
         }
 
         // 调整两个相邻面板的权重
@@ -552,7 +515,9 @@ namespace AUnityLocal.Editor
             }
             OnCleanClicked();
         }
+        
 
+        
         public void SetProgressBar(float progress, string progressInfo = "")
         {
             showProgress = true;
@@ -578,12 +543,48 @@ namespace AUnityLocal.Editor
             OnCleanClicked();
         }
 
-        private void OnRefreshClicked()
+        private void OnClickedGroupTool(int groupId)
         {
-            Debug.Log("按钮被点击");
-            // 实现保存逻辑
+            switch (groupId)
+            {
+                case 1:
+                    selectedAreas = new List<WindowArea>() { WindowArea.Left, WindowArea.LeftMid};
+                    title = "WindowTool - Tool Group";
+                    break;
+                case 2:
+                    selectedAreas = new List<WindowArea>() { WindowArea.RightMid, WindowArea.Right};
+                    title = "WindowTool - Search Group";
+                    break;
+                default:
+                    selectedAreas = new List<WindowArea>() { WindowArea.Left, WindowArea.LeftMid};
+                    break;
+            }
+
         }
 
+
+        private List<WindowArea> selectedAreas = new List<WindowArea>()
+            { WindowArea.RightMid, WindowArea.Right};
+        private Vector2[] scrollPosArray = new Vector2[10];
+        private bool[] isDraggingArray = new bool[10];
+        // 按钮列表（在类的字段中定义）
+        private List<StatusBarButton> statusBarButtons = new List<StatusBarButton>();
+        string title = "WindowTool 工具窗口";
+        Dictionary<WindowArea,string> areaTitleDict = new Dictionary<WindowArea, string>()
+        {
+            { WindowArea.Left, "左侧面板" },
+            { WindowArea.LeftMid, "中间左侧" },
+            { WindowArea.RightMid, "搜索" },
+            { WindowArea.Right, "结果" }
+        };
+        // 初始化按钮的方法（在适当的地方调用，比如OnEnable）
+        private void InitializeStatusBarButtons()
+        {
+            statusBarButtons.Clear();
+            statusBarButtons.Add(new StatusBarButton("Tool Group", ()=>OnClickedGroupTool(1), 100f));
+            statusBarButtons.Add(new StatusBarButton("Serach Group", ()=>OnClickedGroupTool(2), 100f));
+            statusBarButtons.Add(new StatusBarButton("Clean", OnCleanClicked, 60f));
+        }
         private void OnCleanClicked()
         {
             WindowToolGroupReorderableListObject.ClearAll();
@@ -591,22 +592,8 @@ namespace AUnityLocal.Editor
             WindowToolGroup.Clear();
             // 实现清理逻辑
             Resources.UnloadUnusedAssets();
-        }
+        }        
 
-        // 按钮列表（在类的字段中定义）
-        private List<StatusBarButton> statusBarButtons = new List<StatusBarButton>();
 
-        // 初始化按钮的方法（在适当的地方调用，比如OnEnable）
-        private void InitializeStatusBarButtons()
-        {
-            statusBarButtons.Clear();
-            statusBarButtons.Add(new StatusBarButton("Test1", OnRefreshClicked, 50f));
-            statusBarButtons.Add(new StatusBarButton("清理", OnCleanClicked, 60f));
-        }
-        string title = "WindowTool 工具窗口";
-        string title1 = "左侧面板";
-        string title2 = "中间左侧";
-        string title3 = "搜索";
-        string title4 = "结果";        
     }
 }
