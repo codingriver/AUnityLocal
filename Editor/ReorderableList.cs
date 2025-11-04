@@ -806,7 +806,7 @@ namespace AUnityLocal.Editor
                     float contentWidth = 0f;
                     if(obj is UnityEngine.UI.Text uitext)
                     {
-                        contentWidth = 50f;
+                        contentWidth = 150f;
                        content = uitext.text;
                        EditorGUI.TextField(new Rect(rect.x,rect.y,contentWidth,rect.height), content);
                     }
