@@ -19,7 +19,7 @@ namespace AUnityLocal.Editor
                 Type type = typeof(GameObject).Assembly.GetType("UnityEngine.GameObject");
                 Debug.Assert(type != null);
                 MethodInfo method = type.GetMethod("SetActive", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.ExactBinding, null, new Type[] { typeof(bool) }, null);
-                MonoHookEditor.AddMHook<Action<GameObject,bool>>(method,MethodReplacement, MethodProxy);
+                AddMHook<Action<GameObject,bool>>(method,MethodReplacement, MethodProxy);
                 Debug.LogWarning($"[MonoHookEditor.GameObjectEditor] Register OK!");
             }
 

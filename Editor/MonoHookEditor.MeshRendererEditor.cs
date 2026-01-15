@@ -18,7 +18,7 @@ namespace AUnityLocal.Editor
                 Type type = typeof(AssetDatabase).Assembly.GetType("UnityEditor.MeshRendererEditor");
                 Debug.Assert(type != null);
                 MethodInfo method = type.GetMethod("OnInspectorGUI", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                MonoHookEditor.AddMHook<Action<UnityEditor.Editor>>(method, MethodReplacement, MethodProxy);
+                AddMHook<Action<UnityEditor.Editor>>(method, MethodReplacement, MethodProxy);
             }
 
             static MethodInfo m_sortMethodInfo = null;

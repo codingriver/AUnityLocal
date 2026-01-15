@@ -14,13 +14,14 @@ namespace AUnityLocal.Editor
 {
     static partial class MonoHookEditor
     {
+        public delegate void RectTransformVector2Action(RectTransform rectTrans, Vector2 vec2);
         public static class RectTransformEditor
         {
             public static void Register()
             {
                 Type type = typeof(UnityEngine.RectTransform);
                 
-                MonoHookEditor.AddMHookForPropertySetMethod<Action<RectTransform, Vector2>>(type,"sizeDelta", MethodReplacement, MethodProxy);
+                AddMHookForPropertySetMethod<RectTransformVector2Action>(type,"sizeDelta", MethodReplacement, MethodProxy);
                 
                 // MonoHookEditor.AddMHookForPropertySetMethod<Action<RectTransform, Vector2>>(type,"anchorMin", MethodReplacement2, MethodProxy2);
                 // MonoHookEditor.AddMHookForPropertySetMethod<Action<RectTransform, Vector2>>(type,"anchorMax", MethodReplacement1, MethodProxy1);
@@ -32,12 +33,21 @@ namespace AUnityLocal.Editor
             
             static void MethodReplacement(UnityEngine.RectTransform obj, Vector2 v)
             {
-                UnityEngine.Debug.LogFormat("[MonoHookEditor.RectTransformEditor][{0}],sizeDelta({1})", obj.name, v);
-                MethodProxy(obj, v);
+                if (v != null)
+                {
+                    UnityEngine.Debug.LogFormat("[MonoHookEditor.RectTransformEditor][{0}],sizeDelta({1})", obj.name, v);
+                    MethodProxy(obj, v);                    
+                }
+                else
+                {
+                    UnityEngine.Debug.LogFormat("[MonoHookEditor.RectTransformEditor][{0}],sizeDelta(NULL)", obj.name);
+                    MethodProxy(obj, v);
+                }
+
             }
 
             [MethodImpl(MethodImplOptions.NoOptimization)]
-            static void MethodProxy(UnityEngine.RectTransform obj, Vector2 v)
+            static void MethodProxy(UnityEngine.RectTransform obj,Vector2 v)
             {
             }
 

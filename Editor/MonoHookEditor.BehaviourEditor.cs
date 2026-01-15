@@ -16,7 +16,7 @@ namespace AUnityLocal.Editor
             public static void Register()
             {
                 Type type = typeof(UnityEngine.Behaviour);
-                MonoHookEditor.AddMHookForPropertySetMethod<Action<Behaviour, bool>>(type,"enabled", MethodReplacement, MethodProxy);
+                AddMHookForPropertySetMethod<Action<Behaviour, bool>>(type,"enabled", MethodReplacement, MethodProxy);
                 Debug.LogWarning($"[MonoHookEditor.BehaviourEditor] Register OK!");
             }
 

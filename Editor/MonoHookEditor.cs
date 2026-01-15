@@ -21,7 +21,7 @@ namespace AUnityLocal.Editor
             MeshRendererEditor.Register();
             SkinnedMeshRendererEditor.Register();            
             GameObjectEditor.Register();
-            BehaviourEditor.Register();
+            // BehaviourEditor.Register();
             RectTransformEditor.Register();
 
         }
@@ -33,7 +33,7 @@ namespace AUnityLocal.Editor
         /// <param name="replacement"></param>
         /// <param name="proxy"></param>
         /// <typeparam name="T"></typeparam>
-        public static void AddMHookForPropertySetMethod<T>(Type type, string propertyName, T replacement, T proxy)
+        static void AddMHookForPropertySetMethod<T>(Type type, string propertyName, T replacement, T proxy)
             where T : Delegate
         {
             Debug.Assert(type != null);
@@ -49,7 +49,7 @@ namespace AUnityLocal.Editor
         /// <param name="replacement"></param>
         /// <param name="proxy"></param>
         /// <typeparam name="T"></typeparam>
-        public static void AddMHook<T>(MethodInfo origin, T replacement, T proxy) where T : Delegate
+        static void AddMHook<T>(MethodInfo origin, T replacement, T proxy) where T : Delegate
         {
             Debug.Assert(origin != null);
             new MethodHook(origin, replacement.Method, proxy.Method).Install();
