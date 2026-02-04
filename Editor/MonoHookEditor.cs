@@ -5,7 +5,7 @@ using UnityEditor;
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-
+using AUnityLocal.MonoHook;
 namespace AUnityLocal.Editor
 {
     [InitializeOnLoad]
@@ -18,11 +18,11 @@ namespace AUnityLocal.Editor
 
         static void Register()
         {
-            MeshRendererEditor.Register();
-            SkinnedMeshRendererEditor.Register();            
-            GameObjectEditor.Register();
+            // MeshRendererEditor.Register();
+            // SkinnedMeshRendererEditor.Register();            
+            // GameObjectEditor.Register();
             // BehaviourEditor.Register();
-            RectTransformEditor.Register();
+            // RectTransformEditor.Register();
 
         }
 

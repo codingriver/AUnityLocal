@@ -7,7 +7,6 @@ using System.Reflection;
 using UnityEditorInternal;
 using System.Runtime.CompilerServices;
 using System.Text;
-using Skyunion;
 using Debug = UnityEngine.Debug;
 
 namespace AUnityLocal.Editor
@@ -64,7 +63,7 @@ namespace AUnityLocal.Editor
 
             static void MethodReplacement2(UnityEngine.RectTransform obj, Vector2 v)
             {
-                CoreUtils.logService.Warn("[MonoHook.RectTransformEditor][{0}],anchorMin({1})", obj.name, v);
+                UnityEngine.Debug.LogWarningFormat("[MonoHook.RectTransformEditor][{0}],anchorMin({1})", obj.name, v);
                 MethodProxy2(obj, v);
             }
 

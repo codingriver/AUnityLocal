@@ -1,0 +1,23 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public static class RoslynRunner
+{
+    
+    static void Dumper()
+    {
+        object obj = null;
+        var marchCache = IGG.Game.Data.Cache.AppCache.WorldMap.GetMapCache<IGG.Game.Data.Cache.Player.PlayerCache.MarchCache>();
+        UnityEngine.Debug.Log(AUnityLocal.Dumper.Do(marchCache,6));
+        //var player = IGG.Game.Data.Cache.AppCache.Player;
+        //UnityEngine.Debug.Log(AUnityLocal.Dumper.Do(player,3));
+        //obj = IGG.Game.Data.Cache.AppCache.WorldMap;
+        //UnityEngine.Debug.Log(AUnityLocal.Dumper.Do(obj,2));
+    }
+    public static void Run()
+    {
+        Dumper();
+    }    
+    
+}

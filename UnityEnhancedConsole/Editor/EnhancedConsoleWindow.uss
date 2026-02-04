@@ -1,0 +1,413 @@
+/* Enhanced Console - 与 Unity Console 窗口排版一致（深色主题），字体优化以提升清晰度 */
+
+.root {
+    flex-grow: 1;
+    margin: 0;
+    padding: 0;
+}
+
+/* ========== 工具栏（与 Unity Console 第一行一致）========== */
+.toolbar {
+    flex-direction: row;
+    height: 20px;
+    min-height: 20px;
+    background-color: rgb(51, 51, 51);
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 0;
+    padding-bottom: 0;
+    align-items: center;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(63, 63, 63);
+}
+
+.toolbar-button {
+    height: 18px;
+    min-height: 18px;
+    min-width: 22px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin-right: 0;
+    background-color: rgb(45, 45, 45);
+    border-width: 1px;
+    border-radius: 2px;
+    border-color: rgba(0, 0, 0, 1);
+    color: rgb(200, 200, 200);
+    font-size: 12px;
+    -unity-font-style: normal;
+}
+
+.toolbar-button:hover {
+    background-color: rgb(72, 72, 72);
+    border-color: rgba(0, 0, 0, 1);
+}
+
+/* 左侧 Toggle（Collapse、Clear On Play 等）与 Clear 按钮样式一致，宽度根据文本自适应 */
+.toolbar-toggle {
+    height: 18px;
+    min-height: 18px;
+    min-width: 22px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin-right: 0;
+    font-size: 12px;
+    color: rgb(200, 200, 200);
+    background-color: rgb(45, 45, 45);
+    border-width: 1px;
+    border-radius: 2px;
+    border-color: rgba(0, 0, 0, 1);
+    align-items: center;
+    justify-content: center;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+/* Toggle 文字居中对齐、不换行，宽度随文本自适应；重置 label 边距以与 Button 一致 */
+.toolbar-toggle .unity-toggle__label {
+    -unity-text-align: middle-center;
+    color: rgb(200, 200, 200);
+    white-space: nowrap;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* 焦点时保持正常文字颜色，修复点击后文字变蓝的 bug */
+.toolbar-toggle:focus .unity-toggle__label {
+    color: rgb(200, 200, 200);
+}
+
+.toolbar-toggle:checked:focus .unity-toggle__label {
+    color: rgb(200, 200, 200);
+}
+
+/* 选中时：Unity 风格浅蓝高亮，保留黑色边框 */
+.toolbar-toggle:checked {
+    background-color: rgba(77, 128, 204, 0.35);
+    border-color: rgba(0, 0, 0, 1);
+}
+
+.toolbar-toggle:hover {
+    background-color: rgb(72, 72, 72);
+    border-color: rgba(0, 0, 0, 1);
+}
+
+.toolbar-toggle:checked:hover {
+    background-color: rgba(77, 128, 204, 0.45);
+    border-color: rgba(0, 0, 0, 1);
+}
+
+/* 焦点时 Toggle 自身文字颜色也保持正常 */
+.toolbar-toggle:focus {
+    color: rgb(200, 200, 200);
+}
+
+.toolbar-toggle:checked:focus {
+    color: rgb(200, 200, 200);
+}
+
+/* 去掉 Toggle 的勾选框，只保留文字/按钮样式 */
+.toolbar-toggle .unity-toggle__input {
+    width: 0;
+    height: 0;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    border-width: 0;
+}
+
+.toolbar-toggle.count {
+    min-width: 32px;
+}
+
+/* 日志类型 Toggle 左侧图标（Log/Warning/Error）*/
+.toolbar-toggle.count .toolbar-toggle-icon {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    min-height: 16px;
+    margin-right: 0;
+}
+
+.toolbar-spacer {
+    flex-grow: 1;
+    min-width: 10px;
+}
+
+.toolbar-toggle.regex {
+    min-width: 24px;
+}
+
+/* ========== 搜索栏（与 Unity Console 搜索行一致）========== */
+.search-bar {
+    flex-direction: row;
+    height: 20px;
+    min-height: 20px;
+    background-color: rgb(51, 51, 51);
+    padding-left: 6px;
+    padding-right: 6px;
+    align-items: center;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(63, 63, 63);
+}
+
+.search-label {
+    width: 40px;
+    font-size: 12px;
+    color: rgb(200, 200, 200);
+}
+
+.search-filter-btn {
+    margin-right: 4px;
+    min-width: 52px;
+}
+
+/* 有筛选启用时按钮高亮 */
+.search-filter-btn.search-filter-active {
+    background-color: rgba(77, 128, 204, 0.35);
+    border-color: rgba(77, 128, 204, 0.6);
+}
+
+.search-field {
+    flex-grow: 1;
+    height: 16px;
+    min-height: 16px;
+    margin-left: 0;
+    margin-right: 0;
+    font-size: 12px;
+    background-color: rgb(42, 42, 42);
+    border-width: 1px;
+    border-color: rgb(63, 63, 63);
+    border-radius: 2px;
+    color: rgb(232, 232, 232);
+}
+
+/* ========== 标签栏：多行自适应，无左右滚动条 ========== */
+.tag-bar-row {
+    flex-direction: row;
+    min-height: 22px;
+    background-color: rgb(51, 51, 51);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(63, 63, 63);
+    align-items: flex-start;
+}
+
+.tag-bar-label {
+    width: 32px;
+    padding-left: 6px;
+    padding-top: 4px;
+    font-size: 12px;
+    color: rgb(200, 200, 200);
+    flex-shrink: 0;
+}
+
+.tag-bar-inner {
+    flex-grow: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: flex-start;
+    padding: 4px;
+    min-width: 0;
+}
+
+.tag-clear-btn {
+    height: 16px;
+    min-width: 36px;
+    margin-right: 6px;
+    font-size: 12px;
+    background-color: rgb(63, 63, 63);
+    border-radius: 2px;
+    color: rgb(200, 200, 200);
+}
+
+.tag-bar-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* ========== 主分割区（列表 + 详情，与 Unity Console 一致）========== */
+.main-split {
+    flex-grow: 1;
+    min-height: 60px;
+    background-color: rgb(42, 42, 42);
+}
+
+/* 日志列表（与 Unity Console 列表区一致）*/
+.log-list-view {
+    flex-grow: 1;
+    background-color: rgb(42, 42, 42);
+    border-width: 0;
+}
+
+.log-list-view .unity-list-view__item {
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    border-bottom-width: 0;
+    min-height: 20px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.log-list-view .unity-list-view__item--selected {
+    background-color: rgba(58, 112, 186, 0.35);
+}
+
+.log-list-view .unity-list-view__item--odd {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* 列表行模板（由 C# makeItem 创建）*/
+.log-row {
+    flex-direction: row;
+    align-items: flex-start;
+    min-height: 20px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.log-row-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    margin-top: 2px;
+}
+
+.log-row-content {
+    flex-grow: 1;
+    min-width: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.log-row-message {
+    font-size: 12px;
+    color: rgb(232, 232, 232);
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-row-tags {
+    flex-direction: row;
+    flex-shrink: 0;
+    margin-left: 4px;
+    overflow: hidden;
+}
+
+.log-row-tag {
+    padding-left: 4px;
+    padding-right: 4px;
+    margin-left: 2px;
+    height: 15px;
+    font-size: 11px;
+    border-radius: 2px;
+    border-width: 0;
+}
+
+/* 标签栏/列表中选中态：白边 + 轻微外发光，更易辨认 */
+.log-row-tag.selected {
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.95);
+    -unity-font-style: bold;
+}
+
+/* 详情区（与 Unity Console 底部详情一致）*/
+.detail-scroll {
+    flex-grow: 1;
+    min-height: 60px;
+    background-color: rgb(30, 30, 30);
+    border-top-width: 1px;
+    border-top-color: rgb(63, 63, 63);
+}
+
+.detail-content {
+    padding: 0;
+    flex-grow: 1;
+}
+
+.detail-label {
+    font-size: 12px;
+    color: rgb(228, 228, 228);
+    white-space: normal;
+}
+
+/* 详情区主内容：多行只读 TextField，可选中复制，外观与 Label 一致 */
+.detail-field {
+    flex-grow: 1;
+    min-height: 0;
+    border-width: 0;
+    background-color: transparent;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.detail-field .unity-base-field__input {
+    font-size: 12px;
+    color: rgb(228, 228, 228);
+    white-space: normal;
+    background-color: transparent;
+    border-width: 0;
+}
+
+/* 屏蔽 TextField 内部默认输入框边框，确保详情区看起来像纯文本，无内边框 */
+.detail-field .unity-text-field__input {
+    border-width: 0;
+    border-radius: 0;
+    background-color: transparent;
+}
+
+.detail-field.detail-empty .unity-base-field__input {
+    color: rgb(140, 140, 140);
+}
+
+.detail-links {
+    margin-top: 8px;
+}
+
+/* 详情区堆栈链接行：可选中复制的路径 + 打开按钮 */
+.detail-link-field {
+    border-width: 0;
+    background-color: transparent;
+    padding-left: 0;
+    padding-right: 4px;
+}
+
+.detail-link-field .unity-base-field__input {
+    font-size: 12px;
+    color: rgb(96, 165, 255);
+    background-color: transparent;
+    border-width: 0;
+}
+
+.detail-link-btn {
+    font-size: 12px;
+    min-width: 40px;
+    padding-left: 6px;
+    padding-right: 6px;
+    background-color: rgb(63, 63, 63);
+    border-width: 0;
+    color: rgb(96, 165, 255);
+}
+
+.detail-link-btn:hover {
+    color: rgb(140, 190, 255);
+}
+
+.detail-empty {
+    color: rgb(160, 160, 160);
+    font-size: 12px;
+}
+
+/* 搜索高亮 */
+.search-highlight {
+    background-color: rgba(230, 217, 51, 0.45);
+}

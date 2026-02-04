@@ -4,7 +4,7 @@
  Github: https://github.com/Misaka-Mikoto-Tech/MonoHook
  */
 
-using DotNetDetour;
+using AUnityLocal.MonoHook.DotNetDetour;
 using System;
 using System.Diagnostics;
 using System.Reflection;

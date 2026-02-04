@@ -464,7 +464,10 @@ namespace AUnityLocal
                 go.SetActive(active);
             }
         }    
-        
+        public static string Dumper<T>(this T obj)
+        {
+            return AUnityLocal.Dumper.Do(obj);
+        }        
         
     
     }

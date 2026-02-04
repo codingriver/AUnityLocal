@@ -1,4 +1,4 @@
-﻿using DotNetDetour;
+﻿using AUnityLocal.MonoHook.DotNetDetour;
 using System;
 using System.Collections;
 using System.Collections.Generic;

@@ -1,0 +1,47 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="EnhancedConsoleWindow.uss" />
+    <ui:VisualElement name="root" style="flex-grow: 1;">
+        <!-- 工具栏 -->
+        <ui:VisualElement name="toolbar" class="toolbar">
+            <ui:Button name="btnClear" text="Clear" tooltip="清除所有消息" class="toolbar-button" />
+            <ui:Toggle name="toggleCollapse" label="Collapse" tooltip="折叠重复消息" class="toolbar-toggle" />
+            <ui:Toggle name="toggleClearOnPlay" label="Clear On Play" class="toolbar-toggle" />
+            <ui:Toggle name="toggleClearOnBuild" label="Clear on Build" class="toolbar-toggle" />
+            <ui:Toggle name="toggleErrorPause" label="Error Pause" class="toolbar-toggle" />
+            <ui:VisualElement name="toolbarSpacer" class="toolbar-spacer" />
+            <ui:Toggle name="toggleLog" label="0" tooltip="消息" class="toolbar-toggle count" />
+            <ui:Toggle name="toggleWarning" label="0" tooltip="警告" class="toolbar-toggle count" />
+            <ui:Toggle name="toggleError" label="0" tooltip="错误" class="toolbar-toggle count" />
+            <ui:Button name="btnMenu" text="≡" tooltip="菜单" class="toolbar-button menu" />
+        </ui:VisualElement>
+        <!-- 搜索栏 -->
+        <ui:VisualElement name="searchBar" class="search-bar">
+            <ui:Label text="搜索:" class="search-label" />
+            <ui:Button name="btnSearchFilter" text="筛选 ▼" tooltip="选择启用的筛选类型" class="toolbar-button search-filter-btn" />
+            <ui:TextField name="searchField" value="" class="search-field" />
+            <ui:Button name="btnSearchClear" text="×" class="toolbar-button small" />
+            <ui:Button name="btnSearchHistory" text="历史" tooltip="从搜索历史中选择" class="toolbar-button small" />
+            <ui:Toggle name="toggleRegex" label=".*" tooltip="正则" class="toolbar-toggle regex" />
+            <ui:Button name="btnCopyResult" text="复制搜索结果" tooltip="将当前筛选下的匹配条目复制到剪贴板" class="toolbar-button small" />
+            <ui:Button name="btnCopyRegexMatch" text="复制匹配内容" tooltip="将当前搜索关键字或正则匹配到的子串复制到剪贴板（普通搜索与正则均支持）" class="toolbar-button small" />
+        </ui:VisualElement>
+        <!-- 标签栏：多行自适应，无左右滚动条 -->
+        <ui:VisualElement name="tagBarRow" class="tag-bar-row">
+            <ui:Label text="标签:" class="tag-bar-label" />
+            <ui:VisualElement name="tagBarInner" class="tag-bar-inner">
+                <ui:Button name="btnTagClear" text="清空" class="toolbar-button" />
+                <ui:VisualElement name="tagBarContainer" class="tag-bar-container" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <!-- 列表 + 详情 分割 -->
+        <ui:TwoPaneSplitView name="mainSplit" fixedPaneIndex="1" fixedPaneInitialDimension="120" orientation="Vertical" class="main-split">
+            <ui:ListView name="logListView" show-add-remove-footer="false" show-border="true" virtualization-method="FixedHeight" class="log-list-view" />
+            <ui:ScrollView name="detailScroll" mode="Vertical" class="detail-scroll">
+                <ui:VisualElement name="detailContent" class="detail-content">
+                    <ui:TextField name="detailLabel" multiline="true" class="detail-label detail-field" />
+                    <ui:VisualElement name="detailLinks" class="detail-links" />
+                </ui:VisualElement>
+            </ui:ScrollView>
+        </ui:TwoPaneSplitView>
+    </ui:VisualElement>
+</ui:UXML>
