@@ -19,7 +19,7 @@ namespace UnityEnhancedConsole
         private static string _logFilePath;
         private static bool _initialized;
         private static readonly List<string> _writeBuffer = new List<string>();
-        private static double _lastFlushTime;
+        private static DateTime _lastFlushTime = DateTime.UtcNow;
 
         private const string LogFileName = "EnhancedConsole.log";
         private const int WriteBufferFlushCount = 50;
@@ -35,7 +35,7 @@ namespace UnityEnhancedConsole
             RotateLogFileOnStartup();
             // Application.logMessageReceived += AppendLogToFile;
             Application.logMessageReceivedThreaded += AppendLogToFileThreaded;
-            _lastFlushTime = EditorApplication.timeSinceStartup;
+            _lastFlushTime = DateTime.UtcNow;
             EditorApplication.update += FlushCheck;
             AssemblyReloadEvents.beforeAssemblyReload += FlushBuffer;
             EditorApplication.quitting += FlushBuffer;
@@ -127,14 +127,22 @@ namespace UnityEnhancedConsole
                 int frameCount = 0;
                 if (System.Threading.Thread.CurrentThread.ManagedThreadId == mainThreadId)
                 {
-                    frameCount = Application.isPlaying ? Time.frameCount : 0;    
+                    try
+                    {
+                        if (Application.isPlaying)
+                            frameCount = Time.frameCount;
+                    }
+                    catch (UnityException)
+                    {
+                        // 序列化等阶段不允许调用 isPlaying/frameCount，保持 0
+                    }
                 }
                 string line = SerializeEntry((int)type, timestamp, condition ?? "", stackTrace ?? "", frameCount);
                 lock (FileLock)
                 {
                     _writeBuffer.Add(line + Environment.NewLine);
                     if (_writeBuffer.Count == 1)
-                        _lastFlushTime = EditorApplication.timeSinceStartup;
+                        _lastFlushTime = DateTime.UtcNow;
                     if (_writeBuffer.Count >= WriteBufferFlushCount)
                         FlushBufferInternal();
                 }
@@ -157,7 +165,7 @@ namespace UnityEnhancedConsole
                 string merged = string.Concat(_writeBuffer);
                 File.AppendAllText(path, merged, Encoding.UTF8);
                 _writeBuffer.Clear();
-                _lastFlushTime = EditorApplication.timeSinceStartup;
+                _lastFlushTime = DateTime.UtcNow;
             }
             catch (Exception e)
             {
@@ -173,7 +181,7 @@ namespace UnityEnhancedConsole
             lock (FileLock)
             {
                 if (_writeBuffer.Count == 0) return;
-                if (EditorApplication.timeSinceStartup - _lastFlushTime < WriteBufferFlushIntervalSec) return;
+                if ((DateTime.UtcNow - _lastFlushTime).TotalSeconds < WriteBufferFlushIntervalSec) return;
                 FlushBufferInternal();
             }
         }

@@ -478,38 +478,6 @@
     color: rgb(140, 140, 140);
 }
 
-.detail-links {
-    margin-top: 8px;
-}
-
-/* 详情区堆栈链接行：可选中复制的路径 + 打开按钮 */
-.detail-link-field {
-    border-width: 0;
-    background-color: transparent;
-    padding-left: 0;
-    padding-right: 4px;
-}
-
-.detail-link-field .unity-base-field__input {
-    font-size: 12px;
-    color: rgb(96, 165, 255);
-    background-color: transparent;
-    border-width: 0;
-}
-
-.detail-link-btn {
-    font-size: 12px;
-    min-width: 40px;
-    padding-left: 6px;
-    padding-right: 6px;
-    background-color: rgb(63, 63, 63);
-    border-width: 0;
-    color: rgb(96, 165, 255);
-}
-
-.detail-link-btn:hover {
-    color: rgb(140, 190, 255);
-}
 
 .detail-empty {
     color: rgb(160, 160, 160);

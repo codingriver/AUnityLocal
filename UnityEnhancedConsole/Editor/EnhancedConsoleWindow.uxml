@@ -38,7 +38,6 @@
             <ui:ScrollView name="detailScroll" mode="Vertical" class="detail-scroll">
                 <ui:VisualElement name="detailContent" class="detail-content">
                     <ui:TextField name="detailLabel" multiline="true" class="detail-label detail-field" />
-                    <ui:VisualElement name="detailLinks" class="detail-links" />
                 </ui:VisualElement>
             </ui:ScrollView>
         </ui:TwoPaneSplitView>

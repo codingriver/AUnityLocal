@@ -191,7 +191,7 @@ namespace UnityEnhancedConsole
         /* UI Toolkit ?? */
         private ListView _logListView;
         private TextField _detailField;
-        private VisualElement _detailLinks;
+        // private VisualElement _detailLinks; // removed (double-click to open)
         private TextField _searchField;
         private TwoPaneSplitView _mainSplit;
         private VisualElement _tagBarContainer;
@@ -217,6 +217,8 @@ namespace UnityEnhancedConsole
             for (int i = 0; i < _entries.Count; i++)
                 _entries[i].MessageNumber = i + 1;
             _nextMessageNumber = _entries.Count;
+            for (int i = 0; i < _entries.Count; i++)
+                EnhancedConsoleTagLogic.ComputeTags(_entries[i]);
             _cachedFilteredRows = null;
             _cachedTagCounts = null;
             _filterDirty = true;
@@ -320,6 +322,7 @@ namespace UnityEnhancedConsole
                     return;
                 }
             }
+            EnhancedConsoleTagLogic.ComputeTags(entry);
             entry.MessageNumber = GetAndAdvanceNextMessageNumber();
             _entries.Add(entry);
             _filterDirty = true;
@@ -360,6 +363,7 @@ namespace UnityEnhancedConsole
                         continue;
                     }
                 }
+                EnhancedConsoleTagLogic.ComputeTags(e);
                 e.MessageNumber = GetAndAdvanceNextMessageNumber();
                 _entries.Add(e);
                 _filterDirty = true;
@@ -716,6 +720,84 @@ namespace UnityEnhancedConsole
         /// ?????? maxLines ???????????????????? Condition ??Split('\n') ????
         /// ????Unity ??????????'\n' ????????
         /// </summary>
+
+        private static string StripRichTextTags(string text)
+        {
+            return text;
+        }
+
+        private void OpenStackLinkFromSelectionOrCaret()
+        {
+            if (_detailField == null) return;
+            Debug.Log("EnhancedConsole: OpenStackLinkFromSelectionOrCaret called");
+            string raw = _detailField.value ?? "";
+            string plain = StripRichTextTags(raw);
+            string selected = GetSelectedText(_detailField);
+            if (!string.IsNullOrEmpty(selected))
+            {
+                string selPlain = StripRichTextTags(selected);
+                var selLink = TryParseStackLine(selPlain);
+                if (selLink.HasValue)
+                {
+                    OpenFileAtLine(selLink.Value.path, selLink.Value.lineNum);
+                    return;
+                }
+            }
+            int caret = GetCaretIndex(_detailField);
+            if (caret < 0) return;
+            if (caret > plain.Length) caret = plain.Length;
+            int lineStart = caret > 0 ? plain.LastIndexOf("\n", caret - 1, caret) : -1;
+            int lineEnd = caret < plain.Length ? plain.IndexOf("\n", caret, plain.Length - caret) : -1;
+            if (lineStart < 0) lineStart = 0; else lineStart += 1;
+            if (lineEnd < 0) lineEnd = plain.Length;
+            if (lineEnd <= lineStart) return;
+            string line = plain.Substring(lineStart, lineEnd - lineStart);
+            var link = TryParseStackLine(line);
+            if (link.HasValue)
+                OpenFileAtLine(link.Value.path, link.Value.lineNum);
+        }
+
+        private static int GetCaretIndex(TextField tf)
+        {
+            if (tf == null) return -1;
+            try
+            {
+                var prop = tf.GetType().GetProperty("cursorIndex", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null) return (int)prop.GetValue(tf);
+            }
+            catch { }
+            try
+            {
+                var selProp = tf.GetType().GetProperty("textSelection", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var sel = selProp != null ? selProp.GetValue(tf) : null;
+                if (sel != null)
+                {
+                    var cp = sel.GetType().GetProperty("cursorIndex", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (cp != null) return (int)cp.GetValue(sel);
+                    var ap = sel.GetType().GetProperty("selectionAnchorPosition", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (ap != null) return (int)ap.GetValue(sel);
+                }
+            }
+            catch { }
+            return -1;
+        }
+
+        private static string GetSelectedText(TextField tf)
+        {
+            if (tf == null) return null;
+            try
+            {
+                var selProp = tf.GetType().GetProperty("textSelection", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var sel = selProp != null ? selProp.GetValue(tf) : null;
+                if (sel != null)
+                {
+                    var st = sel.GetType().GetProperty("selectedText", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (st != null) return st.GetValue(sel) as string;
+                }
+            }
+            catch { }
+            return null;
+        }
         private static string GetFirstLines(string text, int maxLines)
         {
             if (string.IsNullOrEmpty(text) || maxLines <= 0) return "";
@@ -932,6 +1014,8 @@ namespace UnityEnhancedConsole
             }
         }
 
+
+
         public void RecomputeAllTags()
         {
             foreach (var e in _entries)
@@ -1079,32 +1163,9 @@ namespace UnityEnhancedConsole
 
             _logListView = innerRoot.Q<ListView>("logListView");
             _detailField = innerRoot.Q<TextField>("detailLabel");
-            if (_detailField != null)
-            {
-                _detailField.isReadOnly = true;
-                _detailField.multiline = true;
-                _detailField.RegisterCallback<FocusInEvent>(evt =>
-                {
-                    _detailField.schedule.Execute(() =>
-                    {
-                        if (_detailField != null)
-                        {
-                            int len = _detailField.value?.Length ?? 0;
-                            _detailField.SelectRange(len, len);
-                        }
-                    }).StartingIn(0);
-                });
-            }
-            _detailLinks = innerRoot.Q<VisualElement>("detailLinks");
-            _searchField = innerRoot.Q<TextField>("searchField");
-            _mainSplit = innerRoot.Q<TwoPaneSplitView>("mainSplit");
-            _tagBarContainer = innerRoot.Q<VisualElement>("tagBarContainer");
-
-            if (_mainSplit != null)
-            {
-                _mainSplit.fixedPaneInitialDimension = Mathf.Max(MinDetailHeight, _detailHeight);
-                _mainSplit.fixedPaneIndex = 1;
-            }
+            if (_detailField != null)             {                 _detailField.isReadOnly = true;                 _detailField.multiline = true;                 _detailField.focusable = true;                 var detailInput = _detailField.Q<VisualElement>(className: "unity-text-input");                 if (detailInput != null)                 {                     detailInput.RegisterCallback<MouseUpEvent>(evt =>                     {                         if (evt.button != 0 || evt.clickCount != 2) return;                         _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(2);                     }, TrickleDown.TrickleDown);                 }                 else                 {                     _detailField.RegisterCallback<MouseUpEvent>(evt =>                     {                         if (evt.button != 0 || evt.clickCount != 2) return;                         _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(2);                     }, TrickleDown.TrickleDown);                 }             }
+                BindDetailDoubleClick();
+            Debug.Log("EnhancedConsole: detail double-click detected");
 
             BindToolbar(innerRoot);
             SetupToolbarCountToggleIcons(innerRoot);
@@ -1380,10 +1441,29 @@ namespace UnityEnhancedConsole
         }
 
 
+        private void BindDetailDoubleClick()
+        {
+            if (_detailField == null) return;
+            // Try to bind on inner text input element first
+            VisualElement input = _detailField.Q<VisualElement>(className: "unity-text-input") ??
+                                   _detailField.Q<VisualElement>(className: "unity-text-input__input") ??
+                                   _detailField;
+            input.RegisterCallback<ClickEvent>(evt =>
+            {
+                if (evt.clickCount != 2) return;
+                Debug.Log("EnhancedConsole: detail double-click detected (ClickEvent)");
+                _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(1);
+            }, TrickleDown.TrickleDown);
+            input.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button != 0 || evt.clickCount != 2) return;
+                Debug.Log("EnhancedConsole: detail double-click detected (PointerDownEvent)");
+                _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(1);
+            }, TrickleDown.TrickleDown);
+        }
+
         private void UpdateDetailPanel()
         {
-            if (_detailField == null || _detailLinks == null) return;
-            _detailLinks.Clear();
             if (_selectedIndex < 0 || _selectedIndex >= _entries.Count)
             {
                 _detailField.SetValueWithoutNotify("Select a message to view details and stack trace.");
@@ -1400,29 +1480,6 @@ namespace UnityEnhancedConsole
             if (prefixParts.Count > 0)
                 full = string.Join(" ", prefixParts) + " " + full;
             _detailField.SetValueWithoutNotify(full);
-            var links = ParseStackTraceLinks(e.StackTrace);
-            if (links.Count > 0)
-            {
-                var title = new Label("????????")
-                {
-                    style = { unityFontStyleAndWeight = FontStyle.Bold, marginBottom = 4 }
-                };
-                _detailLinks.Add(title);
-                foreach (var (path, lineNum) in links)
-                {
-                    var row = new VisualElement { style = { flexDirection = FlexDirection.Row, alignItems = Align.Center, marginBottom = 2 } };
-                    var linkText = path + ":" + lineNum;
-                    var tf = new TextField { value = linkText, isReadOnly = true };
-                    tf.AddToClassList("detail-link-field");
-                    tf.style.flexGrow = 1;
-                    tf.style.minWidth = 0;
-                    row.Add(tf);
-                    var openBtn = new Button(() => OpenFileAtLine(path, lineNum)) { text = "??" };
-                    openBtn.AddToClassList("detail-link-btn");
-                    row.Add(openBtn);
-                    _detailLinks.Add(row);
-                }
-            }
         }
 
         private string BuildMessageWithHighlight(string text)
@@ -1648,7 +1705,7 @@ namespace UnityEnhancedConsole
                 foreach (string item in _searchHistory)
                 {
                     string s = item;
-                    string display = (s.Length > 50 ? s.Substring(0, 47) + "..." : s).Replace("/", "�M");
+                    string display = (s.Length > 50 ? s.Substring(0, 47) + "..." : s).Replace("/", "?M");
                     menu.AddItem(new GUIContent("Search/History/" + display), false, () => { _search = s; _searchApplied = s; _filterDirty = true; _tagCountsDirty = true; PushSearchHistory(s); if (_searchField != null) _searchField.value = s; RefreshUI(); });
                 }
                 menu.AddItem(new GUIContent("Search/Clear History"), false, () => { _searchHistory.Clear(); SaveSearchHistory(); RefreshUI(); });
