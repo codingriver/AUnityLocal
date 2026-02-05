@@ -729,9 +729,10 @@ namespace UnityEnhancedConsole
         private void OpenStackLinkFromSelectionOrCaret()
         {
             if (_detailField == null) return;
-            Debug.Log("EnhancedConsole: OpenStackLinkFromSelectionOrCaret called");
             string raw = _detailField.value ?? "";
             string plain = StripRichTextTags(raw);
+            if (string.IsNullOrEmpty(plain)) return;
+
             string selected = GetSelectedText(_detailField);
             if (!string.IsNullOrEmpty(selected))
             {
@@ -743,18 +744,33 @@ namespace UnityEnhancedConsole
                     return;
                 }
             }
+
             int caret = GetCaretIndex(_detailField);
             if (caret < 0) return;
             if (caret > plain.Length) caret = plain.Length;
+
             int lineStart = caret > 0 ? plain.LastIndexOf("\n", caret - 1, caret) : -1;
             int lineEnd = caret < plain.Length ? plain.IndexOf("\n", caret, plain.Length - caret) : -1;
             if (lineStart < 0) lineStart = 0; else lineStart += 1;
             if (lineEnd < 0) lineEnd = plain.Length;
             if (lineEnd <= lineStart) return;
+
             string line = plain.Substring(lineStart, lineEnd - lineStart);
             var link = TryParseStackLine(line);
-            if (link.HasValue)
-                OpenFileAtLine(link.Value.path, link.Value.lineNum);
+            if (!link.HasValue) return;
+
+            int pathIndex = line.IndexOf(link.Value.path, StringComparison.Ordinal);
+            if (pathIndex < 0) return;
+            int start = pathIndex;
+            int end = pathIndex + link.Value.path.Length;
+            string lineNumToken = ":" + link.Value.lineNum;
+            int lineNumIndex = line.IndexOf(lineNumToken, end, StringComparison.Ordinal);
+            if (lineNumIndex >= 0) end = lineNumIndex + lineNumToken.Length;
+
+            int caretInLine = caret - lineStart;
+            if (caretInLine < start || caretInLine > end) return;
+
+            OpenFileAtLine(link.Value.path, link.Value.lineNum);
         }
 
         private static int GetCaretIndex(TextField tf)
