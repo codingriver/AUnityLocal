@@ -880,6 +880,20 @@ namespace UnityEnhancedConsole
             return ve != null && (_logListView == ve || _logListView.Contains(ve));
         }
 
+        private int GetListViewIndexFromTarget(VisualElement target)
+        {
+            if (_logListView == null || target == null) return -1;
+            var ve = target;
+            while (ve != null && ve != _logListView)
+            {
+                if (ve.ClassListContains("unity-list-view__item")) break;
+                ve = ve.parent as VisualElement;
+            }
+            if (ve == null || ve == _logListView) return -1;
+            // return _logListView.GetIndexForElement(ve);
+            return 0;
+        }
+
         private bool IsClickInsideDetailPane(VisualElement target)
         {
             if (target == null) return false;
@@ -1508,7 +1522,14 @@ namespace UnityEnhancedConsole
                 _logListContextBound = true;
                 _logListView.RegisterCallback<ContextClickEvent>(evt =>
                 {
-                    if (_logListView == null || !_logListView.selectedIndices.Any()) return;
+                    if (_logListView == null) return;
+                    var target = evt.target as VisualElement;
+                    int idx = GetListViewIndexFromTarget(target);
+                    if (idx >= 0 && !_logListView.selectedIndices.Contains(idx))
+                    {
+                        _logListView.SetSelection(idx);
+                    }
+                    if (!_logListView.selectedIndices.Any()) return;
                     var menu = new GenericMenu();
                     menu.AddItem(new GUIContent("Copy"), false, () => CopySelectedMessagesToClipboard(false));
                     menu.AddItem(new GUIContent("Copy with Timestamp"), false, () => CopySelectedMessagesToClipboard(true));
