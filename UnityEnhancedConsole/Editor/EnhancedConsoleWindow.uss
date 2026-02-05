@@ -225,6 +225,18 @@
     min-width: 0;
 }
 
+.tag-bar-collapsed {
+    max-height: 20px;
+    overflow: hidden;
+}
+
+.tag-collapse-btn {
+    height: 16px;
+    min-width: 40px;
+    margin-left: 6px;
+    font-size: 12px;
+}
+
 .tag-clear-btn {
     height: 16px;
     min-width: 36px;

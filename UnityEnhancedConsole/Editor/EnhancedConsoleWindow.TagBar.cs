@@ -1,4 +1,4 @@
-﻿using UnityEngine.UIElements;
+using UnityEngine.UIElements;
 
 namespace UnityEnhancedConsole
 {
@@ -29,16 +29,38 @@ namespace UnityEnhancedConsole
                     RefreshUI();
                 };
             }
+
+            var btnTagCollapse = root.Q<Button>("btnTagCollapse");
+            if (btnTagCollapse != null)
+            {
+                btnTagCollapse.tooltip = "Toggle tag bar expand/collapse";
+                btnTagCollapse.clicked += () =>
+                {
+                    _tagsCollapsed = !_tagsCollapsed;
+                    RefreshUI();
+                };
+            }
         }
 
         private void RebuildTagBar()
         {
+            if (_tagBarContainer == null)
+                _tagBarContainer = rootVisualElement?.Q<VisualElement>("tagBarContainer");
             if (_tagBarContainer == null) return;
             _tagBarContainer.Clear();
             UpdateExcludeIndicator();
             if (!_tagsEnabled) return;
             // Use full tag set without tag-filter so the bar doesn't hide selected tags.
             var fullTags = GetAllTagsFromRowsWithoutTagFilter();
+            var tagBarContainer = rootVisualElement?.Q<VisualElement>("tagBarContainer");
+            if (tagBarContainer != null)
+            {
+                if (_tagsCollapsed) tagBarContainer.AddToClassList("tag-bar-collapsed");
+                else tagBarContainer.RemoveFromClassList("tag-bar-collapsed");
+            }
+            var btnTagCollapse = rootVisualElement?.Q<Button>("btnTagCollapse");
+            if (btnTagCollapse != null) btnTagCollapse.text = _tagsCollapsed ? "More" : "Less";
+
             foreach (var kv in fullTags)
             {
                 var tag = kv.Key;

@@ -1,4 +1,4 @@
-﻿<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="EnhancedConsoleWindow.uss" />
     <ui:VisualElement name="root" style="flex-grow: 1;">
         <ui:VisualElement name="toolbar" class="toolbar">
@@ -11,11 +11,11 @@
             <ui:Toggle name="toggleLog" label="0" tooltip="Logs" class="toolbar-toggle count" />
             <ui:Toggle name="toggleWarning" label="0" tooltip="Warnings" class="toolbar-toggle count" />
             <ui:Toggle name="toggleError" label="0" tooltip="Errors" class="toolbar-toggle count" />
-            <ui:Button name="btnMenu" text="▼" tooltip="Menu" class="toolbar-button menu" />
+            <ui:Button name="btnMenu" text="?" tooltip="Menu" class="toolbar-button menu" />
         </ui:VisualElement>
         <ui:VisualElement name="searchBar" class="search-bar">
             <ui:Label text="Search:" class="search-label" />
-            <ui:Button name="btnSearchFilter" text="Filter ▼" tooltip="Select filters" class="toolbar-button search-filter-btn" />
+            <ui:Button name="btnSearchFilter" text="Filter ��" tooltip="Select filters" class="toolbar-button search-filter-btn" />
             <ui:TextField name="searchField" value="" class="search-field" />
             <ui:Button name="btnSearchClear" text="X" class="toolbar-button small" />
             <ui:Button name="btnSearchHistory" text="History" tooltip="Pick from search history" class="toolbar-button small" />
@@ -30,6 +30,7 @@
                 <ui:Button name="btnTagClearInclude" text="Clear+" class="toolbar-button tag-clear-btn" />
                 <ui:Button name="btnTagClearExclude" text="Clear-" class="toolbar-button tag-clear-btn" />
                 <ui:VisualElement name="tagBarContainer" class="tag-bar-container" />
+                <ui:Button name="btnTagCollapse" text="More" class="toolbar-button tag-collapse-btn" />
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:TwoPaneSplitView name="mainSplit" fixedPaneIndex="1" fixedPaneInitialDimension="120" orientation="Vertical" class="main-split">

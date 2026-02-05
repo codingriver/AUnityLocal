@@ -164,6 +164,7 @@ namespace UnityEnhancedConsole
         private StackTraceLogType _stackTraceError = StackTraceLogType.ScriptOnly;
         private float _detailHeight = 120f;
         private readonly HashSet<string> _selectedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private bool _tagsCollapsed = true;
         private readonly HashSet<string> _excludedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly List<string> _searchHistory = new List<string>();
         private bool _tagsEnabled = true;
@@ -222,6 +223,7 @@ namespace UnityEnhancedConsole
             _tagCountsDirty = true;
             TrimEntriesToMax();
             // ????Threaded???? logMessageReceived ???Unity ??????????????
+            
             Application.logMessageReceivedThreaded += HandleLogThreaded;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
 
@@ -1328,7 +1330,8 @@ namespace UnityEnhancedConsole
 
         private void RefreshUI()
         {
-            if (rootVisualElement == null || rootVisualElement.childCount == 0) return;
+            if (rootVisualElement == null) return;
+            if (rootVisualElement.childCount == 0) BuildUI();
             FlushPendingEntries();
             var root = rootVisualElement.Q<VisualElement>("root");
             if (root == null)
@@ -1645,7 +1648,7 @@ namespace UnityEnhancedConsole
                 foreach (string item in _searchHistory)
                 {
                     string s = item;
-                    string display = (s.Length > 50 ? s.Substring(0, 47) + "..." : s).Replace("/", "¨M");
+                    string display = (s.Length > 50 ? s.Substring(0, 47) + "..." : s).Replace("/", "ï¿½M");
                     menu.AddItem(new GUIContent("Search/History/" + display), false, () => { _search = s; _searchApplied = s; _filterDirty = true; _tagCountsDirty = true; PushSearchHistory(s); if (_searchField != null) _searchField.value = s; RefreshUI(); });
                 }
                 menu.AddItem(new GUIContent("Search/Clear History"), false, () => { _searchHistory.Clear(); SaveSearchHistory(); RefreshUI(); });
