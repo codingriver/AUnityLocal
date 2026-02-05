@@ -814,6 +814,61 @@ namespace UnityEnhancedConsole
             catch { }
             return null;
         }
+        private void CopySelectedMessagesToClipboard()
+        {
+            if (_logListView == null) return;
+            var selected = _logListView.selectedIndices.ToList();
+            if (selected.Count == 0) return;
+            var rows = GetFilteredRows();
+            var sb = new System.Text.StringBuilder();
+            int take = Math.Min(selected.Count, MaxCopyLines);
+            for (int i = 0; i < take; i++)
+            {
+                int idxRow = selected[i];
+                if (idxRow < 0 || idxRow >= rows.Count) continue;
+                var e = _entries[rows[idxRow].entryIndex];
+                if (e?.Condition != null)
+                    sb.AppendLine(StripStackFromCondition(e.Condition));
+            }
+            string text = sb.ToString();
+            if (text.Length > 0 && text.EndsWith("\r\n"))
+                text = text.Substring(0, text.Length - 2);
+            else if (text.Length > 0 && text.EndsWith("\n"))
+                text = text.Substring(0, text.Length - 1);
+            EditorGUIUtility.systemCopyBuffer = text;
+        }
+
+        private static string StripStackFromCondition(string condition)
+        {
+            if (string.IsNullOrEmpty(condition)) return "";
+            // Some logs include stack lines appended to condition. Remove stack-like lines.
+            var lines = condition.Replace("\r\n", "\n").Split('\n');
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if (IsStackLine(line)) break;
+                if (sb.Length > 0) sb.Append('\n');
+                sb.Append(line);
+            }
+            return sb.ToString();
+        }
+
+        private static bool IsStackLine(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return false;
+            if (StackLineRegex.IsMatch(line)) return true;
+            var t = line.TrimStart();
+            return t.StartsWith("at ") || t.StartsWith("in ");
+        }
+
+        private bool IsClickInsideListView(VisualElement target)
+        {
+            if (_logListView == null || target == null) return false;
+            var ve = target as VisualElement;
+            return ve != null && (_logListView == ve || _logListView.Contains(ve));
+        }
+
         private static string GetFirstLines(string text, int maxLines)
         {
             if (string.IsNullOrEmpty(text) || maxLines <= 0) return "";
@@ -1190,6 +1245,26 @@ namespace UnityEnhancedConsole
             BindListView();
             SyncTogglesFromState(innerRoot);
             SyncSearchField();
+            rootVisualElement.RegisterCallback<MouseDownEvent>(evt =>
+            {
+                if (!IsClickInsideListView(evt.target as VisualElement))
+                {
+                    _logListView?.ClearSelection();
+                }
+            });
+
+            rootVisualElement.RegisterCallback<KeyDownEvent>(evt =>
+            {
+                if ((evt.ctrlKey || evt.commandKey) && evt.keyCode == KeyCode.C)
+                {
+                    if (_logListView != null && _logListView.selectedIndices.Any())
+                    {
+                        CopySelectedMessagesToClipboard();
+                        evt.StopPropagation();
+                    }
+                }
+            });
+
             RefreshUI();
         }
 
@@ -1330,6 +1405,7 @@ namespace UnityEnhancedConsole
                 row.Add(tags);
                 return row;
             };
+            _logListView.selectionType = SelectionType.Multiple;
             _logListView.bindItem = (e, i) =>
             {
                 var filtered = GetFilteredRows();
@@ -1376,13 +1452,13 @@ namespace UnityEnhancedConsole
             };
             _logListView.selectionChanged += _ =>
             {
-                var list = _logListView.selectedIndices.ToList();
-                if (list.Count == 0) { _selectedIndex = -1; UpdateDetailPanel(); return; }
+                var selected = _logListView.selectedIndices.ToList();
+                if (selected.Count == 0) { _selectedIndex = -1; UpdateDetailPanel(); return; }
                 var filtered = GetFilteredRows();
-                int idx = list[0];
-                if (idx >= 0 && idx < filtered.Count)
+                int idxRow = selected[selected.Count - 1];
+                if (idxRow >= 0 && idxRow < filtered.Count)
                 {
-                    _selectedIndex = filtered[idx].entryIndex;
+                    _selectedIndex = filtered[idxRow].entryIndex;
                     UpdateDetailPanel();
                 }
             };
