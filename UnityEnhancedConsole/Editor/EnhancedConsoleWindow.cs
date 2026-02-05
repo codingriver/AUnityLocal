@@ -880,6 +880,35 @@ namespace UnityEnhancedConsole
             return ve != null && (_logListView == ve || _logListView.Contains(ve));
         }
 
+        private bool IsClickInsideDetailPane(VisualElement target)
+        {
+            if (target == null) return false;
+            var ve = target as VisualElement;
+            if (ve == null) return false;
+            if (_detailField != null && (_detailField == ve || _detailField.Contains(ve))) return true;
+            var detailPane = rootVisualElement?.Q<VisualElement>("detailScroll");
+            return detailPane != null && (detailPane == ve || detailPane.Contains(ve));
+        }
+
+        private static bool HasClassInHierarchy(VisualElement ve, string className)
+        {
+            for (var cur = ve; cur != null; cur = cur.parent)
+            {
+                if (cur.ClassListContains(className)) return true;
+            }
+            return false;
+        }
+
+        private bool IsClickInsideSplitViewDivider(VisualElement target)
+        {
+            if (target == null) return false;
+            var ve = target as VisualElement;
+            if (ve == null) return false;
+            // Unity's TwoPaneSplitView divider/dragline internal classes
+            return HasClassInHierarchy(ve, "unity-two-pane-split-view__divider") ||
+                   HasClassInHierarchy(ve, "unity-two-pane-split-view__dragline");
+        }
+
         private static string GetFirstLines(string text, int maxLines)
         {
             if (string.IsNullOrEmpty(text) || maxLines <= 0) return "";
@@ -1258,7 +1287,8 @@ namespace UnityEnhancedConsole
             SyncSearchField();
             rootVisualElement.RegisterCallback<MouseDownEvent>(evt =>
             {
-                if (!IsClickInsideListView(evt.target as VisualElement))
+                var target = evt.target as VisualElement;
+                if (!IsClickInsideListView(target) && !IsClickInsideDetailPane(target) && !IsClickInsideSplitViewDivider(target))
                 {
                     _logListView?.ClearSelection();
                 }
