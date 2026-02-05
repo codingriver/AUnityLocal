@@ -190,6 +190,7 @@ namespace UnityEnhancedConsole
 
         /* UI Toolkit ?? */
         private ListView _logListView;
+        private bool _logListContextBound;
         private TextField _detailField;
         // private VisualElement _detailLinks; // removed (double-click to open)
         private TextField _searchField;
@@ -816,8 +817,13 @@ namespace UnityEnhancedConsole
         }
         private void CopySelectedMessagesToClipboard()
         {
+            CopySelectedMessagesToClipboard(false);
+        }
+
+        private void CopySelectedMessagesToClipboard(bool includeTimestamp)
+        {
             if (_logListView == null) return;
-            var selected = _logListView.selectedIndices.ToList();
+            var selected = _logListView.selectedIndices.OrderBy(i => i).ToList();
             if (selected.Count == 0) return;
             var rows = GetFilteredRows();
             var sb = new System.Text.StringBuilder();
@@ -828,7 +834,12 @@ namespace UnityEnhancedConsole
                 if (idxRow < 0 || idxRow >= rows.Count) continue;
                 var e = _entries[rows[idxRow].entryIndex];
                 if (e?.Condition != null)
-                    sb.AppendLine(StripStackFromCondition(e.Condition));
+                {
+                    var content = StripStackFromCondition(e.Condition);
+                    if (includeTimestamp && !string.IsNullOrEmpty(e.TimeStamp))
+                        content = "[" + e.TimeStamp + "] " + content;
+                    sb.AppendLine(content);
+                }
             }
             string text = sb.ToString();
             if (text.Length > 0 && text.EndsWith("\r\n"))
@@ -1462,6 +1473,18 @@ namespace UnityEnhancedConsole
                     UpdateDetailPanel();
                 }
             };
+            if (!_logListContextBound)
+            {
+                _logListContextBound = true;
+                _logListView.RegisterCallback<ContextClickEvent>(evt =>
+                {
+                    if (_logListView == null || !_logListView.selectedIndices.Any()) return;
+                    var menu = new GenericMenu();
+                    menu.AddItem(new GUIContent("Copy"), false, () => CopySelectedMessagesToClipboard(false));
+                    menu.AddItem(new GUIContent("Copy with Timestamp"), false, () => CopySelectedMessagesToClipboard(true));
+                    menu.ShowAsContext();
+                });
+            }
         }
 
         private void SyncTogglesFromState(VisualElement root)
