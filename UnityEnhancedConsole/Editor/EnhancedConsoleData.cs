@@ -47,9 +47,10 @@ namespace UnityEnhancedConsole
 
         public bool HasAnyTag(IEnumerable<string> selectedTags)
         {
-            if (Tags == null || Tags.Count == 0) return false;
+            if (Tags == null || Tags.Count == 0 || selectedTags == null) return false;
+            var tagSet = new HashSet<string>(Tags, StringComparer.OrdinalIgnoreCase);
             foreach (var t in selectedTags)
-                if (Tags.Contains(t)) return true;
+                if (!string.IsNullOrEmpty(t) && tagSet.Contains(t)) return true;
             return false;
         }
     }

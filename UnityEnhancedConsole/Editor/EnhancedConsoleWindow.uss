@@ -204,6 +204,17 @@
     flex-shrink: 0;
 }
 
+.tag-exclude-indicator {
+    width: 8px;
+    height: 8px;
+    margin-top: 7px;
+    margin-left: 4px;
+    margin-right: 4px;
+    border-radius: 4px;
+    background-color: rgba(200, 60, 60, 0.95);
+    display: none;
+}
+
 .tag-bar-inner {
     flex-grow: 1;
     flex-direction: row;
@@ -228,6 +239,66 @@
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
+}
+
+.tag-item {
+    flex-direction: row;
+    align-items: center;
+    margin-right: 2px;
+    margin-bottom: 2px;
+}
+
+.tag-btn {
+    margin-left: 0;
+}
+
+.tag-btn.excluded {
+    border-width: 2px;
+    border-color: rgba(255, 80, 80, 0.95);
+    opacity: 0.75;
+}
+
+.tag-exclude-badge {
+    width: 10px;
+    height: 10px;
+    min-width: 10px;
+    min-height: 10px;
+    margin-left: 4px;
+    margin-right: 2px;
+    border-radius: 2px;
+    background-color: rgba(90, 90, 90, 0.6);
+    border-width: 1px;
+    border-color: rgba(40, 40, 40, 0.9);
+    display: none;
+}
+
+.tag-exclude-badge.excluded {
+    display: flex;
+    background-color: rgba(200, 60, 60, 0.95);
+    border-color: rgba(120, 20, 20, 0.9);
+}
+
+.tag-x {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    min-height: 14px;
+    margin-left: 2px;
+    margin-top: 1px;
+    padding-left: 0;
+    padding-right: 0;
+    border-radius: 2px;
+    font-size: 10px;
+    background-color: rgba(0, 0, 0, 0.4);
+    color: rgb(230, 230, 230);
+}
+
+.tag-x:hover {
+    background-color: rgba(90, 90, 90, 0.8);
+}
+
+.tag-x.excluded {
+    background-color: rgba(140, 50, 50, 0.85);
 }
 
 /* ========== 主分割区（列表 + 详情，与 Unity Console 一致）========== */
@@ -310,7 +381,8 @@
     height: 15px;
     font-size: 11px;
     border-radius: 2px;
-    border-width: 0;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 /* 标签栏/列表中选中态：白边 + 轻微外发光，更易辨认 */

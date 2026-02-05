@@ -13,17 +13,17 @@ using UnityEditor.UIElements;
 namespace UnityEnhancedConsole
 {
     /// <summary>
-    /// 增强型 Console 窗口：包含官方 Console 的全部功能并可在编辑器中独立使用。
+    /// ????Console ????????Console ??????????????????
     /// </summary>
-    public class EnhancedConsoleWindow : EditorWindow
+    public partial class EnhancedConsoleWindow : EditorWindow
     {
-        #region UI Toolkit 资源路径
+        #region UI Toolkit ????
 
         private const string UxmlPath = "Assets/AUnityLocal/UnityEnhancedConsole/Editor/EnhancedConsoleWindow.uxml";
         private const string UssPath = "Assets/AUnityLocal/UnityEnhancedConsole/Editor/EnhancedConsoleWindow.uss";
         #endregion
         
-        #region 常量与静态
+        #region ??????
 
         private const string PrefCollapse = "EnhancedConsole.Collapse";
         private const string PrefClearOnPlay = "EnhancedConsole.ClearOnPlay";
@@ -57,38 +57,38 @@ namespace UnityEnhancedConsole
         private const float TimeFrameGap = 0f;
         private const float MinListHeight = 60f;
         private const float MinDetailHeight = 60f;
-        /// <summary> 条目数上限，超过时从头部移除，保留最近 N 条。 </summary>
+        /// <summary> ????????????????????N ???</summary>
         private const int MaxEntries = 20000;
-        /// <summary> 窗口打开时从文件最多加载的条数（流式读取，滑动窗口保留最近 N 条）。 </summary>
+        /// <summary> ??????????????????????????????N ????</summary>
         private const int MaxLoadEntries = 50000;
-        /// <summary> 列表虚拟化：可见区上下缓冲行数。 </summary>
+        /// <summary> ?????????????????</summary>
         private const int ListVirtualBufferRows = 10;
-        /// <summary> 主线程单条 AddEntry 时 Repaint 最小间隔（毫秒），用于限流。 </summary>
+        /// <summary> ??????AddEntry ??Repaint ???????????????</summary>
         private const double MinRepaintIntervalMs = 50;
-        /// <summary> 复制搜索结果 / 复制匹配内容时最多复制的行数，超过则截断并追加说明。 </summary>
+        /// <summary> ?????? / ???????????????????????????</summary>
         private const int MaxCopyLines = 100000;
 
         private static readonly List<LogEntry> PendingEntries = new List<LogEntry>();
         private static readonly object PendingLock = new object();
 
-        /// <summary> 当前是否存在脚本编译错误（用于 Clear 时保留编译错误日志、只清其他日志）。 </summary>
+        /// <summary> ????????????????Clear ???????????????????</summary>
         private static bool _hasCompilationErrors;
         private static bool _currentCycleHasErrors;
 
-        // 堆栈行格式: (at path:line) 或 in path:line
+        // ?????? (at path:line) ??in path:line
         private static readonly Regex StackLineRegex = new Regex(@"\s*\(at\s+(.+):(\d+)\)|\s+in\s+(.+):(\d+)", RegexOptions.Compiled);
 
-        /// <summary> 标签自动配色：Unity 风格、深色主题适用的色板（同一标签名始终同色）。 </summary>
+        /// <summary> ???????Unity ?????????????????????????</summary>
         private static readonly Color[] TagColors = new[]
         {
-            new Color(0.26f, 0.42f, 0.62f, 0.92f),  // 蓝
-            new Color(0.22f, 0.48f, 0.48f, 0.92f),  // 青
-            new Color(0.22f, 0.52f, 0.38f, 0.92f),  // 绿
-            new Color(0.48f, 0.48f, 0.28f, 0.92f),  // 橄榄
-            new Color(0.58f, 0.42f, 0.24f, 0.92f),  // 橙
-            new Color(0.58f, 0.32f, 0.34f, 0.92f),  // 红褐
-            new Color(0.42f, 0.34f, 0.54f, 0.92f),  // 紫
-            new Color(0.52f, 0.32f, 0.48f, 0.92f), // 品红
+            new Color(0.26f, 0.42f, 0.62f, 0.92f),  // ??
+            new Color(0.22f, 0.48f, 0.48f, 0.92f),  // ??
+            new Color(0.22f, 0.52f, 0.38f, 0.92f),  // ??
+            new Color(0.48f, 0.48f, 0.28f, 0.92f),  // ??
+            new Color(0.58f, 0.42f, 0.24f, 0.92f),  // ??
+            new Color(0.58f, 0.32f, 0.34f, 0.92f),  // ??
+            new Color(0.42f, 0.34f, 0.54f, 0.92f),  // ??
+            new Color(0.52f, 0.32f, 0.48f, 0.92f), // ??
         };
 
         private static Color GetTagColor(string tag)
@@ -98,10 +98,10 @@ namespace UnityEnhancedConsole
             return TagColors[i];
         }
 
-        /// <summary> 当前是否存在脚本编译错误。 </summary>
+        /// <summary> ??????????????</summary>
         public static bool HasCompilationErrors => _hasCompilationErrors;
 
-        /// <summary> 判断一条日志是否为脚本编译错误（Clear 时保留）。Unity C# 编译错误格式通常含 "error CS" 或 ": error "。 </summary>
+        /// <summary> ????????????????Clear ?????Unity C# ??????????"error CS" ??": error "??</summary>
         private static bool IsCompilationErrorLog(LogEntry e)
         {
             if (e == null) return false;
@@ -141,7 +141,7 @@ namespace UnityEnhancedConsole
 
         #endregion
 
-        #region 状态
+        #region ???
 
         private readonly List<LogEntry> _entries = new List<LogEntry>();
         private int _selectedIndex = -1;
@@ -164,6 +164,7 @@ namespace UnityEnhancedConsole
         private StackTraceLogType _stackTraceError = StackTraceLogType.ScriptOnly;
         private float _detailHeight = 120f;
         private readonly HashSet<string> _selectedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _excludedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly List<string> _searchHistory = new List<string>();
         private bool _tagsEnabled = true;
         private bool _filterTimeRange;
@@ -186,7 +187,7 @@ namespace UnityEnhancedConsole
         private double _lastRepaintTime;
         private bool _repaintScheduled;
 
-        /* UI Toolkit 引用 */
+        /* UI Toolkit ?? */
         private ListView _logListView;
         private TextField _detailField;
         private VisualElement _detailLinks;
@@ -219,10 +220,8 @@ namespace UnityEnhancedConsole
             _cachedTagCounts = null;
             _filterDirty = true;
             _tagCountsDirty = true;
-            foreach (var e in _entries)
-                EnhancedConsoleTagLogic.ComputeTags(e);
             TrimEntriesToMax();
-            // 只订阅 Threaded，避免与 logMessageReceived 重复（Unity 同一条日志会触发两个回调）
+            // ????Threaded???? logMessageReceived ???Unity ??????????????
             Application.logMessageReceivedThreaded += HandleLogThreaded;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
 
@@ -234,7 +233,7 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 每帧检查：输入停止 0.35s 后自动应用当前搜索。
+        /// ????????? 0.35s ???????????
         /// </summary>
         private void ApplySearchDebounced()
         {
@@ -298,7 +297,6 @@ namespace UnityEnhancedConsole
                 FrameCount = Application.isPlaying ? Time.frameCount : 0,
                 Tags = new List<string>()
             };
-            EnhancedConsoleTagLogic.ComputeTags(entry);
             return entry;
         }
 
@@ -320,8 +318,6 @@ namespace UnityEnhancedConsole
                     return;
                 }
             }
-
-            EnhancedConsoleTagLogic.ComputeTags(entry);
             entry.MessageNumber = GetAndAdvanceNextMessageNumber();
             _entries.Add(entry);
             _filterDirty = true;
@@ -362,7 +358,6 @@ namespace UnityEnhancedConsole
                         continue;
                     }
                 }
-                EnhancedConsoleTagLogic.ComputeTags(e);
                 e.MessageNumber = GetAndAdvanceNextMessageNumber();
                 _entries.Add(e);
                 _filterDirty = true;
@@ -440,7 +435,7 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 将当前搜索词加入历史（去重并置顶，最多保留 MaxSearchHistory 条）。
+        /// ??????????????????????MaxSearchHistory ????
         /// </summary>
         private void PushSearchHistory(string search)
         {
@@ -492,8 +487,8 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 基于当前筛选结果（GetFilteredRows 缓存）按类型计数，不单独全表遍历。
-        /// Collapse 时 displayCount 可能 &gt;1，累加后与列表显示一致。
+        /// ?????????GetFilteredRows ??????????????????
+        /// Collapse ??displayCount ?? &gt;1?????????????
         /// </summary>
         private (int log, int warn, int err) CountByType()
         {
@@ -516,8 +511,8 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 未过滤时的按类型计数（不应用搜索、标签、类型开关），用于工具栏三个 Toggle 显示的总数量。
-        /// Collapse 时按 e.Count 累加。
+        /// ????????????????????????????????? Toggle ????????
+        /// Collapse ?? e.Count ????
         /// </summary>
         private (int log, int warn, int err) CountByTypeUnfiltered()
         {
@@ -551,7 +546,7 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 获取或创建当前搜索条件的编译正则（正则模式且 _search 非空时复用，避免每条日志重复解析）。
+        /// ?????????????????????? _search ???????????????????
         /// </summary>
         private Regex GetOrCreateSearchRegex()
         {
@@ -613,14 +608,14 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 将当前筛选条件下匹配的条目的 Condition 文本合并为多行并复制到剪贴板（普通/正则搜索均支持）。最多复制 MaxCopyLines 条。
+        /// ?????????????? Condition ????????????????????????????????MaxCopyLines ???
         /// </summary>
         private void CopyMatchedResultsToClipboard()
         {
             var rows = GetFilteredRows();
             if (rows.Count == 0)
             {
-                EditorUtility.DisplayDialog("复制搜索结果", "当前没有匹配的条目。", "确定");
+                EditorUtility.DisplayDialog("Copy Results", "No matched entries.", "OK");
                 return;
             }
             int take = Mathf.Min(rows.Count, MaxCopyLines);
@@ -637,24 +632,24 @@ namespace UnityEnhancedConsole
             else if (text.Length > 0 && text.EndsWith("\n"))
                 text = text.Substring(0, text.Length - 1);
             if (rows.Count > MaxCopyLines)
-                text += "\n（已截断，仅复制前 " + MaxCopyLines + " 条）";
+                text += "\n(Truncated, only first " + MaxCopyLines + " items copied)";
             EditorGUIUtility.systemCopyBuffer = text;
         }
 
         /// <summary>
-        /// 普通搜索或正则搜索均支持：将每条匹配消息的 Condition 中被搜索关键字或正则匹配到的子串收集起来，合并为多行并复制到剪贴板。最多复制 MaxCopyLines 个匹配。
+        /// ????????????????????? Condition ???????????????????????????????????????MaxCopyLines ?????
         /// </summary>
         private void CopyRegexMatchPartsToClipboard()
         {
             if (string.IsNullOrEmpty(_searchApplied))
             {
-                EditorUtility.DisplayDialog("复制匹配内容", "请先输入搜索内容。", "确定");
+                EditorUtility.DisplayDialog("Copy Matches", "Please enter a search term.", "OK");
                 return;
             }
             var rows = GetFilteredRows();
             if (rows.Count == 0)
             {
-                EditorUtility.DisplayDialog("复制匹配内容", "当前没有匹配的条目。", "确定");
+                EditorUtility.DisplayDialog("Copy Matches", "No matched entries.", "OK");
                 return;
             }
             var parts = new List<string>();
@@ -685,13 +680,12 @@ namespace UnityEnhancedConsole
                 }
                 catch (Exception ex)
                 {
-                    EditorUtility.DisplayDialog("复制匹配内容", "正则表达式无效：" + ex.Message, "确定");
+                    EditorUtility.DisplayDialog("Copy Matches", "Invalid regex: " + ex.Message, "OK");
                     return;
                 }
             }
             else
             {
-                // 普通搜索：按条目去重，每条 Condition 只取第一个匹配（与“结果条数”一致，避免一条消息内多次出现关键字导致复制条数翻倍）
                 for (int i = 0; i < rows.Count; i++)
                 {
                     if (parts.Count >= MaxCopyLines) { truncated = true; break; }
@@ -699,27 +693,26 @@ namespace UnityEnhancedConsole
                     if (!processedEntries.Add(ei)) continue;
                     var e = _entries[ei];
                     if (e?.Condition == null) continue;
-                    string condition = e.Condition;
-                    int idx = condition.IndexOf(_searchApplied, 0, StringComparison.OrdinalIgnoreCase);
+                    int idx = e.Condition.IndexOf(_searchApplied, StringComparison.OrdinalIgnoreCase);
                     if (idx >= 0)
-                        parts.Add(condition.Substring(idx, _searchApplied.Length));
+                        parts.Add(e.Condition.Substring(idx, _searchApplied.Length));
                     if (truncated) break;
                 }
             }
             if (parts.Count == 0)
             {
-                EditorUtility.DisplayDialog("复制匹配内容", "未在匹配条目中找到任何匹配内容。", "确定");
+                EditorUtility.DisplayDialog("Copy Matches", "No match parts were found in matched entries.", "OK");
                 return;
             }
             string text = string.Join("\n", parts);
             if (truncated)
-                text += "\n（已截断，仅复制前 " + MaxCopyLines + " 条）";
+                text += "\n(Truncated, only first " + MaxCopyLines + " items copied)";
             EditorGUIUtility.systemCopyBuffer = text;
         }
 
         /// <summary>
-        /// 返回文本的前 maxLines 行（含换行），不拆分整段字符串，避免超长 Condition 的 Split('\n') 成本。
-        /// 这里按 Unity 常规日志处理：仅按 '\n' 作为换行分隔。
+        /// ?????? maxLines ???????????????????? Condition ??Split('\n') ????
+        /// ????Unity ??????????'\n' ????????
         /// </summary>
         private static string GetFirstLines(string text, int maxLines)
         {
@@ -742,8 +735,8 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 勾选 Collapse：按“相同内容”全局合并，一行显示一种内容并显示总次数。
-        /// 取消 Collapse：按出现次数展开，每条占一行（正常显示）。
+        /// ???Collapse?????????????????????????????
+        /// ?? Collapse??????????????????????
         /// </summary>
         private struct FilteredRow { public int entryIndex; public int displayCount; }
 
@@ -765,6 +758,7 @@ namespace UnityEnhancedConsole
                     if (!EntryMatchesNumberRange(e)) continue;
                     if (!EntryMatchesFrameRange(e)) continue;
                     if (!ShowType(e.LogType)) continue;
+                    if (_tagsEnabled && _excludedTags.Count > 0 && e.HasAnyTag(_excludedTags)) continue;
                     if (_tagsEnabled && _selectedTags.Count > 0 && !e.HasAnyTag(_selectedTags)) continue;
                     bool found = false;
                     for (int g = 0; g < groups.Count; g++)
@@ -792,6 +786,7 @@ namespace UnityEnhancedConsole
                     if (!EntryMatchesNumberRange(e)) continue;
                     if (!EntryMatchesFrameRange(e)) continue;
                     if (!ShowType(e.LogType)) continue;
+                    if (_tagsEnabled && _excludedTags.Count > 0 && e.HasAnyTag(_excludedTags)) continue;
                     if (_tagsEnabled && _selectedTags.Count > 0 && !e.HasAnyTag(_selectedTags)) continue;
                     for (int k = 0; k < e.Count; k++)
                         list.Add(new FilteredRow { entryIndex = i, displayCount = 1 });
@@ -803,7 +798,7 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 在仅应用搜索与类型筛选（不应用标签筛选）的行上统计所有标签，用于标签栏始终展示全部标签（选中后数量可为 0 但不隐藏）。
+        /// ????????????????????????????????????????????????????0 ???????
         /// </summary>
         private Dictionary<string, int> GetAllTagsFromRowsWithoutTagFilter()
         {
@@ -866,7 +861,7 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 解析单行堆栈中的 (at path:line) 或 in path:line，返回 (before, path, lineNum, after)，用于内联超链接。
+        /// ???????? (at path:line) ??in path:line????(before, path, lineNum, after)??????????
         /// </summary>
         private (string before, string path, int lineNum, string after)? TryParseStackLine(string line)
         {
@@ -891,7 +886,7 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 从堆栈文本中解析出所有 (path, lineNum)，用于下方跳转链接。
+        /// ????????????(path, lineNum)???????????
         /// </summary>
         private List<(string path, int lineNum)> ParseStackTraceLinks(string stackTrace)
         {
@@ -939,6 +934,8 @@ namespace UnityEnhancedConsole
         {
             foreach (var e in _entries)
                 EnhancedConsoleTagLogic.ComputeTags(e);
+            _filterDirty = true;
+            _tagCountsDirty = true;
             RefreshUI();
         }
 
@@ -980,7 +977,7 @@ namespace UnityEnhancedConsole
         {
             if (HasCompilationErrors)
             {
-                // 只移除非编译错误条目，保留编译错误日志
+                // ????????????????????
                 for (int i = _entries.Count - 1; i >= 0; i--)
                 {
                     if (!IsCompilationErrorLog(_entries[i]))
@@ -1006,6 +1003,7 @@ namespace UnityEnhancedConsole
                 EnhancedConsoleLogFile.ClearFile();
             }
             _selectedTags.Clear();
+            _excludedTags.Clear();
             _cachedFilteredRows = null;
             _cachedTagCounts = null;
             _filterDirty = true;
@@ -1023,7 +1021,7 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 若条目数超过 MaxEntries，从头部移除多余条，保留最近 N 条；并修正 _selectedIndex。
+        /// ?????? MaxEntries???????????????N ??????_selectedIndex??
         /// </summary>
         private void TrimEntriesToMax()
         {
@@ -1038,7 +1036,7 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 主线程单条 AddEntry 时：距上次 Repaint 不足 N ms 则不立即 Repaint，由延迟回调统一刷新。
+        /// ??????AddEntry ??????Repaint ?? N ms ???? Repaint????????????
         /// </summary>
         private void RepaintThrottled()
         {
@@ -1117,7 +1115,7 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 为右侧三个日志类型 Toggle（Log/Warning/Error）插入对应图标。
+        /// ??????????Toggle?Log/Warning/Error?????????
         /// </summary>
         private void SetupToolbarCountToggleIcons(VisualElement root)
         {
@@ -1226,19 +1224,6 @@ namespace UnityEnhancedConsole
             if (btnCopyRegexMatch != null) btnCopyRegexMatch.clicked += CopyRegexMatchPartsToClipboard;
         }
 
-        private void BindTagBar(VisualElement root)
-        {
-            var btnTagClear = root.Q<Button>("btnTagClear");
-            if (btnTagClear != null)
-            {
-                btnTagClear.clicked += () =>
-                {
-                    _selectedTags.Clear();
-                    _filterDirty = true; _tagCountsDirty = true;
-                    RefreshUI();
-                };
-            }
-        }
 
         private void BindListView()
         {
@@ -1346,9 +1331,14 @@ namespace UnityEnhancedConsole
             if (rootVisualElement == null || rootVisualElement.childCount == 0) return;
             FlushPendingEntries();
             var root = rootVisualElement.Q<VisualElement>("root");
-            if (root == null) return;
+            if (root == null)
+            {
+                BuildUI();
+                root = rootVisualElement.Q<VisualElement>("root");
+                if (root == null) return;
+            }
 
-            /* 工具栏三个 Toggle 显示未过滤时的总数量（最多四位数，超过显示 9999）*/
+            /* ????? Toggle ???????????????????? 9999?*/
             var (logCount, warnCount, errCount) = CountByTypeUnfiltered();
             int cap = 9999;
             var toggleLog = root.Q<Toggle>("toggleLog");
@@ -1363,24 +1353,14 @@ namespace UnityEnhancedConsole
             var btnSearchFilter = root.Q<Button>("btnSearchFilter");
             if (btnSearchFilter != null)
             {
-                var shortParts = new List<string>();
-                var fullParts = new List<string>();
-                if (_filterTimeRange) { shortParts.Add("时"); fullParts.Add("时间"); }
-                if (_filterNumberRange) { shortParts.Add("编"); fullParts.Add("编号"); }
-                if (_filterFrameRange) { shortParts.Add("帧"); fullParts.Add("帧数"); }
-                btnSearchFilter.text = shortParts.Count > 0 ? string.Join("·", shortParts) + " ▼" : "筛选 ▼";
-                if (shortParts.Count > 0)
-                    btnSearchFilter.AddToClassList("search-filter-active");
-                else
-                    btnSearchFilter.RemoveFromClassList("search-filter-active");
-                btnSearchFilter.tooltip = fullParts.Count > 0 ? "已启用: " + string.Join("、", fullParts) + "（点击修改或清除）" : "选择启用的筛选类型";
+                var shortParts = new List<string>();                 var fullParts = new List<string>();                 if (_filterTimeRange) { shortParts.Add("T"); fullParts.Add("Time"); }                 if (_filterNumberRange) { shortParts.Add("N"); fullParts.Add("Number"); }                 if (_filterFrameRange) { shortParts.Add("F"); fullParts.Add("Frame"); }                 btnSearchFilter.text = shortParts.Count > 0 ? "Filter: " + string.Join(",", shortParts) : "Filter";                 if (shortParts.Count > 0)                     btnSearchFilter.AddToClassList("search-filter-active");                 else                     btnSearchFilter.RemoveFromClassList("search-filter-active");                 btnSearchFilter.tooltip = fullParts.Count > 0 ? "Enabled: " + string.Join(", ", fullParts) + " (click to edit or clear)" : "Select filters to enable";
             }
             RebuildTagBar();
 
             var filtered = GetFilteredRows();
             if (_logListView != null)
             {
-                // 根据当前 _entryLines 立即更新列表行高，避免修改「Log Entry 显示行数」后需重新打开窗口才生效
+                // ???? _entryLines ??????????????Log Entry ?????????????????
                 float lineHeight = 18f;
                 _logListView.fixedItemHeight = lineHeight * Mathf.Clamp(_entryLines, 1, 10) + 4;
 
@@ -1396,31 +1376,6 @@ namespace UnityEnhancedConsole
             UpdateDetailPanel();
         }
 
-        private void RebuildTagBar()
-        {
-            if (_tagBarContainer == null) return;
-            _tagBarContainer.Clear();
-            if (!_tagsEnabled) return;
-            // 始终使用“不按标签筛选”下的全部标签及数量，选中后不隐藏标签，数量为全部日志（搜索+类型+折叠）下的条数
-            var fullTags = GetAllTagsFromRowsWithoutTagFilter();
-            foreach (var kv in fullTags)
-            {
-                var tag = kv.Key;
-                int count = kv.Value;
-                var btn = new Button(() =>
-                {
-                    if (_selectedTags.Contains(tag)) _selectedTags.Remove(tag);
-                    else _selectedTags.Add(tag);
-                    _filterDirty = true; _tagCountsDirty = true;
-                    RefreshUI();
-                }) { text = tag + "(" + count + ")" };
-                btn.AddToClassList("log-row-tag");
-                btn.style.backgroundColor = GetTagColor(tag);
-                if (_selectedTags.Contains(tag))
-                    btn.AddToClassList("selected");
-                _tagBarContainer.Add(btn);
-            }
-        }
 
         private void UpdateDetailPanel()
         {
@@ -1428,7 +1383,7 @@ namespace UnityEnhancedConsole
             _detailLinks.Clear();
             if (_selectedIndex < 0 || _selectedIndex >= _entries.Count)
             {
-                _detailField.SetValueWithoutNotify("选择一条消息以查看详情与堆栈。");
+                _detailField.SetValueWithoutNotify("Select a message to view details and stack trace.");
                 _detailField.AddToClassList("detail-empty");
                 return;
             }
@@ -1445,7 +1400,7 @@ namespace UnityEnhancedConsole
             var links = ParseStackTraceLinks(e.StackTrace);
             if (links.Count > 0)
             {
-                var title = new Label("点击跳转到代码:")
+                var title = new Label("????????")
                 {
                     style = { unityFontStyleAndWeight = FontStyle.Bold, marginBottom = 4 }
                 };
@@ -1459,7 +1414,7 @@ namespace UnityEnhancedConsole
                     tf.style.flexGrow = 1;
                     tf.style.minWidth = 0;
                     row.Add(tf);
-                    var openBtn = new Button(() => OpenFileAtLine(path, lineNum)) { text = "打开" };
+                    var openBtn = new Button(() => OpenFileAtLine(path, lineNum)) { text = "??" };
                     openBtn.AddToClassList("detail-link-btn");
                     row.Add(openBtn);
                     _detailLinks.Add(row);
@@ -1495,7 +1450,7 @@ namespace UnityEnhancedConsole
         {
             var menu = new GenericMenu();
             if (_searchHistory.Count == 0)
-                menu.AddDisabledItem(new GUIContent("(无历史)"));
+                menu.AddDisabledItem(new GUIContent("(No history)"));
             else
             {
                 foreach (string item in _searchHistory)
@@ -1512,7 +1467,7 @@ namespace UnityEnhancedConsole
                     });
                 }
                 menu.AddSeparator("");
-                menu.AddItem(new GUIContent("清空搜索历史"), false, () => { _searchHistory.Clear(); SaveSearchHistory(); RefreshUI(); });
+                menu.AddItem(new GUIContent("Clear Search History"), false, () => { _searchHistory.Clear(); SaveSearchHistory(); RefreshUI(); });
             }
             menu.ShowAsContext();
         }
@@ -1520,15 +1475,15 @@ namespace UnityEnhancedConsole
         private void ShowSearchFilterMenu()
         {
             var menu = new GenericMenu();
-            menu.AddItem(new GUIContent("时间范围"), _filterTimeRange, () => { _filterTimeRange = !_filterTimeRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("编号范围"), _filterNumberRange, () => { _filterNumberRange = !_filterNumberRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("帧数范围"), _filterFrameRange, () => { _filterFrameRange = !_filterFrameRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Time Range"), _filterTimeRange, () => { _filterTimeRange = !_filterTimeRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Number Range"), _filterNumberRange, () => { _filterNumberRange = !_filterNumberRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Frame Range"), _filterFrameRange, () => { _filterFrameRange = !_filterFrameRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("时间范围/设置范围..."), false, ShowTimeRangeSettings);
-            menu.AddItem(new GUIContent("编号范围/设置范围..."), false, ShowNumberRangeSettings);
-            menu.AddItem(new GUIContent("帧数范围/设置范围..."), false, ShowFrameRangeSettings);
+            menu.AddItem(new GUIContent("Set Time Range..."), false, ShowTimeRangeSettings);
+            menu.AddItem(new GUIContent("Set Number Range..."), false, ShowNumberRangeSettings);
+            menu.AddItem(new GUIContent("Set Frame Range..."), false, ShowFrameRangeSettings);
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("清除所有筛选"), false, ClearAllFilters);
+            menu.AddItem(new GUIContent("Clear All Filters"), false, ClearAllFilters);
             menu.ShowAsContext();
         }
 
@@ -1543,7 +1498,7 @@ namespace UnityEnhancedConsole
             RefreshUI();
         }
 
-        /// <summary> 从当前日志获取时间范围默认值，无日志时返回当前时间。 </summary>
+        /// <summary> ???????????????????????????</summary>
         private (string min, string max) GetDefaultTimeRangeFromLogs()
         {
             if (_entries.Count == 0)
@@ -1562,7 +1517,7 @@ namespace UnityEnhancedConsole
             return (minTs, maxTs);
         }
 
-        /// <summary> 从当前日志获取编号范围默认值，无日志时返回 0,0。 </summary>
+        /// <summary> ????????????????????? 0,0??</summary>
         private (int min, int max) GetDefaultNumberRangeFromLogs()
         {
             if (_entries.Count == 0) return (0, 0);
@@ -1576,7 +1531,7 @@ namespace UnityEnhancedConsole
             return (minN == int.MaxValue ? 0 : minN, maxN == int.MinValue ? 0 : maxN);
         }
 
-        /// <summary> 从当前日志获取帧数范围默认值，无日志时返回 0,0。 </summary>
+        /// <summary> ????????????????????? 0,0??</summary>
         private (int min, int max) GetDefaultFrameRangeFromLogs()
         {
             if (_entries.Count == 0) return (0, 0);
@@ -1607,12 +1562,12 @@ namespace UnityEnhancedConsole
             var (defMin, defMax) = GetDefaultTimeRangeFromLogs();
             string initMin = !string.IsNullOrEmpty(_filterTimeMin) ? _filterTimeMin : defMin;
             string initMax = !string.IsNullOrEmpty(_filterTimeMax) ? _filterTimeMax : defMax;
-            SearchFilterRangeWindow.Show("时间范围", initMin, initMax, "HH:mm:ss 或 HH:mm:ss.fff", (min, max) =>
+            SearchFilterRangeWindow.Show("Time Range", initMin, initMax, "HH:mm:ss or HH:mm:ss.fff", (min, max) =>
             {
-                if (!string.IsNullOrWhiteSpace(min) && !TryParseTime(min, out _)) return "起始时间格式无效";
-                if (!string.IsNullOrWhiteSpace(max) && !TryParseTime(max, out _)) return "结束时间格式无效";
+                if (!string.IsNullOrWhiteSpace(min) && !TryParseTime(min, out _)) return "Invalid start time format";
+                if (!string.IsNullOrWhiteSpace(max) && !TryParseTime(max, out _)) return "Invalid end time format";
                 if (!string.IsNullOrWhiteSpace(min) && !string.IsNullOrWhiteSpace(max) && string.Compare(min, max, StringComparison.Ordinal) > 0)
-                    return "起始时间不能大于结束时间";
+                    return "Start time cannot be later than end time";
                 return null;
             }, (min, max) =>
             {
@@ -1630,12 +1585,12 @@ namespace UnityEnhancedConsole
             bool customized = _filterNumberMin != 1 || _filterNumberMax != int.MaxValue;
             string initMin = customized ? _filterNumberMin.ToString() : defMin.ToString();
             string initMax = customized ? (_filterNumberMax == int.MaxValue ? "" : _filterNumberMax.ToString()) : defMax.ToString();
-            SearchFilterRangeWindow.Show("编号范围", initMin, initMax, "整数", (minStr, maxStr) =>
+            SearchFilterRangeWindow.Show("Number Range", initMin, initMax, "Integer", (minStr, maxStr) =>
             {
-                if (!int.TryParse(minStr ?? "0", out int minVal)) return "起始编号必须是整数";
-                if (!string.IsNullOrWhiteSpace(maxStr) && !int.TryParse(maxStr, out int maxVal)) return "结束编号必须是整数";
+                if (!int.TryParse(minStr ?? "0", out int minVal)) return "Start number must be an integer";
+                if (!string.IsNullOrWhiteSpace(maxStr) && !int.TryParse(maxStr, out int maxVal)) return "End number must be an integer";
                 int max = string.IsNullOrWhiteSpace(maxStr) ? int.MaxValue : int.Parse(maxStr);
-                if (minVal > max) return "起始编号不能大于结束编号";
+                if (minVal > max) return "Start number cannot be greater than end number";
                 return null;
             }, (minStr, maxStr) =>
             {
@@ -1653,12 +1608,12 @@ namespace UnityEnhancedConsole
             bool customized = _filterFrameMin != 0 || _filterFrameMax != int.MaxValue;
             string initMin = customized ? _filterFrameMin.ToString() : defMin.ToString();
             string initMax = customized ? (_filterFrameMax == int.MaxValue ? "" : _filterFrameMax.ToString()) : defMax.ToString();
-            SearchFilterRangeWindow.Show("帧数范围", initMin, initMax, "整数", (minStr, maxStr) =>
+            SearchFilterRangeWindow.Show("Frame Range", initMin, initMax, "Integer", (minStr, maxStr) =>
             {
-                if (!int.TryParse(minStr ?? "0", out int minVal)) return "起始帧数必须是整数";
-                if (!string.IsNullOrWhiteSpace(maxStr) && !int.TryParse(maxStr, out int maxVal)) return "结束帧数必须是整数";
+                if (!int.TryParse(minStr ?? "0", out int minVal)) return "Start frame must be an integer";
+                if (!string.IsNullOrWhiteSpace(maxStr) && !int.TryParse(maxStr, out int maxVal)) return "End frame must be an integer";
                 int max = string.IsNullOrWhiteSpace(maxStr) ? int.MaxValue : int.Parse(maxStr);
-                if (minVal > max) return "起始帧数不能大于结束帧数";
+                if (minVal > max) return "Start frame cannot be greater than end frame";
                 return null;
             }, (minStr, maxStr) =>
             {
@@ -1676,24 +1631,24 @@ namespace UnityEnhancedConsole
             menu.AddItem(new GUIContent("Show Timestamp"), _showTimestamp, () => { _showTimestamp = !_showTimestamp; SavePrefs(); RefreshUI(); });
             menu.AddItem(new GUIContent("Show Frame Count"), _showFrameCount, () => { _showFrameCount = !_showFrameCount; SavePrefs(); RefreshUI(); });
             menu.AddItem(new GUIContent("Show Message Number"), _showMessageNumber, () => { _showMessageNumber = !_showMessageNumber; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("搜索/普通搜索"), !_searchRegex, () => { _searchRegex = false; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("搜索/正则搜索"), _searchRegex, () => { _searchRegex = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("筛选/时间范围"), _filterTimeRange, () => { _filterTimeRange = !_filterTimeRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("筛选/编号范围"), _filterNumberRange, () => { _filterNumberRange = !_filterNumberRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("筛选/帧数范围"), _filterFrameRange, () => { _filterFrameRange = !_filterFrameRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("筛选/设置时间范围..."), false, ShowTimeRangeSettings);
-            menu.AddItem(new GUIContent("筛选/设置编号范围..."), false, ShowNumberRangeSettings);
-            menu.AddItem(new GUIContent("筛选/设置帧数范围..."), false, ShowFrameRangeSettings);
-            menu.AddItem(new GUIContent("筛选/清除所有筛选"), false, ClearAllFilters);
+            menu.AddItem(new GUIContent("Search/Plain"), !_searchRegex, () => { _searchRegex = false; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Search/Regex"), _searchRegex, () => { _searchRegex = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Filter/Time Range"), _filterTimeRange, () => { _filterTimeRange = !_filterTimeRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Filter/Number Range"), _filterNumberRange, () => { _filterNumberRange = !_filterNumberRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Filter/Frame Range"), _filterFrameRange, () => { _filterFrameRange = !_filterFrameRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Filter/Set Time Range..."), false, ShowTimeRangeSettings);
+            menu.AddItem(new GUIContent("Filter/Set Number Range..."), false, ShowNumberRangeSettings);
+            menu.AddItem(new GUIContent("Filter/Set Frame Range..."), false, ShowFrameRangeSettings);
+            menu.AddItem(new GUIContent("Filter/Clear All Filters"), false, ClearAllFilters);
             if (_searchHistory.Count > 0)
             {
                 foreach (string item in _searchHistory)
                 {
                     string s = item;
-                    string display = (s.Length > 50 ? s.Substring(0, 47) + "..." : s).Replace("/", "／");
-                    menu.AddItem(new GUIContent("搜索/搜索历史/" + display), false, () => { _search = s; _searchApplied = s; _filterDirty = true; _tagCountsDirty = true; PushSearchHistory(s); if (_searchField != null) _searchField.value = s; RefreshUI(); });
+                    string display = (s.Length > 50 ? s.Substring(0, 47) + "..." : s).Replace("/", "�M");
+                    menu.AddItem(new GUIContent("Search/History/" + display), false, () => { _search = s; _searchApplied = s; _filterDirty = true; _tagCountsDirty = true; PushSearchHistory(s); if (_searchField != null) _searchField.value = s; RefreshUI(); });
                 }
-                menu.AddItem(new GUIContent("搜索/清空搜索历史"), false, () => { _searchHistory.Clear(); SaveSearchHistory(); RefreshUI(); });
+                menu.AddItem(new GUIContent("Search/Clear History"), false, () => { _searchHistory.Clear(); SaveSearchHistory(); RefreshUI(); });
             }
             for (int i = 1; i <= 10; i++)
             {
@@ -1711,13 +1666,13 @@ namespace UnityEnhancedConsole
             menu.AddItem(new GUIContent("Stack Trace Error/ScriptOnly"), _stackTraceError == StackTraceLogType.ScriptOnly, () => SetStackTrace(LogType.Error, StackTraceLogType.ScriptOnly));
             menu.AddItem(new GUIContent("Stack Trace Error/Full"), _stackTraceError == StackTraceLogType.Full, () => SetStackTrace(LogType.Error, StackTraceLogType.Full));
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("标签/开启标签功能"), _tagsEnabled, () => { _tagsEnabled = !_tagsEnabled; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("标签/标签规则..."), false, () => TagRulesWindow.Open(this));
-            menu.AddItem(new GUIContent("标签/重新计算全部标签"), false, RecomputeAllTags);
-            menu.AddItem(new GUIContent("标签/自动识别方括号"), EnhancedConsoleTagLogic.AutoTagBracket, () => { EnhancedConsoleTagLogic.AutoTagBracket = !EnhancedConsoleTagLogic.AutoTagBracket; });
-            menu.AddItem(new GUIContent("标签/方括号识别范围/识别日志第一行"), EnhancedConsoleTagLogic.BracketTagFirstLineOnly, () => { EnhancedConsoleTagLogic.BracketTagFirstLineOnly = true; });
-            menu.AddItem(new GUIContent("标签/方括号识别范围/识别日志全部内容"), !EnhancedConsoleTagLogic.BracketTagFirstLineOnly, () => { EnhancedConsoleTagLogic.BracketTagFirstLineOnly = false; });
-            menu.AddItem(new GUIContent("标签/自动识别堆栈类名"), EnhancedConsoleTagLogic.AutoTagStack, () => { EnhancedConsoleTagLogic.AutoTagStack = !EnhancedConsoleTagLogic.AutoTagStack; });
+            menu.AddItem(new GUIContent("Tags/Enable Tags"), _tagsEnabled, () => { _tagsEnabled = !_tagsEnabled; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Tags/Tag Rules..."), false, () => TagRulesWindow.Open(this));
+            menu.AddItem(new GUIContent("Tags/Recompute All Tags"), false, RecomputeAllTags);
+            menu.AddItem(new GUIContent("Tags/Auto Detect Brackets"), EnhancedConsoleTagLogic.AutoTagBracket, () => { EnhancedConsoleTagLogic.AutoTagBracket = !EnhancedConsoleTagLogic.AutoTagBracket; });
+            menu.AddItem(new GUIContent("Tags/Bracket Scope/First Line"), EnhancedConsoleTagLogic.BracketTagFirstLineOnly, () => { EnhancedConsoleTagLogic.BracketTagFirstLineOnly = true; });
+            menu.AddItem(new GUIContent("Tags/Bracket Scope/All Lines"), !EnhancedConsoleTagLogic.BracketTagFirstLineOnly, () => { EnhancedConsoleTagLogic.BracketTagFirstLineOnly = false; });
+            menu.AddItem(new GUIContent("Tags/Auto Detect Stack Class"), EnhancedConsoleTagLogic.AutoTagStack, () => { EnhancedConsoleTagLogic.AutoTagStack = !EnhancedConsoleTagLogic.AutoTagStack; });
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Open Editor Log"), false, OpenEditorLog);
             menu.AddItem(new GUIContent("Open Player Log"), false, OpenPlayerLog);
@@ -1728,7 +1683,7 @@ namespace UnityEnhancedConsole
     }
 
     /// <summary>
-    /// 构建时清空 Enhanced Console（Clear on Build）。
+    /// ??????Enhanced Console?Clear on Build???
     /// </summary>
     public class EnhancedConsoleBuildPreprocess : UnityEditor.Build.IPreprocessBuildWithReport
     {

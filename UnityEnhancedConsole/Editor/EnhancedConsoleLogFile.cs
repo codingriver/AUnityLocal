@@ -38,6 +38,8 @@ namespace UnityEnhancedConsole
             _lastFlushTime = EditorApplication.timeSinceStartup;
             EditorApplication.update += FlushCheck;
             AssemblyReloadEvents.beforeAssemblyReload += FlushBuffer;
+            EditorApplication.quitting += FlushBuffer;
+            AssemblyReloadEvents.afterAssemblyReload += FlushBuffer;
         }
 
         /// <summary>
@@ -234,30 +236,46 @@ namespace UnityEnhancedConsole
         public static List<LogEntry> LoadEntries(int maxEntries = 50000)
         {
             FlushBuffer();
-            var list = new List<LogEntry>();
             string path = GetLogFilePath();
-            if (!File.Exists(path)) return list;
+            if (!File.Exists(path)) return new List<LogEntry>();
             try
             {
-                using (var sr = new StreamReader(path, Encoding.UTF8))
+                if (maxEntries > 0)
                 {
-                    string line;
-                    while ((line = sr.ReadLine()) != null)
+                    var queue = new Queue<LogEntry>(Math.Min(maxEntries, 1024));
+                    using (var sr = new StreamReader(path, Encoding.UTF8))
                     {
-                        if (TryDeserializeEntry(line, out LogEntry entry))
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
                         {
-                            list.Add(entry);
-                            if (maxEntries > 0 && list.Count > maxEntries)
-                                list.RemoveRange(0, list.Count - maxEntries);
+                            if (!TryDeserializeEntry(line, out LogEntry entry)) continue;
+                            queue.Enqueue(entry);
+                            if (queue.Count > maxEntries)
+                                queue.Dequeue();
                         }
                     }
+                    return new List<LogEntry>(queue);
+                }
+                else
+                {
+                    var list = new List<LogEntry>();
+                    using (var sr = new StreamReader(path, Encoding.UTF8))
+                    {
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (TryDeserializeEntry(line, out LogEntry entry))
+                                list.Add(entry);
+                        }
+                    }
+                    return list;
                 }
             }
             catch (Exception e)
             {
                 Debug.LogWarning("EnhancedConsole: Failed to load log file: " + e.Message);
             }
-            return list;
+            return new List<LogEntry>();
         }
 
         /// <summary>
