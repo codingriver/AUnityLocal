@@ -225,6 +225,18 @@ namespace UnityEnhancedConsole
         [MenuItem("Window/General/Enhanced Console %#d", false, 2000)]
         public static void Open()
         {
+            var existing = Resources.FindObjectsOfTypeAll<EnhancedConsoleWindow>();
+            if (existing != null && existing.Length > 0)
+            {
+                var focused = EditorWindow.focusedWindow as EnhancedConsoleWindow;
+                if (focused != null)
+                {
+                    focused.Close();
+                    return;
+                }
+                existing[0].Close();
+                return;
+            }
             var w = GetWindow<EnhancedConsoleWindow>("Enhanced Console", true);
             w.minSize = new Vector2(300, 200);
             w.Focus();
@@ -1834,6 +1846,7 @@ namespace UnityEnhancedConsole
             {
                 var row = new VisualElement { name = "log-row", style = { flexDirection = FlexDirection.Row } };
                 row.AddToClassList("log-row");
+                row.style.position = Position.Relative;
                 var icon = new Image { name = "row-icon", style = { width = 18, height = 18, marginRight = 4 } };
                 icon.AddToClassList("log-row-icon");
                 var content = new VisualElement { name = "row-content" };
@@ -1846,9 +1859,12 @@ namespace UnityEnhancedConsole
                 content.Add(msg);
                 var tags = new VisualElement { name = "row-tags" };
                 tags.AddToClassList("log-row-tags");
+                var count = new Label { name = "row-count" };
+                count.AddToClassList("log-row-count");
                 row.Add(icon);
                 row.Add(content);
                 row.Add(tags);
+                row.Add(count);
                 return row;
             };
             _logListView.selectionType = SelectionType.Multiple;
@@ -1893,6 +1909,20 @@ namespace UnityEnhancedConsole
                             tagLabel.style.backgroundColor = GetTagColor(tag);
                             tagsContainer.Add(tagLabel);
                         }
+                    }
+                }
+                var countLabel = e.Q<Label>("row-count");
+                if (countLabel != null)
+                {
+                    if (_collapse && row.displayCount > 1)
+                    {
+                        countLabel.text = row.displayCount.ToString();
+                        countLabel.style.display = DisplayStyle.Flex;
+                    }
+                    else
+                    {
+                        countLabel.text = "";
+                        countLabel.style.display = DisplayStyle.None;
                     }
                 }
             };

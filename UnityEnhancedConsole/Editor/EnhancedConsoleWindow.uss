@@ -544,6 +544,23 @@
     overflow: hidden;
 }
 
+.log-row-count {
+    position: absolute;
+    right: 6px;
+    top: 2px;
+    min-width: 18px;
+    height: 14px;
+    padding-left: 4px;
+    padding-right: 4px;
+    border-radius: 2px;
+    font-size: 11px;
+    color: rgb(232, 232, 232);
+    background-color: rgba(0, 0, 0, 0.5);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.2);
+    -unity-text-align: middle-center;
+}
+
 .log-row-tag {
     padding-left: 4px;
     padding-right: 4px;
