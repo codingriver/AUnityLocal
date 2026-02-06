@@ -199,6 +199,8 @@ namespace UnityEnhancedConsole
         private Texture2D _iconLog;
         private Texture2D _iconWarning;
         private Texture2D _iconError;
+        private Vector2 _detailMouseDownPos;
+        private bool _detailMouseDownTracking;
 
         #endregion
 
@@ -799,6 +801,44 @@ namespace UnityEnhancedConsole
             return -1;
         }
 
+        private static void SetCaretCollapsed(TextField tf, int caret)
+        {
+            if (tf == null) return;
+            try
+            {
+                var prop = tf.GetType().GetProperty("cursorIndex", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null) prop.SetValue(tf, caret);
+            }
+            catch { }
+            try
+            {
+                var selProp = tf.GetType().GetProperty("textSelection", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var sel = selProp != null ? selProp.GetValue(tf) : null;
+                if (sel != null)
+                {
+                    var cp = sel.GetType().GetProperty("cursorIndex", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (cp != null) cp.SetValue(sel, caret);
+                    var ap = sel.GetType().GetProperty("selectionAnchorPosition", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (ap != null) ap.SetValue(sel, caret);
+                }
+            }
+            catch { }
+        }
+
+        private static VisualElement GetDetailInputElement(TextField field)
+        {
+            if (field == null) return null;
+            return field.Q<VisualElement>(className: "unity-text-input") ??
+                   field.Q<VisualElement>(className: "unity-text-input__input") ??
+                   field;
+        }
+
+        private void ClearDetailSelectionKeepCaret()
+        {
+            if (_detailField == null) return;
+            SetCaretCollapsed(_detailField, 0);
+        }
+
         private static string GetSelectedText(TextField tf)
         {
             if (tf == null) return null;
@@ -1289,6 +1329,42 @@ namespace UnityEnhancedConsole
             _logListView = innerRoot.Q<ListView>("logListView");
             _detailField = innerRoot.Q<TextField>("detailLabel");
             if (_detailField != null)             {                 _detailField.isReadOnly = true;                 _detailField.multiline = true;                 _detailField.focusable = true;                 var detailInput = _detailField.Q<VisualElement>(className: "unity-text-input");                 if (detailInput != null)                 {                     detailInput.RegisterCallback<MouseUpEvent>(evt =>                     {                         if (evt.button != 0 || evt.clickCount != 2) return;                         _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(2);                     }, TrickleDown.TrickleDown);                 }                 else                 {                     _detailField.RegisterCallback<MouseUpEvent>(evt =>                     {                         if (evt.button != 0 || evt.clickCount != 2) return;                         _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(2);                     }, TrickleDown.TrickleDown);                 }             }
+            if (_detailField != null)
+            {
+                _detailField.RegisterCallback<FocusInEvent>(_ =>
+                {
+                    _detailField.schedule.Execute(() => SetCaretCollapsed(_detailField, 0)).StartingIn(2);
+                    EditorApplication.delayCall += () => SetCaretCollapsed(_detailField, 0);
+                }, TrickleDown.TrickleDown);
+            }
+            if (_detailField != null)
+            {
+                var input = GetDetailInputElement(_detailField);
+                if (input != null)
+                {
+                    input.RegisterCallback<FocusInEvent>(_ =>
+                    {
+                        _detailField.schedule.Execute(() => SetCaretCollapsed(_detailField, 0)).StartingIn(2);
+                        EditorApplication.delayCall += () => SetCaretCollapsed(_detailField, 0);
+                    }, TrickleDown.TrickleDown);
+                    input.RegisterCallback<MouseDownEvent>(evt =>
+                    {
+                        if (evt.button != 0) return;
+                        _detailMouseDownTracking = true;
+                        _detailMouseDownPos = evt.mousePosition;
+                    }, TrickleDown.TrickleDown);
+                    input.RegisterCallback<MouseUpEvent>(evt =>
+                    {
+                        if (evt.button != 0) return;
+                        if (!_detailMouseDownTracking) return;
+                        _detailMouseDownTracking = false;
+                        if (evt.clickCount != 1) return;
+                        float dist = (evt.mousePosition - _detailMouseDownPos).magnitude;
+                        if (dist > 3f) return;
+                        _detailField.schedule.Execute(() => ClearDetailSelectionKeepCaret()).StartingIn(1);
+                    }, TrickleDown.TrickleDown);
+                }
+            }
                 BindDetailDoubleClick();
             Debug.Log("EnhancedConsole: detail double-click detected");
 
