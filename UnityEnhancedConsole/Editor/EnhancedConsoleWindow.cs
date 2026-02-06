@@ -825,6 +825,20 @@ namespace UnityEnhancedConsole
             catch { }
         }
 
+        private static void DisableTextFieldAutoSelect(TextField field)
+        {
+            if (field == null) return;
+            try
+            {
+                var t = field.GetType();
+                var prop = t.GetProperty("selectAllOnFocus", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null && prop.PropertyType == typeof(bool)) prop.SetValue(field, false);
+                prop = t.GetProperty("selectAllOnMouseUp", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null && prop.PropertyType == typeof(bool)) prop.SetValue(field, false);
+            }
+            catch { }
+        }
+
         private static VisualElement GetDetailInputElement(TextField field)
         {
             if (field == null) return null;
@@ -836,7 +850,9 @@ namespace UnityEnhancedConsole
         private void ClearDetailSelectionKeepCaret()
         {
             if (_detailField == null) return;
-            SetCaretCollapsed(_detailField, 0);
+            int caret = GetCaretIndex(_detailField);
+            if (caret < 0) caret = 0;
+            SetCaretCollapsed(_detailField, caret);
         }
 
         private static string GetSelectedText(TextField tf)
@@ -1331,10 +1347,11 @@ namespace UnityEnhancedConsole
             if (_detailField != null)             {                 _detailField.isReadOnly = true;                 _detailField.multiline = true;                 _detailField.focusable = true;                 var detailInput = _detailField.Q<VisualElement>(className: "unity-text-input");                 if (detailInput != null)                 {                     detailInput.RegisterCallback<MouseUpEvent>(evt =>                     {                         if (evt.button != 0 || evt.clickCount != 2) return;                         _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(2);                     }, TrickleDown.TrickleDown);                 }                 else                 {                     _detailField.RegisterCallback<MouseUpEvent>(evt =>                     {                         if (evt.button != 0 || evt.clickCount != 2) return;                         _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(2);                     }, TrickleDown.TrickleDown);                 }             }
             if (_detailField != null)
             {
+                DisableTextFieldAutoSelect(_detailField);
                 _detailField.RegisterCallback<FocusInEvent>(_ =>
                 {
-                    _detailField.schedule.Execute(() => SetCaretCollapsed(_detailField, 0)).StartingIn(2);
-                    EditorApplication.delayCall += () => SetCaretCollapsed(_detailField, 0);
+                    _detailField.schedule.Execute(() => ClearDetailSelectionKeepCaret()).StartingIn(2);
+                    EditorApplication.delayCall += () => ClearDetailSelectionKeepCaret();
                 }, TrickleDown.TrickleDown);
             }
             if (_detailField != null)
