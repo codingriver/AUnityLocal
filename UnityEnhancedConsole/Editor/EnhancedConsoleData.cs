@@ -16,6 +16,8 @@ namespace UnityEnhancedConsole
         public LogType LogType;
         public int Count;       // 折叠时相同消息的重复次数
         public string TimeStamp;
+        public string FirstTimeStamp;
+        public string LastTimeStamp;
         public int FrameCount;   // 来自 Time.frameCount（播放时有效）
         public int MessageNumber; // 消息编号，从 1 递增，Clear 后从 1 重新开始
         public List<string> Tags; // 标签集合（自定义 + 自动识别）

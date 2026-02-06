@@ -1,3 +1,5 @@
+﻿using System.Linq;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace UnityEnhancedConsole
@@ -6,40 +8,172 @@ namespace UnityEnhancedConsole
     {
         private void BindTagBar(VisualElement root)
         {
-            var btnTagClearInclude = root.Q<Button>("btnTagClearInclude");
-            if (btnTagClearInclude != null)
+            var btnTagClear = root.Q<Button>("btnTagClear");
+            if (btnTagClear != null)
             {
-                btnTagClearInclude.tooltip = "Clear included tags";
-                btnTagClearInclude.clicked += () =>
+                btnTagClear.text = "Clear+";
+                btnTagClear.tooltip = "清空包含标签（默认：Clear+）";
+                btnTagClear.clicked += () =>
                 {
                     _selectedTags.Clear();
                     _filterDirty = true; _tagCountsDirty = true;
+                    SavePrefs();
                     RefreshUI();
                 };
             }
 
-            var btnTagClearExclude = root.Q<Button>("btnTagClearExclude");
-            if (btnTagClearExclude != null)
+            var btnTagClearMenu = root.Q<Button>("btnTagClearMenu");
+            if (btnTagClearMenu != null)
             {
-                btnTagClearExclude.tooltip = "Clear excluded tags";
-                btnTagClearExclude.clicked += () =>
+                btnTagClearMenu.tooltip = "选择清空方式";
+                btnTagClearMenu.clicked += () =>
                 {
-                    _excludedTags.Clear();
-                    _filterDirty = true; _tagCountsDirty = true;
-                    RefreshUI();
+                    var menu = new UnityEditor.GenericMenu();
+                    menu.AddItem(new GUIContent("Clear+", "清空包含标签"), false, () =>
+                    {
+                        _selectedTags.Clear();
+                        _filterDirty = true; _tagCountsDirty = true;
+                        SavePrefs();
+                        RefreshUI();
+                    });
+                    menu.AddItem(new GUIContent("Clear-", "清空排除标签"), false, () =>
+                    {
+                        _excludedTags.Clear();
+                        _filterDirty = true; _tagCountsDirty = true;
+                        SavePrefs();
+                        RefreshUI();
+                    });
+                    menu.AddSeparator("");
+                    menu.AddItem(new GUIContent("Clear All", "清空包含与排除标签"), false, () =>
+                    {
+                        _selectedTags.Clear();
+                        _excludedTags.Clear();
+                        _filterDirty = true; _tagCountsDirty = true;
+                        SavePrefs();
+                        RefreshUI();
+                    });
+                    menu.ShowAsContext();
                 };
+            }
+
+            var toggleTagsEnabled = root.Q<Toggle>("toggleTagsEnabled");
+            if (toggleTagsEnabled != null)
+            {
+                toggleTagsEnabled.tooltip = "启用/禁用标签过滤";
+                toggleTagsEnabled.RegisterValueChangedCallback(ev =>
+                {
+                    _tagsEnabled = ev.newValue;
+                    _filterDirty = true; _tagCountsDirty = true;
+                    SavePrefs();
+                    RefreshUI();
+                });
+            }
+
+            var btnTagRules = root.Q<Button>("btnTagRules");
+            if (btnTagRules != null)
+            {
+                btnTagRules.tooltip = "编辑标签规则";
+                btnTagRules.clicked += () => TagRulesWindow.Open(this);
+            }
+
+            var btnTagRecompute = root.Q<Button>("btnTagRecompute");
+            if (btnTagRecompute != null)
+            {
+                btnTagRecompute.tooltip = "重新计算所有标签";
+                btnTagRecompute.clicked += RecomputeAllTags;
+            }
+
+            var toggleAutoBracket = root.Q<Toggle>("toggleAutoBracket");
+            if (toggleAutoBracket != null)
+            {
+                toggleAutoBracket.tooltip = "自动识别方括号标签";
+                toggleAutoBracket.RegisterValueChangedCallback(ev =>
+                {
+                    EnhancedConsoleTagLogic.AutoTagBracket = ev.newValue;
+                    UpdateTagSettingsControls();
+                    RecomputeAllTags();
+                });
+            }
+
+            var toggleBracketFirstLine = root.Q<Toggle>("toggleBracketFirstLine");
+            if (toggleBracketFirstLine != null)
+            {
+                toggleBracketFirstLine.tooltip = "方括号标签只识别首行";
+                toggleBracketFirstLine.RegisterValueChangedCallback(ev =>
+                {
+                    if (!ev.newValue) return;
+                    EnhancedConsoleTagLogic.BracketTagFirstLineOnly = true;
+                    UpdateTagSettingsControls();
+                    RecomputeAllTags();
+                });
+            }
+
+            var toggleBracketAllLines = root.Q<Toggle>("toggleBracketAllLines");
+            if (toggleBracketAllLines != null)
+            {
+                toggleBracketAllLines.tooltip = "方括号标签识别所有行";
+                toggleBracketAllLines.RegisterValueChangedCallback(ev =>
+                {
+                    if (!ev.newValue) return;
+                    EnhancedConsoleTagLogic.BracketTagFirstLineOnly = false;
+                    UpdateTagSettingsControls();
+                    RecomputeAllTags();
+                });
+            }
+
+            var toggleAutoStack = root.Q<Toggle>("toggleAutoStack");
+            if (toggleAutoStack != null)
+            {
+                toggleAutoStack.tooltip = "自动识别堆栈类名";
+                toggleAutoStack.RegisterValueChangedCallback(ev =>
+                {
+                    EnhancedConsoleTagLogic.AutoTagStack = ev.newValue;
+                    UpdateTagSettingsControls();
+                    RecomputeAllTags();
+                });
             }
 
             var btnTagCollapse = root.Q<Button>("btnTagCollapse");
             if (btnTagCollapse != null)
             {
-                btnTagCollapse.tooltip = "Toggle tag bar expand/collapse";
+                btnTagCollapse.tooltip = "展开/收起标签栏";
                 btnTagCollapse.clicked += () =>
                 {
                     _tagsCollapsed = !_tagsCollapsed;
+                    SavePrefs();
                     RefreshUI();
                 };
             }
+
+            var tagSearchField = root.Q<TextField>("tagSearchField");
+            if (tagSearchField != null)
+            {
+                tagSearchField.tooltip = "按名称过滤标签";
+                tagSearchField.value = _tagSearch ?? "";
+                tagSearchField.RegisterValueChangedCallback(ev =>
+                {
+                    _tagSearch = ev.newValue ?? "";
+                    SavePrefs();
+                    RefreshUI();
+                });
+            }
+
+            var btnSortMenu = root.Q<Button>("btnTagSortMenu");
+            if (btnSortMenu != null)
+            {
+                btnSortMenu.tooltip = "标签排序方式（再次点击当前项切换升/降序）";
+                btnSortMenu.clicked += () =>
+                {
+                    var menu = new UnityEditor.GenericMenu();
+                    AddSortMenuItem(menu, "Name", TagSortMode.Name);
+                    AddSortMenuItem(menu, "Count", TagSortMode.Count);
+                    AddSortMenuItem(menu, "Recent", TagSortMode.Recent);
+                    menu.ShowAsContext();
+                };
+            }
+
+            UpdateTagSortMenuButton();
+            UpdateTagSettingsControls();
         }
 
         private void RebuildTagBar()
@@ -61,10 +195,25 @@ namespace UnityEnhancedConsole
             var btnTagCollapse = rootVisualElement?.Q<Button>("btnTagCollapse");
             if (btnTagCollapse != null) btnTagCollapse.text = _tagsCollapsed ? "More" : "Less";
 
-            foreach (var kv in fullTags)
+            var filter = _tagSearch ?? "";
+            var hasFilter = !string.IsNullOrWhiteSpace(filter);
+            var sorted = fullTags.ToList();
+            int dir = _tagSortDesc ? -1 : 1;
+            if (_tagSortMode == TagSortMode.Count)
+                sorted.Sort((a, b) => dir * a.Value.count.CompareTo(b.Value.count));
+            else if (_tagSortMode == TagSortMode.Recent)
+                sorted.Sort((a, b) => dir * string.Compare(a.Value.lastTime ?? "", b.Value.lastTime ?? "", System.StringComparison.Ordinal));
+            else
+                sorted.Sort((a, b) => dir * System.StringComparer.OrdinalIgnoreCase.Compare(a.Key, b.Key));
+
+            foreach (var kv in sorted)
             {
                 var tag = kv.Key;
-                int count = kv.Value;
+                int count = kv.Value.count;
+                string lastTime = kv.Value.lastTime;
+                bool match = !hasFilter || (!string.IsNullOrEmpty(tag) && tag.IndexOf(filter, System.StringComparison.OrdinalIgnoreCase) >= 0);
+                if (!match && !_selectedTags.Contains(tag) && !_excludedTags.Contains(tag))
+                    continue;
                 var item = new VisualElement();
                 item.AddToClassList("tag-item");
 
@@ -74,7 +223,7 @@ namespace UnityEnhancedConsole
                 };
                 btn.AddToClassList("log-row-tag");
                 btn.AddToClassList("tag-btn");
-                btn.tooltip = "Left click: include. Right click/x: exclude.";
+                btn.tooltip = string.IsNullOrEmpty(lastTime) ? "Left click: include. Right click/x: exclude." : ("Left click: include. Right click/x: exclude. Last: " + lastTime);
                 btn.style.backgroundColor = GetTagColor(tag);
                 btn.RegisterCallback<ContextClickEvent>(evt =>
                 {
@@ -105,6 +254,7 @@ namespace UnityEnhancedConsole
                 _excludedTags.Remove(tag);
             }
             _filterDirty = true; _tagCountsDirty = true;
+            SavePrefs();
             RefreshUI();
         }
 
@@ -118,6 +268,7 @@ namespace UnityEnhancedConsole
                 _selectedTags.Remove(tag);
             }
             _filterDirty = true; _tagCountsDirty = true;
+            SavePrefs();
             RefreshUI();
         }
 
@@ -128,6 +279,51 @@ namespace UnityEnhancedConsole
             bool show = _tagsEnabled && _excludedTags.Count > 0;
             indicator.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
             indicator.tooltip = show ? ("Exclude filter enabled: " + _excludedTags.Count + " tag(s)") : "";
+        }
+
+        private void UpdateTagSettingsControls()
+        {
+            var root = rootVisualElement;
+            if (root == null) return;
+            var toggleTagsEnabled = root.Q<Toggle>("toggleTagsEnabled");
+            if (toggleTagsEnabled != null) toggleTagsEnabled.SetValueWithoutNotify(_tagsEnabled);
+
+            bool autoBracket = EnhancedConsoleTagLogic.AutoTagBracket;
+            bool firstLineOnly = EnhancedConsoleTagLogic.BracketTagFirstLineOnly;
+            var toggleAutoBracket = root.Q<Toggle>("toggleAutoBracket");
+            if (toggleAutoBracket != null) toggleAutoBracket.SetValueWithoutNotify(autoBracket);
+            var toggleBracketFirstLine = root.Q<Toggle>("toggleBracketFirstLine");
+            if (toggleBracketFirstLine != null) toggleBracketFirstLine.SetValueWithoutNotify(firstLineOnly);
+            var toggleBracketAllLines = root.Q<Toggle>("toggleBracketAllLines");
+            if (toggleBracketAllLines != null) toggleBracketAllLines.SetValueWithoutNotify(!firstLineOnly);
+
+            if (toggleBracketFirstLine != null) toggleBracketFirstLine.SetEnabled(autoBracket);
+            if (toggleBracketAllLines != null) toggleBracketAllLines.SetEnabled(autoBracket);
+
+            var toggleAutoStack = root.Q<Toggle>("toggleAutoStack");
+            if (toggleAutoStack != null) toggleAutoStack.SetValueWithoutNotify(EnhancedConsoleTagLogic.AutoTagStack);
+        }
+
+        private void ToggleTagSort(TagSortMode mode)
+        {
+            if (_tagSortMode == mode)
+                _tagSortDesc = !_tagSortDesc;
+            else
+            {
+                _tagSortMode = mode;
+                _tagSortDesc = false;
+            }
+            SavePrefs();
+            UpdateTagSortMenuButton();
+            RefreshUI();
+        }
+
+        private void AddSortMenuItem(UnityEditor.GenericMenu menu, string label, TagSortMode mode)
+        {
+            bool isCurrent = _tagSortMode == mode;
+            string arrow = _tagSortDesc ? "▼" : "▲";
+            string display = isCurrent ? (label + " " + arrow) : label;
+            menu.AddItem(new GUIContent(display), false, () => ToggleTagSort(mode));
         }
     }
 }

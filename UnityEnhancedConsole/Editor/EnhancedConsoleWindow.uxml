@@ -1,4 +1,4 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+﻿<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="EnhancedConsoleWindow.uss" />
     <ui:VisualElement name="root" style="flex-grow: 1;">
         <ui:VisualElement name="toolbar" class="toolbar">
@@ -7,6 +7,7 @@
             <ui:Toggle name="toggleClearOnPlay" label="Clear On Play" class="toolbar-toggle" />
             <ui:Toggle name="toggleClearOnBuild" label="Clear On Build" class="toolbar-toggle" />
             <ui:Toggle name="toggleErrorPause" label="Error Pause" class="toolbar-toggle" />
+            <ui:Toggle name="toggleViewLock" label="Lock" tooltip="Lock view (prevent auto refresh from new logs)" class="toolbar-toggle" />
             <ui:VisualElement name="toolbarSpacer" class="toolbar-spacer" />
             <ui:Toggle name="toggleLog" label="0" tooltip="Logs" class="toolbar-toggle count" />
             <ui:Toggle name="toggleWarning" label="0" tooltip="Warnings" class="toolbar-toggle count" />
@@ -15,7 +16,7 @@
         </ui:VisualElement>
         <ui:VisualElement name="searchBar" class="search-bar">
             <ui:Label text="Search:" class="search-label" />
-            <ui:Button name="btnSearchFilter" text="Filter ��" tooltip="Select filters" class="toolbar-button search-filter-btn" />
+            <ui:Button name="btnSearchFilter" text="Filter" tooltip="Select filters" class="toolbar-button search-filter-btn" />
             <ui:TextField name="searchField" value="" class="search-field" />
             <ui:Button name="btnSearchClear" text="X" class="toolbar-button small" />
             <ui:Button name="btnSearchHistory" text="History" tooltip="Pick from search history" class="toolbar-button small" />
@@ -24,13 +25,35 @@
             <ui:Button name="btnCopyRegexMatch" text="Copy Matches" tooltip="Copy matched parts" class="toolbar-button small" />
         </ui:VisualElement>
         <ui:VisualElement name="tagBarRow" class="tag-bar-row">
-            <ui:Label text="Tags:" class="tag-bar-label" />
-            <ui:VisualElement name="tagExcludeIndicator" class="tag-exclude-indicator" />
-            <ui:VisualElement name="tagBarInner" class="tag-bar-inner">
-                <ui:Button name="btnTagClearInclude" text="Clear+" class="toolbar-button tag-clear-btn" />
-                <ui:Button name="btnTagClearExclude" text="Clear-" class="toolbar-button tag-clear-btn" />
-                <ui:VisualElement name="tagBarContainer" class="tag-bar-container" />
+            <ui:VisualElement name="tagBarTop" class="tag-bar-top">
+                <ui:Label text="Tags:" class="tag-bar-label" />
+                <ui:VisualElement name="tagExcludeIndicator" class="tag-exclude-indicator" />
+                <ui:TextField name="tagSearchField" value="" class="tag-search-field" />
+                <ui:Label text="Sort:" class="tag-sort-label" />
+                <ui:VisualElement name="tagSortSplit" class="tag-top-group tag-sort-split">
+                    <ui:Button name="btnTagSortMenu" text="Name ▲" class="toolbar-button tag-sort-menu tag-top-group-btn" />
+                </ui:VisualElement>
+                <ui:VisualElement name="tagClearSplit" class="tag-top-group tag-clear-split">
+                    <ui:Button name="btnTagClear" text="Clear+" class="toolbar-button tag-clear-btn tag-clear-main" />
+                    <ui:Button name="btnTagClearMenu" text="▼" class="toolbar-button tag-clear-btn tag-clear-menu" />
+                </ui:VisualElement>
+                <ui:VisualElement name="tagSettingsGroupMain" class="tag-top-group tag-settings-group">
+                    <ui:Toggle name="toggleTagsEnabled" label="Tags" class="toolbar-toggle tag-settings-toggle" />
+                    <ui:Button name="btnTagRules" text="Rules" class="toolbar-button tag-settings-btn" />
+                </ui:VisualElement>
+                <ui:VisualElement name="tagSettingsGroupAuto" class="tag-top-group tag-settings-group">
+                    <ui:Toggle name="toggleAutoBracket" label="Brackets" class="toolbar-toggle tag-settings-toggle" />
+                    <ui:Toggle name="toggleBracketFirstLine" label="First" class="toolbar-toggle tag-settings-toggle" />
+                    <ui:Toggle name="toggleBracketAllLines" label="All" class="toolbar-toggle tag-settings-toggle" />
+                    <ui:Toggle name="toggleAutoStack" label="Stack" class="toolbar-toggle tag-settings-toggle" />
+                </ui:VisualElement>
+                <ui:VisualElement name="tagSettingsGroupAction" class="tag-top-group tag-settings-group">
+                    <ui:Button name="btnTagRecompute" text="Recalc" class="toolbar-button tag-settings-btn" />
+                </ui:VisualElement>
                 <ui:Button name="btnTagCollapse" text="More" class="toolbar-button tag-collapse-btn" />
+            </ui:VisualElement>
+            <ui:VisualElement name="tagBarInner" class="tag-bar-inner">
+                <ui:VisualElement name="tagBarContainer" class="tag-bar-container" />
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:TwoPaneSplitView name="mainSplit" fixedPaneIndex="1" fixedPaneInitialDimension="120" orientation="Vertical" class="main-split">

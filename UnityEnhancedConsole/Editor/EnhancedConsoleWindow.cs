@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
@@ -26,6 +26,7 @@ namespace UnityEnhancedConsole
         #region ??????
 
         private const string PrefCollapse = "EnhancedConsole.Collapse";
+        private const string PrefCollapseGlobal = "EnhancedConsole.CollapseGlobal";
         private const string PrefClearOnPlay = "EnhancedConsole.ClearOnPlay";
         private const string PrefClearOnBuild = "EnhancedConsole.ClearOnBuild";
         private const string PrefErrorPause = "EnhancedConsole.ErrorPause";
@@ -40,10 +41,19 @@ namespace UnityEnhancedConsole
         private const string PrefShowTimestamp = "EnhancedConsole.ShowTimestamp";
         private const string PrefShowFrameCount = "EnhancedConsole.ShowFrameCount";
         private const string PrefSearchRegex = "EnhancedConsole.SearchRegex";
+        private const string PrefSearchText = "EnhancedConsole.SearchText";
         private const string PrefShowMessageNumber = "EnhancedConsole.ShowMessageNumber";
         private const string PrefSearchHistoryPrefix = "EnhancedConsole.SearchHistory.";
         private const int MaxSearchHistory = 20;
         private const string PrefTagsEnabled = "EnhancedConsole.TagsEnabled";
+        private const string PrefSelectedTags = "EnhancedConsole.SelectedTags";
+        private const string PrefExcludedTags = "EnhancedConsole.ExcludedTags";
+        private const string PrefTagSortMode = "EnhancedConsole.TagSortMode";
+        private const string PrefTagSortDesc = "EnhancedConsole.TagSortDesc";
+        private const string PrefTagSearchText = "EnhancedConsole.TagSearchText";
+        private const string PrefMaxEntries = "EnhancedConsole.MaxEntries";
+        private const string PrefMaxLoadEntries = "EnhancedConsole.MaxLoadEntries";
+        private const string PrefViewLocked = "EnhancedConsole.ViewLocked";
         private const string PrefFilterTimeRange = "EnhancedConsole.FilterTimeRange";
         private const string PrefFilterNumberRange = "EnhancedConsole.FilterNumberRange";
         private const string PrefFilterFrameRange = "EnhancedConsole.FilterFrameRange";
@@ -58,9 +68,9 @@ namespace UnityEnhancedConsole
         private const float MinListHeight = 60f;
         private const float MinDetailHeight = 60f;
         /// <summary> ????????????????????N ???</summary>
-        private const int MaxEntries = 20000;
+        private const int DefaultMaxEntries = 20000;
         /// <summary> ??????????????????????????????N ????</summary>
-        private const int MaxLoadEntries = 50000;
+        private const int DefaultMaxLoadEntries = 50000;
         /// <summary> ?????????????????</summary>
         private const int ListVirtualBufferRows = 10;
         /// <summary> ??????AddEntry ??Repaint ???????????????</summary>
@@ -148,6 +158,7 @@ namespace UnityEnhancedConsole
         private string _search = "";
         private bool _searchRegex;
         private bool _collapse;
+        private bool _collapseGlobal = true;
         private bool _clearOnPlay;
         private bool _clearOnBuild;
         private bool _errorPause;
@@ -158,6 +169,8 @@ namespace UnityEnhancedConsole
         private bool _showFrameCount;
         private bool _showMessageNumber;
         private int _entryLines = 2;
+        private int _maxEntries = DefaultMaxEntries;
+        private int _maxLoadEntries = DefaultMaxLoadEntries;
         private int _nextMessageNumber;
         private StackTraceLogType _stackTraceLog = StackTraceLogType.ScriptOnly;
         private StackTraceLogType _stackTraceWarning = StackTraceLogType.ScriptOnly;
@@ -168,6 +181,9 @@ namespace UnityEnhancedConsole
         private readonly HashSet<string> _excludedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly List<string> _searchHistory = new List<string>();
         private bool _tagsEnabled = true;
+        private TagSortMode _tagSortMode = TagSortMode.Name;
+        private bool _tagSortDesc;
+        private string _tagSearch = "";
         private bool _filterTimeRange;
         private bool _filterNumberRange;
         private bool _filterFrameRange;
@@ -180,13 +196,15 @@ namespace UnityEnhancedConsole
         private Regex _cachedSearchRegex;
         private string _cachedSearchPattern;
         private List<FilteredRow> _cachedFilteredRows;
+        private Dictionary<int, CollapseGroupInfo> _cachedCollapseGroupInfo;
         private bool _filterDirty = true;
-        private Dictionary<string, int> _cachedTagCounts;
+        private Dictionary<string, TagInfo> _cachedTagInfo;
         private bool _tagCountsDirty = true;
         private string _searchApplied = "";
         private double _searchInputLastChangeTime;
         private double _lastRepaintTime;
         private bool _repaintScheduled;
+        private bool _viewLocked;
 
         /* UI Toolkit ?? */
         private ListView _logListView;
@@ -216,14 +234,22 @@ namespace UnityEnhancedConsole
         {
             LoadPrefs();
             _entries.Clear();
-            _entries.AddRange(EnhancedConsoleLogFile.LoadEntries(MaxLoadEntries));
+            _entries.AddRange(EnhancedConsoleLogFile.LoadEntries(_maxLoadEntries));
             for (int i = 0; i < _entries.Count; i++)
+            {
+                var e = _entries[i];
+                if (e != null)
+                {
+                    if (string.IsNullOrEmpty(e.FirstTimeStamp)) e.FirstTimeStamp = e.TimeStamp;
+                    if (string.IsNullOrEmpty(e.LastTimeStamp)) e.LastTimeStamp = e.TimeStamp;
+                }
                 _entries[i].MessageNumber = i + 1;
+            }
             _nextMessageNumber = _entries.Count;
             for (int i = 0; i < _entries.Count; i++)
                 EnhancedConsoleTagLogic.ComputeTags(_entries[i]);
             _cachedFilteredRows = null;
-            _cachedTagCounts = null;
+            _cachedTagInfo = null;
             _filterDirty = true;
             _tagCountsDirty = true;
             TrimEntriesToMax();
@@ -249,6 +275,7 @@ namespace UnityEnhancedConsole
             _searchApplied = _search;
             _filterDirty = true;
             _tagCountsDirty = true;
+            SavePrefs();
             RefreshUI();
         }
 
@@ -294,13 +321,16 @@ namespace UnityEnhancedConsole
 
         private static LogEntry CreateEntry(string condition, string stackTrace, LogType type)
         {
+            string timeStamp = DateTime.Now.ToString("HH:mm:ss.fff");
             var entry = new LogEntry
             {
                 Condition = condition ?? "",
                 StackTrace = stackTrace ?? "",
                 LogType = type,
                 Count = 1,
-                TimeStamp = DateTime.Now.ToString("HH:mm:ss.fff"),
+                TimeStamp = timeStamp,
+                FirstTimeStamp = timeStamp,
+                LastTimeStamp = timeStamp,
                 FrameCount = Application.isPlaying ? Time.frameCount : 0,
                 Tags = new List<string>()
             };
@@ -316,9 +346,13 @@ namespace UnityEnhancedConsole
                 var last = _entries[_entries.Count - 1];
                 if (last.IsSameContent(entry))
                 {
+                    bool tagCacheActive = _cachedTagInfo != null && !_tagCountsDirty;
                     last.Count++;
+                    if (string.IsNullOrEmpty(last.FirstTimeStamp)) last.FirstTimeStamp = last.TimeStamp;
+                    last.LastTimeStamp = entry.TimeStamp;
                     _filterDirty = true;
-                    _tagCountsDirty = true;
+                    UpdateTagCacheForEntry(last, 1, entry.TimeStamp);
+                    if (!tagCacheActive) _tagCountsDirty = true;
                     if (_errorPause && (type == LogType.Error || type == LogType.Exception) && EditorApplication.isPlaying)
                         EditorApplication.isPaused = true;
                     RepaintThrottled();
@@ -328,8 +362,10 @@ namespace UnityEnhancedConsole
             EnhancedConsoleTagLogic.ComputeTags(entry);
             entry.MessageNumber = GetAndAdvanceNextMessageNumber();
             _entries.Add(entry);
+            bool tagCacheActive2 = _cachedTagInfo != null && !_tagCountsDirty;
+            UpdateTagCacheForEntry(entry, entry.Count, entry.TimeStamp);
             _filterDirty = true;
-            _tagCountsDirty = true;
+            if (!tagCacheActive2) _tagCountsDirty = true;
             TrimEntriesToMax();
 
             if (_errorPause && (type == LogType.Error || type == LogType.Exception))
@@ -358,9 +394,13 @@ namespace UnityEnhancedConsole
                     var last = _entries[_entries.Count - 1];
                     if (last.IsSameContent(e))
                     {
+                        bool tagCacheActive = _cachedTagInfo != null && !_tagCountsDirty;
                         last.Count++;
+                        if (string.IsNullOrEmpty(last.FirstTimeStamp)) last.FirstTimeStamp = last.TimeStamp;
+                        last.LastTimeStamp = e.TimeStamp;
                         _filterDirty = true;
-                        _tagCountsDirty = true;
+                        UpdateTagCacheForEntry(last, 1, e.TimeStamp);
+                        if (!tagCacheActive) _tagCountsDirty = true;
                         if (_errorPause && (e.LogType == LogType.Error || e.LogType == LogType.Exception) && EditorApplication.isPlaying)
                             EditorApplication.isPaused = true;
                         continue;
@@ -369,8 +409,10 @@ namespace UnityEnhancedConsole
                 EnhancedConsoleTagLogic.ComputeTags(e);
                 e.MessageNumber = GetAndAdvanceNextMessageNumber();
                 _entries.Add(e);
+                bool tagCacheActive2 = _cachedTagInfo != null && !_tagCountsDirty;
+                UpdateTagCacheForEntry(e, e.Count, e.TimeStamp);
                 _filterDirty = true;
-                _tagCountsDirty = true;
+                if (!tagCacheActive2) _tagCountsDirty = true;
                 if (_errorPause && (e.LogType == LogType.Error || e.LogType == LogType.Exception))
                 {
                     if (EditorApplication.isPlaying)
@@ -378,7 +420,8 @@ namespace UnityEnhancedConsole
                 }
             }
             TrimEntriesToMax();
-            RefreshUI();
+            if (!_viewLocked)
+                RefreshUI();
         }
 
         private void OnPlayModeStateChanged(PlayModeStateChange state)
@@ -391,6 +434,7 @@ namespace UnityEnhancedConsole
         private void LoadPrefs()
         {
             _collapse = EditorPrefs.GetBool(PrefCollapse, false);
+            _collapseGlobal = EditorPrefs.GetBool(PrefCollapseGlobal, true);
             _clearOnPlay = EditorPrefs.GetBool(PrefClearOnPlay, false);
             _clearOnBuild = EditorPrefs.GetBool(PrefClearOnBuild, false);
             _errorPause = EditorPrefs.GetBool(PrefErrorPause, false);
@@ -399,6 +443,8 @@ namespace UnityEnhancedConsole
             _showError = EditorPrefs.GetBool(PrefShowError, true);
             _entryLines = EditorPrefs.GetInt(PrefEntryLines, 2);
             _entryLines = Mathf.Clamp(_entryLines, 1, 10);
+            _maxEntries = Mathf.Max(100, EditorPrefs.GetInt(PrefMaxEntries, DefaultMaxEntries));
+            _maxLoadEntries = Mathf.Max(_maxEntries, EditorPrefs.GetInt(PrefMaxLoadEntries, DefaultMaxLoadEntries));
             _stackTraceLog = (StackTraceLogType)EditorPrefs.GetInt(PrefStackTraceLog, (int)StackTraceLogType.ScriptOnly);
             _stackTraceWarning = (StackTraceLogType)EditorPrefs.GetInt(PrefStackTraceWarning, (int)StackTraceLogType.ScriptOnly);
             _stackTraceError = (StackTraceLogType)EditorPrefs.GetInt(PrefStackTraceError, (int)StackTraceLogType.ScriptOnly);
@@ -406,8 +452,14 @@ namespace UnityEnhancedConsole
             _showTimestamp = EditorPrefs.GetBool(PrefShowTimestamp, false);
             _showFrameCount = EditorPrefs.GetBool(PrefShowFrameCount, false);
             _searchRegex = EditorPrefs.GetBool(PrefSearchRegex, false);
+            _search = EditorPrefs.GetString(PrefSearchText, "");
+            _searchApplied = _search;
             _showMessageNumber = EditorPrefs.GetBool(PrefShowMessageNumber, false);
             _tagsEnabled = EditorPrefs.GetBool(PrefTagsEnabled, true);
+            _tagSortMode = (TagSortMode)EditorPrefs.GetInt(PrefTagSortMode, (int)TagSortMode.Name);
+            _tagSortDesc = EditorPrefs.GetBool(PrefTagSortDesc, false);
+            _tagSearch = EditorPrefs.GetString(PrefTagSearchText, "");
+            _viewLocked = EditorPrefs.GetBool(PrefViewLocked, false);
             _filterTimeRange = EditorPrefs.GetBool(PrefFilterTimeRange, false);
             _filterNumberRange = EditorPrefs.GetBool(PrefFilterNumberRange, false);
             _filterFrameRange = EditorPrefs.GetBool(PrefFilterFrameRange, false);
@@ -417,6 +469,12 @@ namespace UnityEnhancedConsole
             _filterNumberMax = EditorPrefs.GetInt(PrefFilterNumberMax, int.MaxValue);
             _filterFrameMin = EditorPrefs.GetInt(PrefFilterFrameMin, 0);
             _filterFrameMax = EditorPrefs.GetInt(PrefFilterFrameMax, int.MaxValue);
+            _selectedTags.Clear();
+            foreach (var t in DeserializeStringList(EditorPrefs.GetString(PrefSelectedTags, "")))
+                if (!string.IsNullOrEmpty(t)) _selectedTags.Add(t);
+            _excludedTags.Clear();
+            foreach (var t in DeserializeStringList(EditorPrefs.GetString(PrefExcludedTags, "")))
+                if (!string.IsNullOrEmpty(t)) _excludedTags.Add(t);
             LoadSearchHistory();
         }
 
@@ -457,9 +515,61 @@ namespace UnityEnhancedConsole
             SaveSearchHistory();
         }
 
+        private static string SerializeStringList(IEnumerable<string> items)
+        {
+            var list = new List<string>();
+            if (items != null)
+            {
+                foreach (var s in items)
+                {
+                    if (!string.IsNullOrEmpty(s))
+                        list.Add(s);
+                }
+            }
+            var wrapper = new StringListWrapper { items = list };
+            return JsonUtility.ToJson(wrapper);
+        }
+
+        private static List<string> DeserializeStringList(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return new List<string>();
+            try
+            {
+                var wrapper = JsonUtility.FromJson<StringListWrapper>(json);
+                return wrapper?.items ?? new List<string>();
+            }
+            catch
+            {
+                return new List<string>();
+            }
+        }
+
+        private static string GetEntryFirstTime(LogEntry e)
+        {
+            if (e == null) return null;
+            return !string.IsNullOrEmpty(e.FirstTimeStamp) ? e.FirstTimeStamp : e.TimeStamp;
+        }
+
+        private static string GetEntryLastTime(LogEntry e)
+        {
+            if (e == null) return null;
+            return !string.IsNullOrEmpty(e.LastTimeStamp) ? e.LastTimeStamp : e.TimeStamp;
+        }
+
+        private static void UpdateGroupTimeRange(ref CollapseGroupState state, LogEntry e)
+        {
+            string first = GetEntryFirstTime(e);
+            string last = GetEntryLastTime(e);
+            if (string.IsNullOrEmpty(state.firstTime) || (!string.IsNullOrEmpty(first) && string.Compare(first, state.firstTime, StringComparison.Ordinal) < 0))
+                state.firstTime = first;
+            if (string.IsNullOrEmpty(state.lastTime) || (!string.IsNullOrEmpty(last) && string.Compare(last, state.lastTime, StringComparison.Ordinal) > 0))
+                state.lastTime = last;
+        }
+
         private void SavePrefs()
         {
             EditorPrefs.SetBool(PrefCollapse, _collapse);
+            EditorPrefs.SetBool(PrefCollapseGlobal, _collapseGlobal);
             EditorPrefs.SetBool(PrefClearOnPlay, _clearOnPlay);
             EditorPrefs.SetBool(PrefClearOnBuild, _clearOnBuild);
             EditorPrefs.SetBool(PrefErrorPause, _errorPause);
@@ -467,6 +577,8 @@ namespace UnityEnhancedConsole
             EditorPrefs.SetBool(PrefShowWarning, _showWarning);
             EditorPrefs.SetBool(PrefShowError, _showError);
             EditorPrefs.SetInt(PrefEntryLines, _entryLines);
+            EditorPrefs.SetInt(PrefMaxEntries, _maxEntries);
+            EditorPrefs.SetInt(PrefMaxLoadEntries, _maxLoadEntries);
             EditorPrefs.SetInt(PrefStackTraceLog, (int)_stackTraceLog);
             EditorPrefs.SetInt(PrefStackTraceWarning, (int)_stackTraceWarning);
             EditorPrefs.SetInt(PrefStackTraceError, (int)_stackTraceError);
@@ -474,8 +586,13 @@ namespace UnityEnhancedConsole
             EditorPrefs.SetBool(PrefShowTimestamp, _showTimestamp);
             EditorPrefs.SetBool(PrefShowFrameCount, _showFrameCount);
             EditorPrefs.SetBool(PrefSearchRegex, _searchRegex);
+            EditorPrefs.SetString(PrefSearchText, _searchApplied ?? "");
             EditorPrefs.SetBool(PrefShowMessageNumber, _showMessageNumber);
             EditorPrefs.SetBool(PrefTagsEnabled, _tagsEnabled);
+            EditorPrefs.SetInt(PrefTagSortMode, (int)_tagSortMode);
+            EditorPrefs.SetBool(PrefTagSortDesc, _tagSortDesc);
+            EditorPrefs.SetString(PrefTagSearchText, _tagSearch ?? "");
+            EditorPrefs.SetBool(PrefViewLocked, _viewLocked);
             EditorPrefs.SetBool(PrefFilterTimeRange, _filterTimeRange);
             EditorPrefs.SetBool(PrefFilterNumberRange, _filterNumberRange);
             EditorPrefs.SetBool(PrefFilterFrameRange, _filterFrameRange);
@@ -485,6 +602,8 @@ namespace UnityEnhancedConsole
             EditorPrefs.SetInt(PrefFilterNumberMax, _filterNumberMax);
             EditorPrefs.SetInt(PrefFilterFrameMin, _filterFrameMin);
             EditorPrefs.SetInt(PrefFilterFrameMax, _filterFrameMax);
+            EditorPrefs.SetString(PrefSelectedTags, SerializeStringList(_selectedTags));
+            EditorPrefs.SetString(PrefExcludedTags, SerializeStringList(_excludedTags));
         }
 
         private void ApplyStackTraceSettings()
@@ -614,6 +733,34 @@ namespace UnityEnhancedConsole
             if (!_filterFrameRange) return true;
             if (e == null) return false;
             return e.FrameCount >= _filterFrameMin && e.FrameCount <= _filterFrameMax;
+        }
+
+        private bool EntryMatchesFiltersExceptTag(LogEntry e, Regex searchRegex)
+        {
+            if (!EntryMatchesSearch(e, searchRegex)) return false;
+            if (!EntryMatchesTimeRange(e)) return false;
+            if (!EntryMatchesNumberRange(e)) return false;
+            if (!EntryMatchesFrameRange(e)) return false;
+            if (!ShowType(e.LogType)) return false;
+            return true;
+        }
+
+        private void UpdateTagCacheForEntry(LogEntry e, int addCount, string lastTime)
+        {
+            if (_cachedTagInfo == null || _tagCountsDirty) return;
+            if (e == null) return;
+            Regex searchRegex = GetOrCreateSearchRegex();
+            if (!EntryMatchesFiltersExceptTag(e, searchRegex)) return;
+            foreach (var t in e.TagsOrEmpty)
+            {
+                if (string.IsNullOrEmpty(t)) continue;
+                if (!_cachedTagInfo.TryGetValue(t, out var info))
+                    info = new TagInfo { count = 0, lastTime = null };
+                info.count += addCount;
+                if (!string.IsNullOrEmpty(lastTime) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(lastTime, info.lastTime, StringComparison.Ordinal) > 0))
+                    info.lastTime = lastTime;
+                _cachedTagInfo[t] = info;
+            }
         }
 
         /// <summary>
@@ -1005,6 +1152,77 @@ namespace UnityEnhancedConsole
         /// </summary>
         private struct FilteredRow { public int entryIndex; public int displayCount; }
 
+        private struct CollapseGroupInfo
+        {
+            public int totalCount;
+            public string firstTime;
+            public string lastTime;
+        }
+
+        private struct TagInfo
+        {
+            public int count;
+            public string lastTime;
+        }
+
+        private enum TagSortMode
+        {
+            Name = 0,
+            Count = 1,
+            Recent = 2
+        }
+
+        private struct CollapseGroupState
+        {
+            public int firstIndex;
+            public int totalCount;
+            public string firstTime;
+            public string lastTime;
+        }
+
+        private readonly struct LogKey : IEquatable<LogKey>
+        {
+            private readonly string _condition;
+            private readonly string _stackTrace;
+            private readonly LogType _logType;
+
+            public LogKey(LogEntry entry)
+            {
+                _condition = entry?.Condition ?? "";
+                _stackTrace = entry?.StackTrace ?? "";
+                _logType = entry != null ? entry.LogType : LogType.Log;
+            }
+
+            public bool Equals(LogKey other)
+            {
+                return _logType == other._logType &&
+                       string.Equals(_condition, other._condition, StringComparison.Ordinal) &&
+                       string.Equals(_stackTrace, other._stackTrace, StringComparison.Ordinal);
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is LogKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = (int)_logType;
+                    hash = (hash * 397) ^ (_condition != null ? _condition.GetHashCode() : 0);
+                    hash = (hash * 397) ^ (_stackTrace != null ? _stackTrace.GetHashCode() : 0);
+                    return hash;
+                }
+            }
+        }
+
+        [Serializable]
+        private class StringListWrapper
+        {
+            public List<string> items = new List<string>();
+        }
+
         private List<FilteredRow> GetFilteredRows()
         {
             if (!_filterDirty && _cachedFilteredRows != null)
@@ -1012,9 +1230,10 @@ namespace UnityEnhancedConsole
 
             var list = new List<FilteredRow>();
             Regex searchRegex = GetOrCreateSearchRegex();
-            if (_collapse)
+            if (_collapse && _collapseGlobal)
             {
-                var groups = new List<(int firstIndex, int totalCount)>();
+                var groups = new Dictionary<LogKey, CollapseGroupState>();
+                var order = new List<LogKey>();
                 for (int i = 0; i < _entries.Count; i++)
                 {
                     var e = _entries[i];
@@ -1025,21 +1244,50 @@ namespace UnityEnhancedConsole
                     if (!ShowType(e.LogType)) continue;
                     if (_tagsEnabled && _excludedTags.Count > 0 && e.HasAnyTag(_excludedTags)) continue;
                     if (_tagsEnabled && _selectedTags.Count > 0 && !e.HasAnyTag(_selectedTags)) continue;
-                    bool found = false;
-                    for (int g = 0; g < groups.Count; g++)
+                    var key = new LogKey(e);
+                    if (groups.TryGetValue(key, out var state))
                     {
-                        if (_entries[groups[g].firstIndex].IsSameContent(e))
-                        {
-                            groups[g] = (groups[g].firstIndex, groups[g].totalCount + e.Count);
-                            found = true;
-                            break;
-                        }
+                        state.totalCount += e.Count;
+                        UpdateGroupTimeRange(ref state, e);
+                        groups[key] = state;
                     }
-                    if (!found)
-                        groups.Add((i, e.Count));
+                    else
+                    {
+                        state = new CollapseGroupState
+                        {
+                            firstIndex = i,
+                            totalCount = e.Count,
+                            firstTime = GetEntryFirstTime(e),
+                            lastTime = GetEntryLastTime(e)
+                        };
+                        groups.Add(key, state);
+                        order.Add(key);
+                    }
                 }
-                foreach (var g in groups)
+                var infoMap = new Dictionary<int, CollapseGroupInfo>(order.Count);
+                foreach (var key in order)
+                {
+                    var g = groups[key];
                     list.Add(new FilteredRow { entryIndex = g.firstIndex, displayCount = g.totalCount });
+                    infoMap[g.firstIndex] = new CollapseGroupInfo { totalCount = g.totalCount, firstTime = g.firstTime, lastTime = g.lastTime };
+                }
+                _cachedCollapseGroupInfo = infoMap;
+            }
+            else if (_collapse)
+            {
+                for (int i = 0; i < _entries.Count; i++)
+                {
+                    var e = _entries[i];
+                    if (!EntryMatchesSearch(e, searchRegex)) continue;
+                    if (!EntryMatchesTimeRange(e)) continue;
+                    if (!EntryMatchesNumberRange(e)) continue;
+                    if (!EntryMatchesFrameRange(e)) continue;
+                    if (!ShowType(e.LogType)) continue;
+                    if (_tagsEnabled && _excludedTags.Count > 0 && e.HasAnyTag(_excludedTags)) continue;
+                    if (_tagsEnabled && _selectedTags.Count > 0 && !e.HasAnyTag(_selectedTags)) continue;
+                    list.Add(new FilteredRow { entryIndex = i, displayCount = e.Count });
+                }
+                _cachedCollapseGroupInfo = null;
             }
             else
             {
@@ -1056,6 +1304,7 @@ namespace UnityEnhancedConsole
                     for (int k = 0; k < e.Count; k++)
                         list.Add(new FilteredRow { entryIndex = i, displayCount = 1 });
                 }
+                _cachedCollapseGroupInfo = null;
             }
             _cachedFilteredRows = list;
             _filterDirty = false;
@@ -1065,42 +1314,69 @@ namespace UnityEnhancedConsole
         /// <summary>
         /// ????????????????????????????????????????????????????0 ???????
         /// </summary>
-        private Dictionary<string, int> GetAllTagsFromRowsWithoutTagFilter()
+        private Dictionary<string, TagInfo> GetAllTagsFromRowsWithoutTagFilter()
         {
-            var allTags = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (!_tagCountsDirty && _cachedTagInfo != null)
+                return _cachedTagInfo;
+
+            var allTags = new Dictionary<string, TagInfo>(StringComparer.OrdinalIgnoreCase);
             Regex searchRegex = GetOrCreateSearchRegex();
-            if (_collapse)
+            if (_collapse && _collapseGlobal)
             {
-                var groups = new List<(int firstIndex, int totalCount)>();
+                var groups = new Dictionary<LogKey, CollapseGroupState>();
+                var order = new List<LogKey>();
                 for (int i = 0; i < _entries.Count; i++)
                 {
                     var e = _entries[i];
-                    if (!EntryMatchesSearch(e, searchRegex)) continue;
-                    if (!EntryMatchesTimeRange(e)) continue;
-                    if (!EntryMatchesNumberRange(e)) continue;
-                    if (!EntryMatchesFrameRange(e)) continue;
-                    if (!ShowType(e.LogType)) continue;
-                    bool found = false;
-                    for (int g = 0; g < groups.Count; g++)
+                    if (!EntryMatchesFiltersExceptTag(e, searchRegex)) continue;
+                    var key = new LogKey(e);
+                    if (groups.TryGetValue(key, out var state))
                     {
-                        if (_entries[groups[g].firstIndex].IsSameContent(e))
-                        {
-                            groups[g] = (groups[g].firstIndex, groups[g].totalCount + e.Count);
-                            found = true;
-                            break;
-                        }
+                        state.totalCount += e.Count;
+                        groups[key] = state;
                     }
-                    if (!found)
-                        groups.Add((i, e.Count));
+                    else
+                    {
+                        state = new CollapseGroupState { firstIndex = i, totalCount = e.Count };
+                        groups.Add(key, state);
+                        order.Add(key);
+                    }
                 }
-                foreach (var g in groups)
+                foreach (var key in order)
                 {
+                    var g = groups[key];
                     var e = _entries[g.firstIndex];
                     int c = g.totalCount;
+                    string last = GetEntryLastTime(e);
                     foreach (var t in e.TagsOrEmpty)
                     {
                         if (string.IsNullOrEmpty(t)) continue;
-                        allTags[t] = allTags.TryGetValue(t, out int n) ? n + c : c;
+                        if (!allTags.TryGetValue(t, out var info))
+                            info = new TagInfo { count = 0, lastTime = null };
+                        info.count += c;
+                        if (!string.IsNullOrEmpty(last) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(last, info.lastTime, StringComparison.Ordinal) > 0))
+                            info.lastTime = last;
+                        allTags[t] = info;
+                    }
+                }
+            }
+            else if (_collapse)
+            {
+                for (int i = 0; i < _entries.Count; i++)
+                {
+                    var e = _entries[i];
+                    if (!EntryMatchesFiltersExceptTag(e, searchRegex)) continue;
+                    int c = e.Count;
+                    string last = GetEntryLastTime(e);
+                    foreach (var t in e.TagsOrEmpty)
+                    {
+                        if (string.IsNullOrEmpty(t)) continue;
+                        if (!allTags.TryGetValue(t, out var info))
+                            info = new TagInfo { count = 0, lastTime = null };
+                        info.count += c;
+                        if (!string.IsNullOrEmpty(last) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(last, info.lastTime, StringComparison.Ordinal) > 0))
+                            info.lastTime = last;
+                        allTags[t] = info;
                     }
                 }
             }
@@ -1109,19 +1385,23 @@ namespace UnityEnhancedConsole
                 for (int i = 0; i < _entries.Count; i++)
                 {
                     var e = _entries[i];
-                    if (!EntryMatchesSearch(e, searchRegex)) continue;
-                    if (!EntryMatchesTimeRange(e)) continue;
-                    if (!EntryMatchesNumberRange(e)) continue;
-                    if (!EntryMatchesFrameRange(e)) continue;
-                    if (!ShowType(e.LogType)) continue;
+                    if (!EntryMatchesFiltersExceptTag(e, searchRegex)) continue;
                     int c = e.Count;
+                    string last = GetEntryLastTime(e);
                     foreach (var t in e.TagsOrEmpty)
                     {
                         if (string.IsNullOrEmpty(t)) continue;
-                        allTags[t] = allTags.TryGetValue(t, out int n) ? n + c : c;
+                        if (!allTags.TryGetValue(t, out var info))
+                            info = new TagInfo { count = 0, lastTime = null };
+                        info.count += c;
+                        if (!string.IsNullOrEmpty(last) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(last, info.lastTime, StringComparison.Ordinal) > 0))
+                            info.lastTime = last;
+                        allTags[t] = info;
                     }
                 }
             }
+            _cachedTagInfo = allTags;
+            _tagCountsDirty = false;
             return allTags;
         }
 
@@ -1272,10 +1552,11 @@ namespace UnityEnhancedConsole
             _selectedTags.Clear();
             _excludedTags.Clear();
             _cachedFilteredRows = null;
-            _cachedTagCounts = null;
+            _cachedTagInfo = null;
             _filterDirty = true;
             _tagCountsDirty = true;
             _selectedIndex = -1;
+            SavePrefs();
             RefreshUI();
         }
 
@@ -1292,14 +1573,16 @@ namespace UnityEnhancedConsole
         /// </summary>
         private void TrimEntriesToMax()
         {
-            if (_entries.Count <= MaxEntries) return;
-            int removeCount = _entries.Count - MaxEntries;
+            if (_entries.Count <= _maxEntries) return;
+            int removeCount = _entries.Count - _maxEntries;
             _entries.RemoveRange(0, removeCount);
             if (_selectedIndex >= 0)
             {
                 _selectedIndex -= removeCount;
                 if (_selectedIndex < 0) _selectedIndex = -1;
             }
+            _cachedTagInfo = null;
+            _tagCountsDirty = true;
         }
 
         /// <summary>
@@ -1307,6 +1590,7 @@ namespace UnityEnhancedConsole
         /// </summary>
         private void RepaintThrottled()
         {
+            if (_viewLocked) return;
             double now = EditorApplication.timeSinceStartup;
             if ((now - _lastRepaintTime) * 1000 >= MinRepaintIntervalMs)
             {
@@ -1472,6 +1756,19 @@ namespace UnityEnhancedConsole
             var toggleErrorPause = root.Q<Toggle>("toggleErrorPause");
             if (toggleErrorPause != null) { toggleErrorPause.value = _errorPause; toggleErrorPause.RegisterValueChangedCallback(ev => { _errorPause = ev.newValue; SavePrefs(); }); }
 
+            var toggleViewLock = root.Q<Toggle>("toggleViewLock");
+            if (toggleViewLock != null)
+            {
+                toggleViewLock.value = _viewLocked;
+                toggleViewLock.RegisterValueChangedCallback(ev =>
+                {
+                    _viewLocked = ev.newValue;
+                    SavePrefs();
+                    if (!_viewLocked)
+                        RefreshUI();
+                });
+            }
+
             var toggleLog = root.Q<Toggle>("toggleLog");
             if (toggleLog != null) { toggleLog.value = _showLog; toggleLog.RegisterValueChangedCallback(ev => { _showLog = ev.newValue; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); }); }
             var toggleWarning = root.Q<Toggle>("toggleWarning");
@@ -1503,6 +1800,7 @@ namespace UnityEnhancedConsole
                     _search = ""; _searchApplied = "";
                     _filterDirty = true; _tagCountsDirty = true;
                     if (_searchField != null) _searchField.value = "";
+                    SavePrefs();
                     RefreshUI();
                 };
             }
@@ -1637,6 +1935,7 @@ namespace UnityEnhancedConsole
             t = root.Q<Toggle>("toggleClearOnPlay"); if (t != null) t.SetValueWithoutNotify(_clearOnPlay);
             t = root.Q<Toggle>("toggleClearOnBuild"); if (t != null) t.SetValueWithoutNotify(_clearOnBuild);
             t = root.Q<Toggle>("toggleErrorPause"); if (t != null) t.SetValueWithoutNotify(_errorPause);
+            t = root.Q<Toggle>("toggleViewLock"); if (t != null) t.SetValueWithoutNotify(_viewLocked);
             t = root.Q<Toggle>("toggleLog"); if (t != null) t.SetValueWithoutNotify(_showLog);
             t = root.Q<Toggle>("toggleWarning"); if (t != null) t.SetValueWithoutNotify(_showWarning);
             t = root.Q<Toggle>("toggleError"); if (t != null) t.SetValueWithoutNotify(_showError);
@@ -1646,6 +1945,26 @@ namespace UnityEnhancedConsole
         private void SyncSearchField()
         {
             if (_searchField != null) _searchField.SetValueWithoutNotify(_search);
+        }
+
+        private void SyncTagBarFields()
+        {
+            var root = rootVisualElement;
+            if (root == null) return;
+            var tagSearchField = root.Q<TextField>("tagSearchField");
+            if (tagSearchField != null) tagSearchField.SetValueWithoutNotify(_tagSearch ?? "");
+            UpdateTagSortMenuButton();
+            UpdateTagSettingsControls();
+        }
+
+        private void UpdateTagSortMenuButton()
+        {
+            var root = rootVisualElement;
+            if (root == null) return;
+            var btn = root.Q<Button>("btnTagSortMenu");
+            string arrow = _tagSortDesc ? "▼" : "▲";
+            if (btn != null)
+                btn.text = (_tagSortMode == TagSortMode.Count ? "Count " : _tagSortMode == TagSortMode.Recent ? "Recent " : "Name ") + arrow;
         }
 
         private void RefreshUI()
@@ -1660,6 +1979,8 @@ namespace UnityEnhancedConsole
                 root = rootVisualElement.Q<VisualElement>("root");
                 if (root == null) return;
             }
+            var toggleViewLock = root.Q<Toggle>("toggleViewLock");
+            if (toggleViewLock != null) toggleViewLock.SetValueWithoutNotify(_viewLocked);
 
             /* ????? Toggle ???????????????????? 9999?*/
             var (logCount, warnCount, errCount) = CountByTypeUnfiltered();
@@ -1736,6 +2057,28 @@ namespace UnityEnhancedConsole
             if (_showMessageNumber) prefixParts.Add("[" + e.MessageNumber + "]");
             if (_showTimestamp && !string.IsNullOrEmpty(e.TimeStamp)) prefixParts.Add("[" + e.TimeStamp + "]");
             if (_showFrameCount) prefixParts.Add("[" + e.FrameCount + "]");
+            if (_collapse)
+            {
+                string firstTime = null;
+                string lastTime = null;
+                int totalCount = e.Count;
+                if (_collapseGlobal && _cachedCollapseGroupInfo != null && _cachedCollapseGroupInfo.TryGetValue(_selectedIndex, out var info))
+                {
+                    totalCount = info.totalCount;
+                    firstTime = info.firstTime;
+                    lastTime = info.lastTime;
+                }
+                else if (!_collapseGlobal && e.Count > 1)
+                {
+                    firstTime = GetEntryFirstTime(e);
+                    lastTime = GetEntryLastTime(e);
+                }
+                if (totalCount > 1 && !string.IsNullOrEmpty(firstTime) && !string.IsNullOrEmpty(lastTime))
+                {
+                    prefixParts.Add("[First " + firstTime + "]");
+                    prefixParts.Add("[Last " + lastTime + "]");
+                }
+            }
             if (prefixParts.Count > 0)
                 full = string.Join(" ", prefixParts) + " " + full;
             _detailField.SetValueWithoutNotify(full);
@@ -1782,6 +2125,7 @@ namespace UnityEnhancedConsole
                         _filterDirty = true; _tagCountsDirty = true;
                         PushSearchHistory(s);
                         if (_searchField != null) _searchField.value = s;
+                        SavePrefs();
                         RefreshUI();
                     });
                 }
@@ -1944,9 +2288,295 @@ namespace UnityEnhancedConsole
             });
         }
 
+        private void ShowCapacitySettings()
+        {
+            CapacitySettingsWindow.Show(_maxEntries, _maxLoadEntries, (maxEntries, maxLoadEntries) =>
+            {
+                _maxEntries = Mathf.Max(100, maxEntries);
+                _maxLoadEntries = Mathf.Max(_maxEntries, maxLoadEntries);
+                SavePrefs();
+                TrimEntriesToMax();
+                EnhancedConsoleLogFile.RewriteFileWithEntries(_entries);
+                _filterDirty = true;
+                _tagCountsDirty = true;
+                RefreshUI();
+            });
+        }
+
+        private void RestoreCapacityDefaults()
+        {
+            _maxEntries = DefaultMaxEntries;
+            _maxLoadEntries = DefaultMaxLoadEntries;
+            SavePrefs();
+            TrimEntriesToMax();
+            EnhancedConsoleLogFile.RewriteFileWithEntries(_entries);
+            _filterDirty = true;
+            _tagCountsDirty = true;
+            RefreshUI();
+        }
+
+        private void CloneWindow()
+        {
+            var w = CreateInstance<EnhancedConsoleWindow>();
+            w.titleContent = new GUIContent("Enhanced Console");
+            w.minSize = new Vector2(300, 200);
+            w.Show();
+            w.CopyStateFrom(this);
+            w.Focus();
+        }
+
+        private void CopyStateFrom(EnhancedConsoleWindow other)
+        {
+            if (other == null) return;
+            _collapse = other._collapse;
+            _collapseGlobal = other._collapseGlobal;
+            _clearOnPlay = other._clearOnPlay;
+            _clearOnBuild = other._clearOnBuild;
+            _errorPause = other._errorPause;
+            _showLog = other._showLog;
+            _showWarning = other._showWarning;
+            _showError = other._showError;
+            _showTimestamp = other._showTimestamp;
+            _showFrameCount = other._showFrameCount;
+            _showMessageNumber = other._showMessageNumber;
+            _entryLines = other._entryLines;
+            _maxEntries = other._maxEntries;
+            _maxLoadEntries = other._maxLoadEntries;
+            _stackTraceLog = other._stackTraceLog;
+            _stackTraceWarning = other._stackTraceWarning;
+            _stackTraceError = other._stackTraceError;
+            _detailHeight = other._detailHeight;
+            _tagsEnabled = other._tagsEnabled;
+            _tagsCollapsed = other._tagsCollapsed;
+            _tagSortMode = other._tagSortMode;
+            _tagSortDesc = other._tagSortDesc;
+            _tagSearch = other._tagSearch ?? "";
+            _filterTimeRange = other._filterTimeRange;
+            _filterNumberRange = other._filterNumberRange;
+            _filterFrameRange = other._filterFrameRange;
+            _filterTimeMin = other._filterTimeMin;
+            _filterTimeMax = other._filterTimeMax;
+            _filterNumberMin = other._filterNumberMin;
+            _filterNumberMax = other._filterNumberMax;
+            _filterFrameMin = other._filterFrameMin;
+            _filterFrameMax = other._filterFrameMax;
+            _searchRegex = other._searchRegex;
+            _search = other._search;
+            _searchApplied = other._searchApplied;
+            _viewLocked = other._viewLocked;
+
+            _selectedTags.Clear();
+            foreach (var t in other._selectedTags) _selectedTags.Add(t);
+            _excludedTags.Clear();
+            foreach (var t in other._excludedTags) _excludedTags.Add(t);
+
+            _cachedFilteredRows = null;
+            _cachedTagInfo = null;
+            _cachedCollapseGroupInfo = null;
+            _filterDirty = true;
+            _tagCountsDirty = true;
+            ApplyStackTraceSettings();
+            SyncSearchField();
+            SyncTagBarFields();
+            SyncTogglesFromState(rootVisualElement);
+            RefreshUI();
+        }
+
+        private enum ExportFormat { Txt, Csv, Json }
+
+        [Serializable]
+        private class ExportEntry
+        {
+            public int messageNumber;
+            public string logType;
+            public int count;
+            public string timeStamp;
+            public string firstTimeStamp;
+            public string lastTimeStamp;
+            public int frameCount;
+            public string condition;
+            public string stackTrace;
+            public string[] tags;
+        }
+
+        [Serializable]
+        private class ExportEntryList
+        {
+            public List<ExportEntry> entries = new List<ExportEntry>();
+        }
+
+        private void ExportEntries(ExportFormat format, bool filtered)
+        {
+            string ext = format == ExportFormat.Txt ? "txt" : format == ExportFormat.Csv ? "csv" : "json";
+            string path = EditorUtility.SaveFilePanel("Export Logs", "", "EnhancedConsoleExport." + ext, ext);
+            if (string.IsNullOrEmpty(path)) return;
+
+            var exportList = new List<ExportEntry>();
+            if (filtered)
+            {
+                var rows = GetFilteredRows();
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    var row = rows[i];
+                    if (row.entryIndex < 0 || row.entryIndex >= _entries.Count) continue;
+                    var e = _entries[row.entryIndex];
+                    string firstTime = GetEntryFirstTime(e);
+                    string lastTime = GetEntryLastTime(e);
+                    int count = row.displayCount;
+                    if (_collapse && _collapseGlobal && _cachedCollapseGroupInfo != null && _cachedCollapseGroupInfo.TryGetValue(row.entryIndex, out var info))
+                    {
+                        count = info.totalCount;
+                        firstTime = info.firstTime;
+                        lastTime = info.lastTime;
+                    }
+                    exportList.Add(BuildExportEntry(e, count, firstTime, lastTime));
+                }
+            }
+            else
+            {
+                foreach (var e in _entries)
+                {
+                    if (e == null) continue;
+                    exportList.Add(BuildExportEntry(e, e.Count, GetEntryFirstTime(e), GetEntryLastTime(e)));
+                }
+            }
+
+            if (exportList.Count == 0)
+            {
+                EditorUtility.DisplayDialog("Export Logs", "No entries to export.", "OK");
+                return;
+            }
+
+            if (format == ExportFormat.Txt)
+                File.WriteAllText(path, BuildTxtExport(exportList), System.Text.Encoding.UTF8);
+            else if (format == ExportFormat.Csv)
+                File.WriteAllText(path, BuildCsvExport(exportList), System.Text.Encoding.UTF8);
+            else
+                File.WriteAllText(path, BuildJsonExport(exportList), System.Text.Encoding.UTF8);
+        }
+
+        private static ExportEntry BuildExportEntry(LogEntry e, int count, string firstTime, string lastTime)
+        {
+            return new ExportEntry
+            {
+                messageNumber = e.MessageNumber,
+                logType = e.LogType.ToString(),
+                count = count,
+                timeStamp = e.TimeStamp ?? "",
+                firstTimeStamp = firstTime ?? "",
+                lastTimeStamp = lastTime ?? "",
+                frameCount = e.FrameCount,
+                condition = e.Condition ?? "",
+                stackTrace = e.StackTrace ?? "",
+                tags = e.TagsOrEmpty.ToArray()
+            };
+        }
+
+        private static string BuildTxtExport(List<ExportEntry> entries)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var e in entries)
+            {
+                sb.Append("[");
+                sb.Append(e.logType);
+                sb.Append("] ");
+                if (e.count > 1) sb.Append("x").Append(e.count).Append(" ");
+                if (!string.IsNullOrEmpty(e.firstTimeStamp) || !string.IsNullOrEmpty(e.lastTimeStamp))
+                {
+                    sb.Append("[");
+                    sb.Append(string.IsNullOrEmpty(e.firstTimeStamp) ? e.timeStamp : e.firstTimeStamp);
+                    sb.Append(" - ");
+                    sb.Append(string.IsNullOrEmpty(e.lastTimeStamp) ? e.timeStamp : e.lastTimeStamp);
+                    sb.Append("] ");
+                }
+                sb.Append(e.condition);
+                if (e.tags != null && e.tags.Length > 0)
+                    sb.Append(" [Tags: ").Append(string.Join(", ", e.tags)).Append("]");
+                sb.AppendLine();
+                if (!string.IsNullOrEmpty(e.stackTrace))
+                    sb.AppendLine(e.stackTrace);
+                sb.AppendLine();
+            }
+            return sb.ToString();
+        }
+
+        private static string EscapeCsv(string value)
+        {
+            if (value == null) return "";
+            bool needQuote = value.Contains(",") || value.Contains("\"") || value.Contains("\n") || value.Contains("\r");
+            if (!needQuote) return value;
+            return "\"" + value.Replace("\"", "\"\"") + "\"";
+        }
+
+        private static string BuildCsvExport(List<ExportEntry> entries)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("MessageNumber,LogType,Count,TimeStamp,FirstTimeStamp,LastTimeStamp,FrameCount,Condition,StackTrace,Tags");
+            foreach (var e in entries)
+            {
+                sb.Append(e.messageNumber).Append(",");
+                sb.Append(EscapeCsv(e.logType)).Append(",");
+                sb.Append(e.count).Append(",");
+                sb.Append(EscapeCsv(e.timeStamp)).Append(",");
+                sb.Append(EscapeCsv(e.firstTimeStamp)).Append(",");
+                sb.Append(EscapeCsv(e.lastTimeStamp)).Append(",");
+                sb.Append(e.frameCount).Append(",");
+                sb.Append(EscapeCsv(e.condition)).Append(",");
+                sb.Append(EscapeCsv(e.stackTrace)).Append(",");
+                sb.Append(EscapeCsv(e.tags != null ? string.Join(";", e.tags) : ""));
+                sb.AppendLine();
+            }
+            return sb.ToString();
+        }
+
+        private static string BuildJsonExport(List<ExportEntry> entries)
+        {
+            var list = new ExportEntryList { entries = entries };
+            return JsonUtility.ToJson(list, true);
+        }
+
         private void ShowContextMenu()
         {
             GenericMenu menu = new GenericMenu();
+            menu.AddItem(new GUIContent("Collapse/Off"), !_collapse, () =>
+            {
+                _collapse = false;
+                _filterDirty = true; _tagCountsDirty = true;
+                SavePrefs(); RefreshUI();
+            });
+            menu.AddItem(new GUIContent("Collapse/Adjacent Only"), _collapse && !_collapseGlobal, () =>
+            {
+                _collapse = true;
+                _collapseGlobal = false;
+                _filterDirty = true; _tagCountsDirty = true;
+                SavePrefs(); RefreshUI();
+            });
+            menu.AddItem(new GUIContent("Collapse/Global (All)"), _collapse && _collapseGlobal, () =>
+            {
+                _collapse = true;
+                _collapseGlobal = true;
+                _filterDirty = true; _tagCountsDirty = true;
+                SavePrefs(); RefreshUI();
+            });
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("View/Lock View"), _viewLocked, () =>
+            {
+                _viewLocked = !_viewLocked;
+                SavePrefs();
+                if (!_viewLocked) RefreshUI();
+            });
+            menu.AddItem(new GUIContent("Window/Clone"), false, () => CloneWindow());
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Capacity/Set Limits..."), false, ShowCapacitySettings);
+            menu.AddItem(new GUIContent("Capacity/Restore Defaults"), false, RestoreCapacityDefaults);
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Export/Filtered/TXT"), false, () => ExportEntries(ExportFormat.Txt, true));
+            menu.AddItem(new GUIContent("Export/Filtered/CSV"), false, () => ExportEntries(ExportFormat.Csv, true));
+            menu.AddItem(new GUIContent("Export/Filtered/JSON"), false, () => ExportEntries(ExportFormat.Json, true));
+            menu.AddItem(new GUIContent("Export/All/TXT"), false, () => ExportEntries(ExportFormat.Txt, false));
+            menu.AddItem(new GUIContent("Export/All/CSV"), false, () => ExportEntries(ExportFormat.Csv, false));
+            menu.AddItem(new GUIContent("Export/All/JSON"), false, () => ExportEntries(ExportFormat.Json, false));
+            menu.AddSeparator("");
             menu.AddItem(new GUIContent("Show Timestamp"), _showTimestamp, () => { _showTimestamp = !_showTimestamp; SavePrefs(); RefreshUI(); });
             menu.AddItem(new GUIContent("Show Frame Count"), _showFrameCount, () => { _showFrameCount = !_showFrameCount; SavePrefs(); RefreshUI(); });
             menu.AddItem(new GUIContent("Show Message Number"), _showMessageNumber, () => { _showMessageNumber = !_showMessageNumber; SavePrefs(); RefreshUI(); });
@@ -1965,7 +2595,7 @@ namespace UnityEnhancedConsole
                 {
                     string s = item;
                     string display = (s.Length > 50 ? s.Substring(0, 47) + "..." : s).Replace("/", "?M");
-                    menu.AddItem(new GUIContent("Search/History/" + display), false, () => { _search = s; _searchApplied = s; _filterDirty = true; _tagCountsDirty = true; PushSearchHistory(s); if (_searchField != null) _searchField.value = s; RefreshUI(); });
+                    menu.AddItem(new GUIContent("Search/History/" + display), false, () => { _search = s; _searchApplied = s; _filterDirty = true; _tagCountsDirty = true; PushSearchHistory(s); if (_searchField != null) _searchField.value = s; SavePrefs(); RefreshUI(); });
                 }
                 menu.AddItem(new GUIContent("Search/Clear History"), false, () => { _searchHistory.Clear(); SaveSearchHistory(); RefreshUI(); });
             }
