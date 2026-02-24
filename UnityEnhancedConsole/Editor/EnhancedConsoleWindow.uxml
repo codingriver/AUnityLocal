@@ -56,13 +56,20 @@
                 <ui:VisualElement name="tagBarContainer" class="tag-bar-container" />
             </ui:VisualElement>
         </ui:VisualElement>
-        <ui:TwoPaneSplitView name="mainSplit" fixedPaneIndex="1" fixedPaneInitialDimension="120" orientation="Vertical" class="main-split">
-            <ui:ListView name="logListView" show-add-remove-footer="false" show-border="true" virtualization-method="FixedHeight" class="log-list-view" />
-            <ui:ScrollView name="detailScroll" mode="Vertical" class="detail-scroll">
-                <ui:VisualElement name="detailContent" class="detail-content">
-                    <ui:TextField name="detailLabel" multiline="true" class="detail-label detail-field" />
-                </ui:VisualElement>
-            </ui:ScrollView>
-        </ui:TwoPaneSplitView>
+        <ui:VisualElement name="tabBar" class="tab-bar">
+            <ui:Button name="tabLog" text="Log" class="tab-button tab-button--active" />
+            <ui:Button name="tabWatch" text="Watch" class="tab-button" />
+        </ui:VisualElement>
+        <ui:VisualElement name="logContainer" class="tab-content" style="flex-grow: 1;">
+            <ui:TwoPaneSplitView name="mainSplit" fixedPaneIndex="1" fixedPaneInitialDimension="120" orientation="Vertical" class="main-split">
+                <ui:ListView name="logListView" show-add-remove-footer="false" show-border="true" virtualization-method="FixedHeight" class="log-list-view" />
+                <ui:ScrollView name="detailScroll" mode="Vertical" class="detail-scroll">
+                    <ui:VisualElement name="detailContent" class="detail-content">
+                        <ui:TextField name="detailLabel" multiline="true" class="detail-label detail-field" />
+                    </ui:VisualElement>
+                </ui:ScrollView>
+            </ui:TwoPaneSplitView>
+        </ui:VisualElement>
+        <ui:VisualElement name="watchContainer" class="tab-content" style="flex-grow: 1; display: none;" />
     </ui:VisualElement>
 </ui:UXML>

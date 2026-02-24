@@ -636,3 +636,47 @@
 .search-highlight {
     background-color: rgba(230, 217, 51, 0.45);
 }
+
+/* ===== Tab Bar ===== */
+.tab-bar {
+    flex-direction: row;
+    height: 22px;
+    background-color: rgb(46, 46, 46);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(30, 30, 30);
+    padding-left: 4px;
+}
+
+.tab-button {
+    height: 20px;
+    min-width: 60px;
+    padding: 0 12px;
+    margin: 1px 1px 0 0;
+    font-size: 11px;
+    color: rgb(180, 180, 180);
+    background-color: rgb(51, 51, 51);
+    border-width: 1px;
+    border-color: rgb(30, 30, 30);
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-width: 0;
+    -unity-text-align: middle-center;
+}
+
+.tab-button:hover {
+    background-color: rgb(62, 62, 62);
+    color: rgb(220, 220, 220);
+}
+
+.tab-button--active {
+    background-color: rgb(42, 42, 42);
+    color: rgb(232, 232, 232);
+    border-bottom-width: 2px;
+    border-bottom-color: rgb(77, 128, 204);
+}
+
+.tab-content {
+    flex-grow: 1;
+}

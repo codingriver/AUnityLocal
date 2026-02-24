@@ -1,0 +1,415 @@
+/* WatchPanel styles - matches EnhancedConsoleWindow.uss dark theme */
+
+.watch-panel {
+    flex-grow: 1;
+    background-color: rgb(42, 42, 42);
+}
+
+/* Toolbar */
+.watch-toolbar {
+    flex-direction: row;
+    height: 20px;
+    flex-shrink: 0;
+    background-color: rgb(51, 51, 51);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(26, 26, 26);
+    padding-left: 4px;
+    padding-right: 4px;
+    align-items: center;
+}
+
+.watch-toolbar-button {
+    height: 18px;
+    background-color: rgb(45, 45, 45);
+    border-width: 1px;
+    border-color: rgb(25, 25, 25);
+    border-radius: 2px;
+    color: rgb(200, 200, 200);
+    font-size: 11px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin-right: 2px;
+    -unity-text-align: middle-center;
+}
+
+.watch-toolbar-button:hover {
+    background-color: rgb(60, 60, 60);
+}
+
+.watch-toolbar-button:active {
+    background-color: rgb(35, 35, 35);
+}
+
+.watch-search-field {
+    flex-grow: 1;
+    height: 16px;
+    margin-left: 4px;
+    margin-right: 4px;
+    font-size: 11px;
+    background-color: rgb(35, 35, 35);
+    border-width: 1px;
+    border-color: rgb(20, 20, 20);
+    border-radius: 2px;
+    color: rgb(200, 200, 200);
+}
+
+.watch-search-field > .unity-text-field__input {
+    background-color: rgb(35, 35, 35);
+    color: rgb(200, 200, 200);
+    border-width: 0;
+    padding-left: 4px;
+}
+
+/* Header row */
+.watch-header {
+    flex-direction: row;
+    height: 20px;
+    flex-shrink: 0;
+    background-color: rgb(48, 48, 48);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(26, 26, 26);
+    align-items: center;
+}
+
+.watch-header-cell {
+    height: 20px;
+    color: rgb(180, 180, 180);
+    font-size: 11px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+    padding-left: 6px;
+    border-right-width: 1px;
+    border-right-color: rgb(35, 35, 35);
+    overflow: hidden;
+}
+
+.watch-header-name {
+    flex-grow: 1;
+    min-width: 120px;
+}
+
+.watch-header-value {
+    width: 200px;
+    min-width: 100px;
+}
+
+.watch-header-changes {
+    width: 70px;
+}
+
+.watch-header-time {
+    width: 80px;
+}
+
+/* List */
+.watch-list-view {
+    flex-grow: 1;
+    background-color: rgb(42, 42, 42);
+}
+
+/* Row */
+.watch-row {
+    flex-direction: row;
+    height: 22px;
+    align-items: center;
+    padding-left: 4px;
+    padding-right: 4px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(35, 35, 35);
+}
+
+.watch-row:hover {
+    background-color: rgb(52, 52, 52);
+}
+
+.watch-row--selected {
+    background-color: rgba(77, 128, 204, 0.35);
+}
+
+.watch-row--odd {
+    background-color: rgb(45, 45, 45);
+}
+
+.watch-row--paused {
+    opacity: 0.5;
+}
+
+/* Group header row */
+.watch-group-row {
+    flex-direction: row;
+    height: 22px;
+    align-items: center;
+    padding-left: 4px;
+    background-color: rgb(50, 50, 50);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(35, 35, 35);
+}
+
+.watch-group-foldout {
+    margin-left: 2px;
+    margin-right: 4px;
+    color: rgb(200, 200, 200);
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+
+.watch-group-foldout > .unity-toggle__input {
+    width: 12px;
+    height: 12px;
+}
+
+/* Cell styles */
+.watch-cell {
+    height: 22px;
+    color: rgb(200, 200, 200);
+    font-size: 12px;
+    -unity-text-align: middle-left;
+    padding-left: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.watch-cell-name {
+    flex-grow: 1;
+    min-width: 120px;
+}
+
+.watch-cell-value {
+    width: 200px;
+    min-width: 100px;
+}
+
+.watch-cell-changes {
+    width: 70px;
+    -unity-text-align: middle-right;
+    padding-right: 8px;
+    color: rgb(160, 160, 160);
+}
+
+.watch-cell-time {
+    width: 80px;
+    color: rgb(140, 140, 140);
+    font-size: 11px;
+}
+
+/* Value type special colors */
+.watch-value-float {
+    color: rgb(86, 200, 240);
+}
+
+.watch-value-int {
+    color: rgb(180, 210, 115);
+}
+
+.watch-value-bool-true {
+    color: rgb(86, 200, 130);
+}
+
+.watch-value-bool-false {
+    color: rgb(200, 100, 100);
+}
+
+.watch-value-string {
+    color: rgb(214, 157, 133);
+}
+
+.watch-value-vector {
+    color: rgb(200, 180, 120);
+}
+
+.watch-value-color {
+    color: rgb(200, 200, 200);
+}
+
+.watch-value-null {
+    color: rgb(120, 120, 120);
+    -unity-font-style: italic;
+}
+
+/* Color swatch */
+.watch-color-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    border-width: 1px;
+    border-color: rgb(80, 80, 80);
+    margin-right: 4px;
+}
+
+/* Boolean indicator dot */
+.watch-bool-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    margin-right: 4px;
+}
+
+.watch-bool-dot--true {
+    background-color: rgb(86, 200, 130);
+}
+
+.watch-bool-dot--false {
+    background-color: rgb(200, 100, 100);
+}
+
+/* Trend arrows */
+.watch-trend {
+    font-size: 10px;
+    margin-left: 2px;
+    width: 12px;
+    -unity-text-align: middle-center;
+}
+
+.watch-trend-up {
+    color: rgb(86, 200, 130);
+}
+
+.watch-trend-down {
+    color: rgb(200, 100, 100);
+}
+
+/* Flash animation (value changed) */
+.watch-flash {
+    background-color: rgba(255, 235, 59, 0.25);
+    transition-property: background-color;
+    transition-duration: 0.3s;
+}
+
+/* Detail / History panel (bottom) */
+.watch-detail-split {
+    flex-grow: 1;
+    min-height: 60px;
+}
+
+.watch-history-panel {
+    min-height: 80px;
+    background-color: rgb(30, 30, 30);
+    border-top-width: 1px;
+    border-top-color: rgb(26, 26, 26);
+}
+
+.watch-history-toolbar {
+    flex-direction: row;
+    height: 20px;
+    flex-shrink: 0;
+    background-color: rgb(40, 40, 40);
+    align-items: center;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.watch-history-label {
+    color: rgb(160, 160, 160);
+    font-size: 11px;
+    margin-right: 8px;
+}
+
+.watch-history-list {
+    flex-grow: 1;
+    background-color: rgb(30, 30, 30);
+}
+
+.watch-history-row {
+    flex-direction: row;
+    height: 18px;
+    align-items: center;
+    padding-left: 8px;
+    font-size: 11px;
+    color: rgb(180, 180, 180);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(25, 25, 25);
+}
+
+.watch-history-timestamp {
+    width: 100px;
+    color: rgb(140, 140, 140);
+}
+
+.watch-history-frame {
+    width: 60px;
+    color: rgb(120, 120, 120);
+}
+
+.watch-history-value {
+    flex-grow: 1;
+}
+
+/* Graph area */
+.watch-graph {
+    flex-grow: 1;
+    min-height: 60px;
+    background-color: rgb(25, 25, 25);
+}
+
+.watch-graph-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+/* Tab bar (for console window integration) */
+.tab-bar {
+    flex-direction: row;
+    height: 22px;
+    background-color: rgb(51, 51, 51);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(26, 26, 26);
+    padding-left: 4px;
+    align-items: flex-end;
+}
+
+.tab-button {
+    height: 20px;
+    min-width: 60px;
+    background-color: rgb(42, 42, 42);
+    border-width: 1px;
+    border-color: rgb(26, 26, 26);
+    border-bottom-width: 0;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    color: rgb(160, 160, 160);
+    font-size: 11px;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-right: 2px;
+    -unity-text-align: middle-center;
+}
+
+.tab-button:hover {
+    background-color: rgb(55, 55, 55);
+    color: rgb(200, 200, 200);
+}
+
+.tab-button--active {
+    background-color: rgb(62, 62, 62);
+    color: rgb(232, 232, 232);
+    border-bottom-width: 2px;
+    border-bottom-color: rgb(77, 128, 204);
+}
+
+/* Empty state */
+.watch-empty {
+    flex-grow: 1;
+    justify-content: center;
+    align-items: center;
+}
+
+.watch-empty-label {
+    color: rgb(120, 120, 120);
+    font-size: 13px;
+    -unity-text-align: middle-center;
+}
+
+.watch-empty-hint {
+    color: rgb(100, 100, 100);
+    font-size: 11px;
+    -unity-text-align: middle-center;
+    margin-top: 4px;
+}
+
+/* Context menu integration */
+.watch-row .unity-label {
+    cursor: arrow;
+}
