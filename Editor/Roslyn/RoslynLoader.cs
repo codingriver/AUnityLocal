@@ -32,13 +32,13 @@ namespace AUnityLocal.Editor.Roslyn
             // 始终返回true，表示快捷键可用
             return true;
         }
-        [MenuItem("Tools/Roslyn/执行测试  _F4", false, 1)]
-        private static void Test()
-        {
-            Debug.LogWarning("F4 ok!");
-            var marchCache = IGG.Game.Data.Cache.AppCache.WorldMap.GetMapCache<IGG.Game.Data.Cache.Player.PlayerCache.MarchCache>();
-            UnityEngine.Debug.Log(AUnityLocal.Dumper.Do(marchCache,6));
-        }
+        // [MenuItem("Tools/Roslyn/执行测试  _F4", false, 1)]
+        // private static void Test()
+        // {
+        //     Debug.LogWarning("F4 ok!");
+        //     var marchCache = IGG.Game.Data.Cache.AppCache.WorldMap.GetMapCache<IGG.Game.Data.Cache.Player.PlayerCache.MarchCache>();
+        //     UnityEngine.Debug.Log(AUnityLocal.Dumper.Do(marchCache,6));
+        // }
 
         // 验证快捷键是否可用（必须实现，否则MenuItem会报错）
         [MenuItem("Tools/Roslyn/执行测试  _F4", true)]
