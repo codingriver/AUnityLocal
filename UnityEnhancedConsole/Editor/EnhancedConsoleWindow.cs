@@ -223,13 +223,6 @@ namespace UnityEnhancedConsole
         private Vector2 _detailMouseDownPos;
         private bool _detailMouseDownTracking;
 
-        // Watch tab
-        private WatchPanel _watchPanel;
-        private bool _watchTabActive;
-        private VisualElement _logContainer;
-        private VisualElement _watchContainer;
-        private Button _tabLogBtn;
-        private Button _tabWatchBtn;
 
         #endregion
 
@@ -337,8 +330,6 @@ namespace UnityEnhancedConsole
                 if (detailPane != null)
                     _detailHeight = Mathf.Max(MinDetailHeight, detailPane.resolvedStyle.height);
             }
-            _watchPanel?.Dispose();
-            _watchPanel = null;
             SavePrefs();
         }
 
@@ -1675,6 +1666,21 @@ namespace UnityEnhancedConsole
             var innerRoot = root.Q<VisualElement>("root");
             if (innerRoot == null) return;
 
+            _mainSplit = innerRoot.Q<TwoPaneSplitView>("mainSplit");
+            if (_mainSplit != null)
+            {
+                bool restored = false;
+                _mainSplit.RegisterCallback<GeometryChangedEvent>(evt =>
+                {
+                    if (restored) return;
+                    if (_mainSplit.resolvedStyle.width > 0 && _mainSplit.resolvedStyle.height > 0)
+                    {
+                        _mainSplit.fixedPaneInitialDimension = _detailHeight;
+                        restored = true;
+                    }
+                });
+            }
+
             _logListView = innerRoot.Q<ListView>("logListView");
             _detailField = innerRoot.Q<TextField>("detailLabel");
             if (_detailField != null)             {                 _detailField.isReadOnly = true;                 _detailField.multiline = true;                 _detailField.focusable = true;                 var detailInput = _detailField.Q<VisualElement>(className: "unity-text-input");                 if (detailInput != null)                 {                     detailInput.RegisterCallback<MouseUpEvent>(evt =>                     {                         if (evt.button != 0 || evt.clickCount != 2) return;                         _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(2);                     }, TrickleDown.TrickleDown);                 }                 else                 {                     _detailField.RegisterCallback<MouseUpEvent>(evt =>                     {                         if (evt.button != 0 || evt.clickCount != 2) return;                         _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(2);                     }, TrickleDown.TrickleDown);                 }             }
@@ -1723,7 +1729,6 @@ namespace UnityEnhancedConsole
             BindSearchBar(innerRoot);
             BindTagBar(innerRoot);
             BindListView();
-            BindWatchTab(innerRoot);
             SyncTogglesFromState(innerRoot);
             SyncSearchField();
             rootVisualElement.RegisterCallback<MouseDownEvent>(evt =>
@@ -1748,48 +1753,6 @@ namespace UnityEnhancedConsole
             });
 
             RefreshUI();
-        }
-
-        /// <summary>
-        /// 绑定日志/监视 Tab 切换逻辑，初始化 WatchPanel
-        /// </summary>
-        private void BindWatchTab(VisualElement root)
-        {
-            _logContainer = root.Q<VisualElement>("logContainer");
-            _watchContainer = root.Q<VisualElement>("watchContainer");
-            var tabLog = root.Q<Button>("tabLog");
-            var tabWatch = root.Q<Button>("tabWatch");
-
-            if (tabLog == null || tabWatch == null || _logContainer == null || _watchContainer == null)
-                return;
-
-            _watchPanel = new WatchPanel();
-            _watchPanel.OnRequestRepaint = () => RepaintThrottled();
-            var watchRoot = _watchPanel.Build();
-            _watchContainer.Add(watchRoot);
-
-            tabLog.clicked += () => SwitchTab(false, tabLog, tabWatch);
-            tabWatch.clicked += () => SwitchTab(true, tabLog, tabWatch);
-
-            // Restore saved state
-            if (_watchTabActive)
-                SwitchTab(true, tabLog, tabWatch);
-            else
-                SwitchTab(false, tabLog, tabWatch);
-        }
-
-        private void SwitchTab(bool showWatch, Button tabLog, Button tabWatch)
-        {
-            _watchTabActive = showWatch;
-
-            _logContainer.style.display = showWatch ? DisplayStyle.None : DisplayStyle.Flex;
-            _watchContainer.style.display = showWatch ? DisplayStyle.Flex : DisplayStyle.None;
-
-            tabLog.EnableInClassList("toolbar-tab--active", !showWatch);
-            tabWatch.EnableInClassList("toolbar-tab--active", showWatch);
-
-            if (showWatch)
-                _watchPanel?.RefreshUI();
         }
 
         /// <summary>
@@ -2509,7 +2472,6 @@ namespace UnityEnhancedConsole
             _search = other._search;
             _searchApplied = other._searchApplied;
             _viewLocked = other._viewLocked;
-            _watchTabActive = other._watchTabActive;
 
             _selectedTags.Clear();
             foreach (var t in other._selectedTags) _selectedTags.Add(t);

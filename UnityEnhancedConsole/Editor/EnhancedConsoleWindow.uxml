@@ -14,7 +14,6 @@
                 <ui:Toggle name="toggleRegex" label=".*" tooltip="Regex" class="toolbar-toggle regex" />
             </ui:VisualElement>
             <ui:Button name="tabLog" text="Log" class="toolbar-tab toolbar-tab--active" />
-            <ui:Button name="tabWatch" text="Watch" class="toolbar-tab" />
             <ui:Toggle name="toggleLog" label="0" tooltip="Logs" class="toolbar-toggle count" />
             <ui:Toggle name="toggleWarning" label="0" tooltip="Warnings" class="toolbar-toggle count" />
             <ui:Toggle name="toggleError" label="0" tooltip="Errors" class="toolbar-toggle count" />
@@ -31,12 +30,11 @@
                     <ui:Button name="btnTagSortMenu" text="Name ▲" class="toolbar-button tag-sort-menu tag-top-group-btn" />
                 </ui:VisualElement>
                 <ui:VisualElement name="tagClearSplit" class="tag-top-group tag-clear-split">
-                    <ui:Button name="btnTagClear" text="Clear+" class="toolbar-button tag-clear-btn tag-clear-main" />
-                    <ui:Button name="btnTagClearMenu" text="▼" class="toolbar-button tag-clear-btn tag-clear-menu" />
+                    <ui:Button name="btnTagClearMenu" text="清除▼" class="toolbar-button tag-clear-btn tag-clear-main" />
                 </ui:VisualElement>
                 <ui:VisualElement name="tagSettingsGroupMain" class="tag-top-group tag-settings-group">
                     <ui:Toggle name="toggleTagsEnabled" label="Tags" class="toolbar-toggle tag-settings-toggle" />
-                    <ui:Button name="btnTagRules" text="Rules" class="toolbar-button tag-settings-btn" />
+                    <ui:Button name="btnTagRules" text="标签设置" class="toolbar-button tag-settings-btn" />
                 </ui:VisualElement>
                 <ui:VisualElement name="tagSettingsGroupAuto" class="tag-top-group tag-settings-group" style="display: none;">
                 </ui:VisualElement>
@@ -58,6 +56,6 @@
                 </ui:ScrollView>
             </ui:TwoPaneSplitView>
         </ui:VisualElement>
-        <ui:VisualElement name="watchContainer" class="tab-content" style="flex-grow: 1; display: none;" />
+
     </ui:VisualElement>
 </ui:UXML>

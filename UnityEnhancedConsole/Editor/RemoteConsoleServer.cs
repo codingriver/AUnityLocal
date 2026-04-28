@@ -11,8 +11,8 @@ using UnityEngine;
 namespace UnityEnhancedConsole
 {
     /// <summary>
-    /// Editor-side TCP server that receives remote log and watch messages from builds.
-    /// Integrates with EnhancedConsoleWindow and WatchManager.
+    /// Editor-side TCP server that receives remote log messages from builds.
+    /// Integrates with EnhancedConsoleWindow.
     /// </summary>
     [InitializeOnLoad]
     public static class RemoteConsoleServer
@@ -121,7 +121,7 @@ namespace UnityEnhancedConsole
             return EditorPrefs.GetBool(PrefAutoStart, false);
         }
 
-        /// <summary>Send a command to all connected clients (e.g., watchClear).</summary>
+        /// <summary>Send a command to all connected clients.</summary>
         public static void SendToAll(string message)
         {
             byte[] data = RemoteConsoleProtocol.EncodeMessage(message);
@@ -257,12 +257,6 @@ namespace UnityEnhancedConsole
                         case RemoteMessageType.Log:
                             ProcessLogMessage(msg.Json);
                             break;
-                        case RemoteMessageType.Watch:
-                            ProcessWatchMessage(msg.Json);
-                            break;
-                        case RemoteMessageType.WatchRemove:
-                            ProcessWatchRemoveMessage(msg.Json);
-                            break;
                         case RemoteMessageType.Handshake:
                             ProcessHandshake(msg.Json, msg.ClientId);
                             break;
@@ -315,51 +309,6 @@ namespace UnityEnhancedConsole
             }
         }
 
-        private static void ProcessWatchMessage(string json)
-        {
-            string name = RemoteConsoleProtocol.GetStringField(json, "n");
-            if (string.IsNullOrEmpty(name)) return;
-
-            string formattedValue = RemoteConsoleProtocol.GetStringField(json, "fv") ?? "";
-            string rawValue = RemoteConsoleProtocol.GetStringField(json, "v") ?? formattedValue;
-            int valueType = RemoteConsoleProtocol.GetIntField(json, "vt");
-            string stackTrace = RemoteConsoleProtocol.GetStringField(json, "st");
-
-            // Prefix with [Remote] for identification
-            string remoteName = $"[Remote] {name}";
-
-            // Determine value to set
-            object value = rawValue;
-            bool captureStack = !string.IsNullOrEmpty(stackTrace);
-
-            // Try to parse numeric values for proper type handling
-            switch ((WatchValueType)valueType)
-            {
-                case WatchValueType.Float:
-                    if (double.TryParse(rawValue, System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out double dv))
-                        value = (float)dv;
-                    break;
-                case WatchValueType.Integer:
-                    if (int.TryParse(rawValue, out int iv))
-                        value = iv;
-                    break;
-                case WatchValueType.Boolean:
-                    if (bool.TryParse(rawValue, out bool bv))
-                        value = bv;
-                    break;
-            }
-
-            WatchManager.SetValue(remoteName, value, (WatchValueType)valueType, null, captureStack);
-        }
-
-        private static void ProcessWatchRemoveMessage(string json)
-        {
-            string name = RemoteConsoleProtocol.GetStringField(json, "n");
-            if (!string.IsNullOrEmpty(name))
-                WatchManager.RemoveEntry($"[Remote] {name}");
-        }
-
         private static void ProcessHandshake(string json, string clientId)
         {
             string app = RemoteConsoleProtocol.GetStringField(json, "app") ?? "Unknown";
@@ -374,8 +323,6 @@ namespace UnityEnhancedConsole
             switch (t)
             {
                 case "log": return RemoteMessageType.Log;
-                case "watch": return RemoteMessageType.Watch;
-                case "watchRemove": return RemoteMessageType.WatchRemove;
                 case "handshake": return RemoteMessageType.Handshake;
                 case "ping": return RemoteMessageType.Ping;
                 default: return RemoteMessageType.Unknown;
@@ -386,7 +333,7 @@ namespace UnityEnhancedConsole
 
         private enum RemoteMessageType
         {
-            Unknown, Log, Watch, WatchRemove, Handshake, Ping,
+            Unknown, Log, Handshake, Ping,
             ClientConnected, ClientDisconnected
         }
 

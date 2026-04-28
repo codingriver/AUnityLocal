@@ -8,35 +8,21 @@ namespace UnityEnhancedConsole
     {
         private void BindTagBar(VisualElement root)
         {
-            var btnTagClear = root.Q<Button>("btnTagClear");
-            if (btnTagClear != null)
-            {
-                btnTagClear.text = "Clear+";
-                btnTagClear.tooltip = "清空包含标签（默认：Clear+）";
-                btnTagClear.clicked += () =>
-                {
-                    _selectedTags.Clear();
-                    _filterDirty = true; _tagCountsDirty = true;
-                    SavePrefs();
-                    RefreshUI();
-                };
-            }
-
             var btnTagClearMenu = root.Q<Button>("btnTagClearMenu");
             if (btnTagClearMenu != null)
             {
-                btnTagClearMenu.tooltip = "选择清空方式";
+                btnTagClearMenu.tooltip = "清除标签过滤";
                 btnTagClearMenu.clicked += () =>
                 {
                     var menu = new UnityEditor.GenericMenu();
-                    menu.AddItem(new GUIContent("Clear+", "清空包含标签"), false, () =>
+                    menu.AddItem(new GUIContent("清除包含标签 (Clear+)"), false, () =>
                     {
                         _selectedTags.Clear();
                         _filterDirty = true; _tagCountsDirty = true;
                         SavePrefs();
                         RefreshUI();
                     });
-                    menu.AddItem(new GUIContent("Clear-", "清空排除标签"), false, () =>
+                    menu.AddItem(new GUIContent("清除排除标签 (Clear-)"), false, () =>
                     {
                         _excludedTags.Clear();
                         _filterDirty = true; _tagCountsDirty = true;
@@ -44,7 +30,7 @@ namespace UnityEnhancedConsole
                         RefreshUI();
                     });
                     menu.AddSeparator("");
-                    menu.AddItem(new GUIContent("Clear All", "清空包含与排除标签"), false, () =>
+                    menu.AddItem(new GUIContent("全部清除 (Clear All)"), false, () =>
                     {
                         _selectedTags.Clear();
                         _excludedTags.Clear();
