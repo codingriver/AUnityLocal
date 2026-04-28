@@ -185,62 +185,78 @@ namespace UnityEnhancedConsole
 
         // ─── Value Setting (called from Watch.cs) ───────────
 
-        public static void SetValue(string name, object value, WatchValueType typeHint, string format)
+        public static void SetValue(string name, object value, WatchValueType typeHint, string format, bool captureStack = false)
         {
             if (string.IsNullOrEmpty(name)) return;
+            string stackTrace = null;
+            if (captureStack) stackTrace = new System.Diagnostics.StackTrace(2, true).ToString();
             lock (_lock)
             {
                 var entry = GetOrCreateEntry(name, format);
                 if (entry.IsPaused) return;
+                if (entry.CaptureStackTrace && stackTrace == null)
+                    stackTrace = new System.Diagnostics.StackTrace(2, true).ToString();
                 entry.ValueType = typeHint != WatchValueType.Object ? typeHint : DetectValueType(value);
-                UpdateEntryValue(entry, value);
+                UpdateEntryValue(entry, value, stackTrace);
             }
             OnChanged?.Invoke();
         }
 
-        public static void SetFloat(string name, float value, string format)
+        public static void SetFloat(string name, float value, string format, bool captureStack = false)
         {
             if (string.IsNullOrEmpty(name)) return;
+            string stackTrace = null;
+            if (captureStack) stackTrace = new System.Diagnostics.StackTrace(2, true).ToString();
             lock (_lock)
             {
                 var entry = GetOrCreateEntry(name, format);
                 if (entry.IsPaused) return;
+                if (entry.CaptureStackTrace && stackTrace == null)
+                    stackTrace = new System.Diagnostics.StackTrace(2, true).ToString();
                 entry.ValueType = WatchValueType.Float;
                 string formatted = format != null ? value.ToString(format) : value.ToString();
                 entry.CurrentValue = value;
-                entry.RecordHistory(formatted, value, true);
+                entry.RecordHistory(formatted, value, true, stackTrace);
                 entry.FormattedValue = formatted;
             }
             OnChanged?.Invoke();
         }
 
-        public static void SetInt(string name, int value, string format)
+        public static void SetInt(string name, int value, string format, bool captureStack = false)
         {
             if (string.IsNullOrEmpty(name)) return;
+            string stackTrace = null;
+            if (captureStack) stackTrace = new System.Diagnostics.StackTrace(2, true).ToString();
             lock (_lock)
             {
                 var entry = GetOrCreateEntry(name, format);
                 if (entry.IsPaused) return;
+                if (entry.CaptureStackTrace && stackTrace == null)
+                    stackTrace = new System.Diagnostics.StackTrace(2, true).ToString();
                 entry.ValueType = WatchValueType.Integer;
                 string formatted = format != null ? value.ToString(format) : value.ToString();
                 entry.CurrentValue = value;
-                entry.RecordHistory(formatted, value, true);
+                entry.RecordHistory(formatted, value, true, stackTrace);
                 entry.FormattedValue = formatted;
             }
             OnChanged?.Invoke();
         }
 
-        public static void SetBool(string name, bool value)
+        public static void SetBool(string name, bool value, bool captureStack = false)
         {
             if (string.IsNullOrEmpty(name)) return;
+            string stackTrace = null;
+            if (captureStack) stackTrace = new System.Diagnostics.StackTrace(2, true).ToString();
             lock (_lock)
             {
                 var entry = GetOrCreateEntry(name, null);
                 if (entry.IsPaused) return;
+                if (entry.CaptureStackTrace && stackTrace == null)
+                    stackTrace = new System.Diagnostics.StackTrace(2, true).ToString();
                 entry.ValueType = WatchValueType.Boolean;
                 string formatted = value.ToString();
                 entry.CurrentValue = value;
-                entry.RecordHistory(formatted, value ? 1.0 : 0.0, true);
+                entry.RecordHistory(formatted, value ? 1.0 : 0.0, true, stackTrace);
                 entry.FormattedValue = formatted;
             }
             OnChanged?.Invoke();
@@ -333,6 +349,16 @@ namespace UnityEnhancedConsole
             if (changed) OnChanged?.Invoke();
         }
 
+        /// <summary>启用/禁用某个变量的堆栈捕获（性能开销大，按需开启）</summary>
+        public static void SetCaptureStackTrace(string name, bool capture)
+        {
+            lock (_lock)
+            {
+                if (_entries.TryGetValue(name, out var entry))
+                    entry.CaptureStackTrace = capture;
+            }
+        }
+
         // ─── Helpers ─────────────────────────────────────────
 
         private static WatchEntry GetOrCreateEntry(string name, string format)
@@ -368,12 +394,12 @@ namespace UnityEnhancedConsole
             return entry;
         }
 
-        private static void UpdateEntryValue(WatchEntry entry, object value)
+        private static void UpdateEntryValue(WatchEntry entry, object value, string stackTrace = null)
         {
             entry.CurrentValue = value;
             string formatted = FormatValue(value, entry.Format, entry.ValueType);
             bool hasNumeric = TryGetNumeric(value, out double numericValue);
-            entry.RecordHistory(formatted, numericValue, hasNumeric);
+            entry.RecordHistory(formatted, numericValue, hasNumeric, stackTrace);
             entry.FormattedValue = formatted;
         }
 
@@ -632,8 +658,7 @@ namespace UnityEnhancedConsole
                     SetValue(name, value, WatchValueType.String, null);
                 }
 
-                if (count > 0)
-                    Debug.Log($"[WatchManager] Loaded {count} entries from {PersistFileName}");
+                // loaded {count} entries from persist file
             }
             catch (Exception ex)
             {

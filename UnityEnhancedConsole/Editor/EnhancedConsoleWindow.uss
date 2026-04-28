@@ -9,11 +9,11 @@
 /* ========== 工具栏（与 Unity Console 第一行一致）========== */
 .toolbar {
     flex-direction: row;
-    height: 20px;
-    min-height: 20px;
+    height: 22px;
+    min-height: 22px;
     background-color: rgb(51, 51, 51);
-    padding-left: 6px;
-    padding-right: 6px;
+    padding-left: 4px;
+    padding-right: 4px;
     padding-top: 0;
     padding-bottom: 0;
     align-items: center;
@@ -164,6 +164,69 @@
     min-width: 22px;
 }
 
+/* ========== 工具栏内嵌搜索组 ========== */
+.toolbar-search-group {
+    flex-direction: row;
+    flex-grow: 1;
+    flex-shrink: 1;
+    align-items: center;
+    min-width: 80px;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.toolbar-search-field {
+    flex-grow: 1;
+    height: 16px;
+    min-height: 16px;
+    margin-left: 0;
+    margin-right: 0;
+    font-size: 12px;
+    background-color: rgb(42, 42, 42);
+    border-width: 1px;
+    border-color: rgb(63, 63, 63);
+    border-radius: 2px;
+    color: rgb(232, 232, 232);
+}
+
+.toolbar-btn-small {
+    min-width: 18px;
+    max-width: 18px;
+    padding-left: 2px;
+    padding-right: 2px;
+    margin-left: 1px;
+    margin-right: 1px;
+}
+
+/* ========== 工具栏 Tab 按钮（Log / Watch）========== */
+.toolbar-tab {
+    height: 18px;
+    min-height: 18px;
+    min-width: 36px;
+    padding-left: 8px;
+    padding-right: 8px;
+    margin-left: 1px;
+    margin-right: 1px;
+    font-size: 11px;
+    color: rgb(180, 180, 180);
+    background-color: transparent;
+    border-width: 1px;
+    border-radius: 2px;
+    border-color: rgba(0, 0, 0, 0.4);
+    -unity-text-align: middle-center;
+}
+
+.toolbar-tab:hover {
+    background-color: rgb(62, 62, 62);
+    color: rgb(220, 220, 220);
+}
+
+.toolbar-tab--active {
+    background-color: rgba(77, 128, 204, 0.35);
+    color: rgb(232, 232, 232);
+    border-color: rgba(0, 0, 0, 1);
+}
+
 /* ========== 搜索栏（与 Unity Console 搜索行一致）========== */
 .search-bar {
     flex-direction: row;
@@ -216,6 +279,7 @@
     border-bottom-width: 1px;
     border-bottom-color: rgb(63, 63, 63);
     align-items: stretch;
+    display: none;
 }
 
 .tag-bar-top {
@@ -507,7 +571,7 @@
 /* 列表行模板（由 C# makeItem 创建）*/
 .log-row {
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center;
     min-height: 20px;
     min-width: 0;
     overflow: hidden;
@@ -524,8 +588,9 @@
     flex-grow: 1;
     min-width: 0;
     flex-direction: row;
-    flex-wrap: wrap;
-    align-items: flex-start;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow: hidden;
 }
 
 .log-row-message {

@@ -50,9 +50,15 @@ namespace UnityEnhancedConsole
         public bool HasAnyTag(IEnumerable<string> selectedTags)
         {
             if (Tags == null || Tags.Count == 0 || selectedTags == null) return false;
-            var tagSet = new HashSet<string>(Tags, StringComparer.OrdinalIgnoreCase);
             foreach (var t in selectedTags)
-                if (!string.IsNullOrEmpty(t) && tagSet.Contains(t)) return true;
+            {
+                if (string.IsNullOrEmpty(t)) continue;
+                for (int i = 0; i < Tags.Count; i++)
+                {
+                    if (string.Equals(t, Tags[i], StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
             return false;
         }
     }
@@ -81,4 +87,22 @@ namespace UnityEnhancedConsole
 
     public enum TagMatchType { Contains = 0, Regex = 1, Prefix = 2, Suffix = 3 }
     public enum TagMatchTarget { ConditionOnly = 0, StackTraceOnly = 1, Both = 2 }
+
+    /// <summary>
+    /// 自动识别标签的过滤策略设置
+    /// </summary>
+    [Serializable]
+    public class TagFilterSettings
+    {
+        /// <summary> 忽略纯数字标签 </summary>
+        public bool ignorePureNumber = true;
+        /// <summary> 忽略时间格式标签（如 11:00:46.485） </summary>
+        public bool ignoreTimeFormat = true;
+        /// <summary> 最小有效标签长度，低于此值忽略 </summary>
+        public int minTagLength = 1;
+        /// <summary> 最大有效标签长度，高于此值忽略（0=不限制） </summary>
+        public int maxTagLength = 0;
+        /// <summary> 自定义忽略正则表达式列表 </summary>
+        public List<string> ignorePatterns = new List<string>();
+    }
 }

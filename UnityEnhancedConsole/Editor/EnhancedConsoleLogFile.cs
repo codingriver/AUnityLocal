@@ -239,8 +239,9 @@ namespace UnityEnhancedConsole
 
         /// <summary>
         /// 从日志文件流式加载条目。若文件不存在或为空则返回空列表。
+        /// 对大文件自动使用尾部读取优化，避免读取整个文件。
         /// </summary>
-        /// <param name="maxEntries">最多加载条数，超过时只保留最近 N 条（滑动窗口）；0 表示不限制（大文件可能 OOM）。</param>
+        /// <param name="maxEntries">最多加载条数，超过时只保留最近 N 条；0 表示不限制（大文件可能 OOM）。</param>
         public static List<LogEntry> LoadEntries(int maxEntries = 50000)
         {
             FlushBuffer();
@@ -248,8 +249,22 @@ namespace UnityEnhancedConsole
             if (!File.Exists(path)) return new List<LogEntry>();
             try
             {
+                var fileInfo = new FileInfo(path);
+                if (fileInfo.Length == 0) return new List<LogEntry>();
+
                 if (maxEntries > 0)
                 {
+                    // 大文件优化：估算尾部起始位置，跳过前面不需要的内容
+                    const int EstAvgLineBytes = 350;
+                    long estimatedBytes = (long)maxEntries * EstAvgLineBytes;
+                    if (fileInfo.Length > estimatedBytes * 2)
+                    {
+                        var tailResult = TailReadEntries(path, fileInfo.Length, maxEntries, EstAvgLineBytes);
+                        if (tailResult != null && tailResult.Count > 0)
+                            return tailResult;
+                    }
+
+                    // 标准全量读取（小文件或尾读失败时的回退）
                     var queue = new Queue<LogEntry>(Math.Min(maxEntries, 1024));
                     using (var sr = new StreamReader(path, Encoding.UTF8))
                     {
@@ -284,6 +299,48 @@ namespace UnityEnhancedConsole
                 Debug.LogWarning("EnhancedConsole: Failed to load log file: " + e.Message);
             }
             return new List<LogEntry>();
+        }
+
+        /// <summary>
+        /// 从文件尾部估算位置开始读取，避免读取整个大文件。
+        /// 使用 FileStream.Seek 跳过前面的内容，仅解析尾部所需行数。
+        /// </summary>
+        private static List<LogEntry> TailReadEntries(string path, long fileLength, int maxEntries, int avgLineBytes)
+        {
+            // 多读 20% 余量，确保有足够条目
+            long startPos = Math.Max(0, fileLength - (long)maxEntries * avgLineBytes * 12 / 10);
+            try
+            {
+                var entries = new List<LogEntry>(maxEntries);
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    fs.Seek(startPos, SeekOrigin.Begin);
+                    using (var sr = new StreamReader(fs, Encoding.UTF8, true, 8192, true))
+                    {
+                        if (startPos > 0)
+                            sr.ReadLine(); // 跳过被截断的第一行
+
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (TryDeserializeEntry(line, out LogEntry entry))
+                                entries.Add(entry);
+                        }
+                    }
+                }
+
+                // 只保留最后 maxEntries 条
+                if (entries.Count > maxEntries)
+                {
+                    int skip = entries.Count - maxEntries;
+                    entries.RemoveRange(0, skip);
+                }
+                return entries;
+            }
+            catch
+            {
+                return null; // 出错时回退到全量读取
+            }
         }
 
         /// <summary>

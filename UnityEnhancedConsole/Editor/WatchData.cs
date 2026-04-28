@@ -29,6 +29,8 @@ namespace UnityEnhancedConsole
         public string FormattedValue;
         public double NumericValue;
         public bool HasNumericValue;
+        /// <summary>调用时的堆栈信息（仅在启用堆栈捕获时记录）</summary>
+        public string StackTrace;
     }
 
     /// <summary>
@@ -55,6 +57,10 @@ namespace UnityEnhancedConsole
         public int HistoryHead;
         public int HistoryCount;
 
+        // Stack trace
+        /// <summary>是否为该条目启用堆栈捕获（默认关闭，性能开销大）</summary>
+        public bool CaptureStackTrace;
+
         // Change tracking
         public string PreviousFormattedValue;
         public double LastChangeTime;
@@ -77,7 +83,7 @@ namespace UnityEnhancedConsole
         /// <summary>
         /// 记录历史（每次调用都记录，用于图表连续采样；值变化时额外更新 ChangeCount）
         /// </summary>
-        public void RecordHistory(string newFormattedValue, double numericValue, bool hasNumeric)
+        public void RecordHistory(string newFormattedValue, double numericValue, bool hasNumeric, string stackTrace = null)
         {
             if (History == null || History.Length == 0)
                 return;
@@ -91,7 +97,8 @@ namespace UnityEnhancedConsole
                 FrameCount = WatchManager.IsMainThread ? Time.frameCount : 0,
                 FormattedValue = newFormattedValue,
                 NumericValue = numericValue,
-                HasNumericValue = hasNumeric
+                HasNumericValue = hasNumeric,
+                StackTrace = stackTrace
             };
             HistoryHead = (HistoryHead + 1) % History.Length;
             if (HistoryCount < History.Length)

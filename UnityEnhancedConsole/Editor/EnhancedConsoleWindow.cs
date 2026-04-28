@@ -84,6 +84,7 @@ namespace UnityEnhancedConsole
         /// <summary> ????????????????Clear ???????????????????</summary>
         private static bool _hasCompilationErrors;
         private static bool _currentCycleHasErrors;
+        private static readonly int MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
 
         // ?????? (at path:line) ??in path:line
         private static readonly Regex StackLineRegex = new Regex(@"\s*\(at\s+(.+):(\d+)\)|\s+in\s+(.+):(\d+)", RegexOptions.Compiled);
@@ -205,6 +206,8 @@ namespace UnityEnhancedConsole
         private double _lastRepaintTime;
         private bool _repaintScheduled;
         private bool _viewLocked;
+        private readonly List<LogEntry> _flushBuffer = new List<LogEntry>();
+        private Button _remoteButton;
 
         /* UI Toolkit ?? */
         private ListView _logListView;
@@ -283,6 +286,11 @@ namespace UnityEnhancedConsole
             ApplyStackTraceSettings();
             EditorApplication.update += ApplySearchDebounced;
             EditorApplication.update += FlushPendingEntries;
+
+            // Auto-start remote server if configured
+            RemoteConsoleServer.OnClientCountChanged += OnRemoteClientCountChanged;
+            if (RemoteConsoleServer.GetAutoStart() && !RemoteConsoleServer.IsRunning)
+                RemoteConsoleServer.Start();
         }
 
         /// <summary>
@@ -322,6 +330,7 @@ namespace UnityEnhancedConsole
             EditorApplication.update -= FlushPendingEntries;
             Application.logMessageReceivedThreaded -= HandleLogThreaded;
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            RemoteConsoleServer.OnClientCountChanged -= OnRemoteClientCountChanged;
             if (_mainSplit != null)
             {
                 var detailPane = _mainSplit.Q<VisualElement>("detailScroll");
@@ -353,10 +362,27 @@ namespace UnityEnhancedConsole
                 TimeStamp = timeStamp,
                 FirstTimeStamp = timeStamp,
                 LastTimeStamp = timeStamp,
-                FrameCount = Application.isPlaying ? Time.frameCount : 0,
+                FrameCount = GetFrameCountSafe(),
                 Tags = new List<string>()
             };
             return entry;
+        }
+
+        /// <summary>
+        /// 线程安全地获取 FrameCount：仅在主线程且播放模式下调用 Unity API
+        /// </summary>
+        private static int GetFrameCountSafe()
+        {
+            if (System.Threading.Thread.CurrentThread.ManagedThreadId != MainThreadId)
+                return 0;
+            try
+            {
+                return Application.isPlaying ? Time.frameCount : 0;
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         private void AddEntry(string condition, string stackTrace, LogType type)
@@ -401,15 +427,14 @@ namespace UnityEnhancedConsole
 
         private void FlushPendingEntries()
         {
-            List<LogEntry> toAdd;
             lock (PendingLock)
             {
                 if (PendingEntries.Count == 0) return;
-                toAdd = new List<LogEntry>(PendingEntries);
+                _flushBuffer.AddRange(PendingEntries);
                 PendingEntries.Clear();
             }
 
-            foreach (var e in toAdd)
+            foreach (var e in _flushBuffer)
             {
                 if (_collapse && _entries.Count > 0)
                 {
@@ -441,6 +466,7 @@ namespace UnityEnhancedConsole
                         EditorApplication.isPaused = true;
                 }
             }
+            _flushBuffer.Clear();
             TrimEntriesToMax();
             if (!_viewLocked)
                 RefreshUI();
@@ -893,9 +919,12 @@ namespace UnityEnhancedConsole
         /// ????Unity ??????????'\n' ????????
         /// </summary>
 
+        private static readonly Regex RichTextTagRegex = new Regex(@"</?[a-zA-Z][^>]*>", RegexOptions.Compiled);
+
         private static string StripRichTextTags(string text)
         {
-            return text;
+            if (string.IsNullOrEmpty(text)) return text;
+            return RichTextTagRegex.Replace(text, "");
         }
 
         private void OpenStackLinkFromSelectionOrCaret()
@@ -1111,12 +1140,10 @@ namespace UnityEnhancedConsole
             var ve = target;
             while (ve != null && ve != _logListView)
             {
-                if (ve.ClassListContains("unity-list-view__item")) break;
+                if (ve.name == "log-row" && ve.userData is int idx) return idx;
                 ve = ve.parent as VisualElement;
             }
-            if (ve == null || ve == _logListView) return -1;
-            // return _logListView.GetIndexForElement(ve);
-            return 0;
+            return -1;
         }
 
         private bool IsClickInsideDetailPane(VisualElement target)
@@ -1689,7 +1716,7 @@ namespace UnityEnhancedConsole
                 }
             }
                 BindDetailDoubleClick();
-            Debug.Log("EnhancedConsole: detail double-click detected");
+            // detail double-click binding complete
 
             BindToolbar(innerRoot);
             SetupToolbarCountToggleIcons(innerRoot);
@@ -1758,8 +1785,8 @@ namespace UnityEnhancedConsole
             _logContainer.style.display = showWatch ? DisplayStyle.None : DisplayStyle.Flex;
             _watchContainer.style.display = showWatch ? DisplayStyle.Flex : DisplayStyle.None;
 
-            tabLog.EnableInClassList("tab-button--active", !showWatch);
-            tabWatch.EnableInClassList("tab-button--active", showWatch);
+            tabLog.EnableInClassList("toolbar-tab--active", !showWatch);
+            tabWatch.EnableInClassList("toolbar-tab--active", showWatch);
 
             if (showWatch)
                 _watchPanel?.RefreshUI();
@@ -1841,12 +1868,44 @@ namespace UnityEnhancedConsole
             var toggleError = root.Q<Toggle>("toggleError");
             if (toggleError != null) { toggleError.value = _showError; toggleError.RegisterValueChangedCallback(ev => { _showError = ev.newValue; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); }); }
 
+            var btnTagToggle = root.Q<Button>("btnTagToggle");
+            if (btnTagToggle != null)
+            {
+                btnTagToggle.clicked += () =>
+                {
+                    _tagsEnabled = !_tagsEnabled;
+                    _filterDirty = true; _tagCountsDirty = true;
+                    SavePrefs();
+                    RefreshUI();
+                };
+            }
+
             var btnMenu = root.Q<Button>("btnMenu");
             if (btnMenu != null) btnMenu.clicked += ShowContextMenu;
+
+            // Remote connection button
+            var toolbar = root.Q("toolbar");
+            if (toolbar != null)
+            {
+                _remoteButton = new Button(ShowRemoteMenu);
+                _remoteButton.text = "Remote: Off";
+                _remoteButton.style.marginLeft = 4;
+                _remoteButton.style.paddingLeft = 6;
+                _remoteButton.style.paddingRight = 6;
+                _remoteButton.style.height = 18;
+                _remoteButton.style.fontSize = 11;
+                // Insert before btnMenu (last child)
+                if (btnMenu != null)
+                    toolbar.Insert(toolbar.IndexOf(btnMenu), _remoteButton);
+                else
+                    toolbar.Add(_remoteButton);
+                UpdateRemoteButton();
+            }
         }
 
         private void BindSearchBar(VisualElement root)
         {
+            _searchField = root.Q<TextField>("searchField");
             if (_searchField != null)
             {
                 _searchField.value = _search;
@@ -1870,12 +1929,6 @@ namespace UnityEnhancedConsole
                 };
             }
 
-            var btnSearchHistory = root.Q<Button>("btnSearchHistory");
-            if (btnSearchHistory != null) btnSearchHistory.clicked += ShowSearchHistoryMenu;
-
-            var btnSearchFilter = root.Q<Button>("btnSearchFilter");
-            if (btnSearchFilter != null) btnSearchFilter.clicked += ShowSearchFilterMenu;
-
             var toggleRegex = root.Q<Toggle>("toggleRegex");
             if (toggleRegex != null)
             {
@@ -1883,10 +1936,7 @@ namespace UnityEnhancedConsole
                 toggleRegex.RegisterValueChangedCallback(ev => { _searchRegex = ev.newValue; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
             }
 
-            var btnCopyResult = root.Q<Button>("btnCopyResult");
-            if (btnCopyResult != null) btnCopyResult.clicked += CopyMatchedResultsToClipboard;
-            var btnCopyRegexMatch = root.Q<Button>("btnCopyRegexMatch");
-            if (btnCopyRegexMatch != null) btnCopyRegexMatch.clicked += CopyRegexMatchPartsToClipboard;
+            // Copy Results & Copy Matches are now accessible via ☰ Menu (ShowContextMenu)
         }
 
 
@@ -1923,6 +1973,7 @@ namespace UnityEnhancedConsole
             _logListView.selectionType = SelectionType.Multiple;
             _logListView.bindItem = (e, i) =>
             {
+                e.userData = i;
                 var filtered = GetFilteredRows();
                 if (i < 0 || i >= filtered.Count) return;
                 var row = filtered[i];
@@ -1944,7 +1995,6 @@ namespace UnityEnhancedConsole
                     string display = entry.Condition ?? "";
                     if (prefixParts.Count > 0)
                         display = string.Join(" ", prefixParts) + " " + display;
-                    if (_collapse && row.displayCount > 1) display = $"[{row.displayCount}] " + display;
                     display = GetFirstLines(display, _entryLines);
                     msgLabel.text = BuildMessageWithHighlight(display);
                 }
@@ -2050,9 +2100,15 @@ namespace UnityEnhancedConsole
                 btn.text = (_tagSortMode == TagSortMode.Count ? "Count " : _tagSortMode == TagSortMode.Recent ? "Recent " : "Name ") + arrow;
         }
 
+        private bool _isRefreshing;
+
         private void RefreshUI()
         {
+            if (_isRefreshing) return;
             if (rootVisualElement == null) return;
+            _isRefreshing = true;
+            try
+            {
             if (rootVisualElement.childCount == 0) BuildUI();
             FlushPendingEntries();
             var root = rootVisualElement.Q<VisualElement>("root");
@@ -2069,19 +2125,16 @@ namespace UnityEnhancedConsole
             var (logCount, warnCount, errCount) = CountByTypeUnfiltered();
             int cap = 9999;
             var toggleLog = root.Q<Toggle>("toggleLog");
-            if (toggleLog != null) { toggleLog.SetValueWithoutNotify(_showLog); toggleLog.label = (logCount > cap ? cap : logCount).ToString(); }
+            if (toggleLog != null) { toggleLog.SetValueWithoutNotify(_showLog); toggleLog.label = logCount > cap ? cap + "+" : logCount.ToString(); }
             var toggleWarning = root.Q<Toggle>("toggleWarning");
-            if (toggleWarning != null) { toggleWarning.SetValueWithoutNotify(_showWarning); toggleWarning.label = (warnCount > cap ? cap : warnCount).ToString(); }
+            if (toggleWarning != null) { toggleWarning.SetValueWithoutNotify(_showWarning); toggleWarning.label = warnCount > cap ? cap + "+" : warnCount.ToString(); }
             var toggleError = root.Q<Toggle>("toggleError");
-            if (toggleError != null) { toggleError.SetValueWithoutNotify(_showError); toggleError.label = (errCount > cap ? cap : errCount).ToString(); }
+            if (toggleError != null) { toggleError.SetValueWithoutNotify(_showError); toggleError.label = errCount > cap ? cap + "+" : errCount.ToString(); }
 
             var tagBarRow = root.Q<VisualElement>("tagBarRow");
             if (tagBarRow != null) tagBarRow.style.display = _tagsEnabled ? DisplayStyle.Flex : DisplayStyle.None;
-            var btnSearchFilter = root.Q<Button>("btnSearchFilter");
-            if (btnSearchFilter != null)
-            {
-                var shortParts = new List<string>();                 var fullParts = new List<string>();                 if (_filterTimeRange) { shortParts.Add("T"); fullParts.Add("Time"); }                 if (_filterNumberRange) { shortParts.Add("N"); fullParts.Add("Number"); }                 if (_filterFrameRange) { shortParts.Add("F"); fullParts.Add("Frame"); }                 btnSearchFilter.text = shortParts.Count > 0 ? "Filter: " + string.Join(",", shortParts) : "Filter";                 if (shortParts.Count > 0)                     btnSearchFilter.AddToClassList("search-filter-active");                 else                     btnSearchFilter.RemoveFromClassList("search-filter-active");                 btnSearchFilter.tooltip = fullParts.Count > 0 ? "Enabled: " + string.Join(", ", fullParts) + " (click to edit or clear)" : "Select filters to enable";
-            }
+            var btnTagToggle = root.Q<Button>("btnTagToggle");
+            if (btnTagToggle != null) btnTagToggle.text = _tagsEnabled ? "Tags ▾" : "Tags";
             RebuildTagBar();
 
             var filtered = GetFilteredRows();
@@ -2101,6 +2154,11 @@ namespace UnityEnhancedConsole
                 _logListView.SetSelectionWithoutNotify(selectedFilteredIndex >= 0 ? new[] { selectedFilteredIndex } : new List<int>());
             }
             UpdateDetailPanel();
+            }
+            finally
+            {
+                _isRefreshing = false;
+            }
         }
 
 
@@ -2114,13 +2172,13 @@ namespace UnityEnhancedConsole
             input.RegisterCallback<ClickEvent>(evt =>
             {
                 if (evt.clickCount != 2) return;
-                Debug.Log("EnhancedConsole: detail double-click detected (ClickEvent)");
+                // double-click detected (ClickEvent)
                 _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(1);
             }, TrickleDown.TrickleDown);
             input.RegisterCallback<PointerDownEvent>(evt =>
             {
                 if (evt.button != 0 || evt.clickCount != 2) return;
-                Debug.Log("EnhancedConsole: detail double-click detected (PointerDownEvent)");
+                // double-click detected (PointerDownEvent)
                 _detailField.schedule.Execute(() => OpenStackLinkFromSelectionOrCaret()).StartingIn(1);
             }, TrickleDown.TrickleDown);
         }
@@ -2411,6 +2469,10 @@ namespace UnityEnhancedConsole
         private void CopyStateFrom(EnhancedConsoleWindow other)
         {
             if (other == null) return;
+            // 复制条目数据（完整复制源窗口状态）
+            _entries.Clear();
+            _entries.AddRange(other._entries);
+            _nextMessageNumber = other._nextMessageNumber;
             _collapse = other._collapse;
             _collapseGlobal = other._collapseGlobal;
             _clearOnPlay = other._clearOnPlay;
@@ -2700,7 +2762,7 @@ namespace UnityEnhancedConsole
             menu.AddItem(new GUIContent("Stack Trace Error/Full"), _stackTraceError == StackTraceLogType.Full, () => SetStackTrace(LogType.Error, StackTraceLogType.Full));
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Tags/Enable Tags"), _tagsEnabled, () => { _tagsEnabled = !_tagsEnabled; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Tags/Tag Rules..."), false, () => TagRulesWindow.Open(this));
+            menu.AddItem(new GUIContent("Tags/Tag Settings..."), false, () => TagRulesWindow.Open(this));
             menu.AddItem(new GUIContent("Tags/Recompute All Tags"), false, RecomputeAllTags);
             menu.AddItem(new GUIContent("Tags/Auto Detect Brackets"), EnhancedConsoleTagLogic.AutoTagBracket, () => { EnhancedConsoleTagLogic.AutoTagBracket = !EnhancedConsoleTagLogic.AutoTagBracket; });
             menu.AddItem(new GUIContent("Tags/Bracket Scope/First Line"), EnhancedConsoleTagLogic.BracketTagFirstLineOnly, () => { EnhancedConsoleTagLogic.BracketTagFirstLineOnly = true; });
@@ -2709,7 +2771,69 @@ namespace UnityEnhancedConsole
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Open Editor Log"), false, OpenEditorLog);
             menu.AddItem(new GUIContent("Open Player Log"), false, OpenPlayerLog);
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Copy/Copy Matched Results"), false, CopyMatchedResultsToClipboard);
+            menu.AddItem(new GUIContent("Copy/Copy Regex Matches"), false, CopyRegexMatchPartsToClipboard);
             menu.ShowAsContext();
+        }
+
+        #endregion
+
+        #region Remote
+
+        private void UpdateRemoteButton()
+        {
+            if (_remoteButton == null) return;
+            if (RemoteConsoleServer.IsRunning)
+            {
+                int count = RemoteConsoleServer.ClientCount;
+                _remoteButton.text = count > 0 ? $"Remote: {count}" : "Remote: 0";
+                _remoteButton.style.backgroundColor = count > 0
+                    ? new Color(0.2f, 0.6f, 0.2f, 0.6f)
+                    : new Color(0.4f, 0.4f, 0.1f, 0.6f);
+            }
+            else
+            {
+                _remoteButton.text = "Remote: Off";
+                _remoteButton.style.backgroundColor = StyleKeyword.Null;
+            }
+        }
+
+        private void ShowRemoteMenu()
+        {
+            var menu = new GenericMenu();
+            if (RemoteConsoleServer.IsRunning)
+            {
+                menu.AddItem(new GUIContent($"Server Running (Port {RemoteConsoleServer.Port})"), false, () => { });
+                menu.AddItem(new GUIContent($"Connected Clients: {RemoteConsoleServer.ClientCount}"), false, () => { });
+                menu.AddSeparator("");
+                menu.AddItem(new GUIContent("Stop Server"), false, () =>
+                {
+                    RemoteConsoleServer.Stop();
+                    UpdateRemoteButton();
+                });
+            }
+            else
+            {
+                menu.AddItem(new GUIContent("Start Server"), false, () =>
+                {
+                    RemoteConsoleServer.Start();
+                    UpdateRemoteButton();
+                });
+            }
+            menu.AddSeparator("");
+            bool autoStart = RemoteConsoleServer.GetAutoStart();
+            menu.AddItem(new GUIContent("Auto Start"), autoStart, () =>
+            {
+                RemoteConsoleServer.SetAutoStart(!autoStart);
+            });
+            menu.ShowAsContext();
+        }
+
+        private void OnRemoteClientCountChanged(int _)
+        {
+            UpdateRemoteButton();
+            Repaint();
         }
 
         #endregion
@@ -2728,8 +2852,13 @@ namespace UnityEnhancedConsole
                 return;
             EnhancedConsoleLogFile.ClearFile();
             var w = UnityEngine.Resources.FindObjectsOfTypeAll<EnhancedConsoleWindow>();
-            if (w != null && w.Length > 0)
-                w[0].Clear();
+            if (w != null)
+            {
+                foreach (var window in w)
+                {
+                    if (window != null) window.Clear();
+                }
+            }
         }
     }
 }

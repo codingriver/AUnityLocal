@@ -72,65 +72,8 @@ namespace UnityEnhancedConsole
             var btnTagRules = root.Q<Button>("btnTagRules");
             if (btnTagRules != null)
             {
-                btnTagRules.tooltip = "编辑标签规则";
+                btnTagRules.tooltip = "编辑标签设置";
                 btnTagRules.clicked += () => TagRulesWindow.Open(this);
-            }
-
-            var btnTagRecompute = root.Q<Button>("btnTagRecompute");
-            if (btnTagRecompute != null)
-            {
-                btnTagRecompute.tooltip = "重新计算所有标签";
-                btnTagRecompute.clicked += RecomputeAllTags;
-            }
-
-            var toggleAutoBracket = root.Q<Toggle>("toggleAutoBracket");
-            if (toggleAutoBracket != null)
-            {
-                toggleAutoBracket.tooltip = "自动识别方括号标签";
-                toggleAutoBracket.RegisterValueChangedCallback(ev =>
-                {
-                    EnhancedConsoleTagLogic.AutoTagBracket = ev.newValue;
-                    UpdateTagSettingsControls();
-                    RecomputeAllTags();
-                });
-            }
-
-            var toggleBracketFirstLine = root.Q<Toggle>("toggleBracketFirstLine");
-            if (toggleBracketFirstLine != null)
-            {
-                toggleBracketFirstLine.tooltip = "方括号标签只识别首行";
-                toggleBracketFirstLine.RegisterValueChangedCallback(ev =>
-                {
-                    if (!ev.newValue) return;
-                    EnhancedConsoleTagLogic.BracketTagFirstLineOnly = true;
-                    UpdateTagSettingsControls();
-                    RecomputeAllTags();
-                });
-            }
-
-            var toggleBracketAllLines = root.Q<Toggle>("toggleBracketAllLines");
-            if (toggleBracketAllLines != null)
-            {
-                toggleBracketAllLines.tooltip = "方括号标签识别所有行";
-                toggleBracketAllLines.RegisterValueChangedCallback(ev =>
-                {
-                    if (!ev.newValue) return;
-                    EnhancedConsoleTagLogic.BracketTagFirstLineOnly = false;
-                    UpdateTagSettingsControls();
-                    RecomputeAllTags();
-                });
-            }
-
-            var toggleAutoStack = root.Q<Toggle>("toggleAutoStack");
-            if (toggleAutoStack != null)
-            {
-                toggleAutoStack.tooltip = "自动识别堆栈类名";
-                toggleAutoStack.RegisterValueChangedCallback(ev =>
-                {
-                    EnhancedConsoleTagLogic.AutoTagStack = ev.newValue;
-                    UpdateTagSettingsControls();
-                    RecomputeAllTags();
-                });
             }
 
             var btnTagCollapse = root.Q<Button>("btnTagCollapse");
@@ -287,21 +230,6 @@ namespace UnityEnhancedConsole
             if (root == null) return;
             var toggleTagsEnabled = root.Q<Toggle>("toggleTagsEnabled");
             if (toggleTagsEnabled != null) toggleTagsEnabled.SetValueWithoutNotify(_tagsEnabled);
-
-            bool autoBracket = EnhancedConsoleTagLogic.AutoTagBracket;
-            bool firstLineOnly = EnhancedConsoleTagLogic.BracketTagFirstLineOnly;
-            var toggleAutoBracket = root.Q<Toggle>("toggleAutoBracket");
-            if (toggleAutoBracket != null) toggleAutoBracket.SetValueWithoutNotify(autoBracket);
-            var toggleBracketFirstLine = root.Q<Toggle>("toggleBracketFirstLine");
-            if (toggleBracketFirstLine != null) toggleBracketFirstLine.SetValueWithoutNotify(firstLineOnly);
-            var toggleBracketAllLines = root.Q<Toggle>("toggleBracketAllLines");
-            if (toggleBracketAllLines != null) toggleBracketAllLines.SetValueWithoutNotify(!firstLineOnly);
-
-            if (toggleBracketFirstLine != null) toggleBracketFirstLine.SetEnabled(autoBracket);
-            if (toggleBracketAllLines != null) toggleBracketAllLines.SetEnabled(autoBracket);
-
-            var toggleAutoStack = root.Q<Toggle>("toggleAutoStack");
-            if (toggleAutoStack != null) toggleAutoStack.SetValueWithoutNotify(EnhancedConsoleTagLogic.AutoTagStack);
         }
 
         private void ToggleTagSort(TagSortMode mode)

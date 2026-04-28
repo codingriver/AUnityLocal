@@ -1,75 +1,47 @@
 namespace AUnityLocal.Editor
 {
+    using System.Collections.Generic;
     using UnityEditor;
-    using UnityEditor.Toolbars;
     using UnityEngine;
-    using UnityEngine.UIElements;
 
-    public class HierarchyEditor
+    /// <summary>
+    /// 快捷键定位目标物体：Ctrl+Shift+L
+    /// 选中 BattleDebug.hitGos[0] → Hierarchy 高亮 → Scene 视图聚焦 → Inspector 显示信息。
+    /// </summary>
+    public static class HierarchyEditor
     {
-        static HierarchyEditor()
+        [MenuItem("AUnityLocal/定位目标物体 %#l")] // Ctrl+Shift+L
+        private static void SelectAndLocateTarget()
         {
-            // 注册层级窗口 GUI 回调
-            EditorApplication.hierarchyWindowItemOnGUI += OnHierarchyGUI;
-        }
+            Object target = null;
 
-        static void OnHierarchyGUI(int instanceID, Rect selectionRect)
-        {
-            // 根据 instanceID 获取对象
-            var obj = EditorUtility.InstanceIDToObject(instanceID);
-            GameObject go = obj as GameObject;
-            if (go == null)
+            var hitList = ToolBarToolEditor.GetStaticFieldValue(
+                "IGG.Game.Module.KSBattle.BattleLog+BattleDebug", "hitGos");
+
+            if (hitList is List<GameObject> hitGos && hitGos.Count >= 1)
             {
-                Debug.Log(obj?.GetType().FullName);
-                
-                return;    
+                target = hitGos[0];
             }
-            
 
-            // 计算按钮位置（在右侧）
-            Rect buttonRect = new Rect(
-                selectionRect.xMax - 20,
-                selectionRect.y,
-                18,
-                selectionRect.height
-            );
-
-            // 画一个小按钮
-            if (GUI.Button(buttonRect, "+"))
+            if (target == null)
             {
-                Debug.Log($"点击了 {go.name}");
+                ToastTip.Show("targetObject is null!");
+                return;
+            }
+
+            if (target.Equals(null))
+            {
+                ToastTip.Show("targetObject is destroyed!");
+                return;
+            }
+
+            Selection.activeObject = target;
+            EditorGUIUtility.PingObject(target);
+
+            if (SceneView.lastActiveSceneView != null)
+            {
+                SceneView.lastActiveSceneView.FrameSelected();
             }
         }
-        // static HierarchyEditor()
-        // {
-        //     // 注册层级窗口 GUI 回调
-        //     EditorApplication.hierarchyWindowItemOnGUI += OnHierarchyGUI;
-        // }
-
-        // static EditorWindow GetHierarchyWindow()
-        // {
-        //     var type = typeof(Editor).Assembly.GetType("UnityEditor.SceneHierarchyWindow");
-        //     return EditorWindow.GetWindow(type, false, null, false);
-        // }
-        // static void OnHierarchyGUI(int instanceID, Rect selectionRect)
-        // {
-        //     // 根据 instanceID 获取对象
-        //     GameObject go = EditorUtility.InstanceIDToObject(instanceID) as GameObject;
-        //     if (go == null) return;
-        //
-        //     // 计算按钮位置（在右侧）
-        //     Rect buttonRect = new Rect(
-        //         selectionRect.xMax - 20,
-        //         selectionRect.y,
-        //         18,
-        //         selectionRect.height
-        //     );
-        //
-        //     // 画一个小按钮
-        //     if (GUI.Button(buttonRect, "+"))
-        //     {
-        //         Debug.Log($"点击了 {go.name}");
-        //     }
-        // }        
     }
 }

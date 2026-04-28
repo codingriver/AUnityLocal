@@ -27,6 +27,7 @@ namespace UnityEnhancedConsole
         private WatchGraphRenderer _graphRenderer;
         private VisualElement _graphContainer;
         private bool _showGraph;
+        private TextField _stackTraceField;
 
         // State
         private string _searchText = "";
@@ -157,6 +158,12 @@ namespace UnityEnhancedConsole
             graphToggleBtn.name = "graphToggleBtn";
             historyToolbar.Add(graphToggleBtn);
 
+            // Time/Frame axis toggle
+            var axisToggleBtn = new Button(() => ToggleAxisMode()) { text = "Time" };
+            axisToggleBtn.AddToClassList("watch-toolbar-button");
+            axisToggleBtn.name = "axisToggleBtn";
+            historyToolbar.Add(axisToggleBtn);
+
             _historyListView = new ListView();
             _historyListView.AddToClassList("watch-history-list");
             _historyListView.fixedItemHeight = 18;
@@ -164,6 +171,7 @@ namespace UnityEnhancedConsole
             _historyListView.bindItem = BindHistoryItem;
             _historyListView.selectionType = SelectionType.Single;
             _historyListView.RegisterCallback<ContextClickEvent>(OnHistoryContextClick);
+            _historyListView.selectionChanged += OnHistorySelectionChanged;
             _historyPanel.Add(_historyListView);
 
             // Graph container (hidden by default)
@@ -171,6 +179,18 @@ namespace UnityEnhancedConsole
             _graphContainer = _graphRenderer.Build();
             _graphContainer.style.display = DisplayStyle.None;
             _historyPanel.Add(_graphContainer);
+
+            // Wire scrubber position changes to history list
+            _graphRenderer.OnScrubberPositionChanged = OnScrubberPositionChanged;
+
+            // Stack trace display (hidden by default)
+            _stackTraceField = new TextField();
+            _stackTraceField.AddToClassList("watch-stacktrace-area");
+            _stackTraceField.multiline = true;
+            _stackTraceField.isReadOnly = true;
+            _stackTraceField.style.display = DisplayStyle.None;
+            _stackTraceField.label = "Stack Trace";
+            _historyPanel.Add(_stackTraceField);
 
             // Empty state
             _emptyState = new VisualElement();
@@ -590,9 +610,32 @@ namespace UnityEnhancedConsole
             _historyListView.itemsSource = _historyCache;
             _historyListView.Rebuild();
 
+            // Clear stack trace display
+            if (_stackTraceField != null)
+            {
+                _stackTraceField.value = "";
+                _stackTraceField.style.display = DisplayStyle.None;
+            }
+
             // Refresh graph if visible
             if (_showGraph && _graphContainer != null)
                 _graphRenderer?.Refresh();
+        }
+
+        private void OnHistorySelectionChanged(IEnumerable<object> selection)
+        {
+            if (_stackTraceField == null) return;
+            foreach (var sel in selection)
+            {
+                if (sel is WatchHistoryEntry h && !string.IsNullOrEmpty(h.StackTrace))
+                {
+                    _stackTraceField.value = h.StackTrace;
+                    _stackTraceField.style.display = DisplayStyle.Flex;
+                    return;
+                }
+            }
+            _stackTraceField.value = "";
+            _stackTraceField.style.display = DisplayStyle.None;
         }
 
         private void ToggleGraphView()
@@ -619,6 +662,29 @@ namespace UnityEnhancedConsole
                 _historyListView.style.display = DisplayStyle.Flex;
                 _graphContainer.style.display = DisplayStyle.None;
                 if (toggleBtn != null) toggleBtn.text = "Graph";
+            }
+        }
+
+        private void ToggleAxisMode()
+        {
+            if (_graphRenderer == null) return;
+            _graphRenderer.UseFrameAxis = !_graphRenderer.UseFrameAxis;
+            var btn = _historyPanel?.Q<Button>("axisToggleBtn");
+            if (btn != null) btn.text = _graphRenderer.UseFrameAxis ? "Frame" : "Time";
+            _graphRenderer.Refresh();
+        }
+
+        private void OnScrubberPositionChanged(int historyIndex)
+        {
+            // Highlight the corresponding entry in the history list
+            if (_historyListView == null || _historyCache == null) return;
+            // _historyCache is reversed (newest first), _renderedHistory is chronological
+            // historyIndex is into _renderedHistory (chronological), convert to _historyCache index
+            int reversedIndex = _historyCache.Count - 1 - historyIndex;
+            if (reversedIndex >= 0 && reversedIndex < _historyCache.Count)
+            {
+                _historyListView.SetSelection(reversedIndex);
+                _historyListView.ScrollToItem(reversedIndex);
             }
         }
 
@@ -729,6 +795,11 @@ namespace UnityEnhancedConsole
                     menu.AddItem(new GUIContent("Remove"), false, () =>
                     {
                         Watch.Remove(name);
+                    });
+                    bool isCapturing = entry.CaptureStackTrace;
+                    menu.AddItem(new GUIContent(isCapturing ? "Disable Stack Trace" : "Enable Stack Trace"), isCapturing, () =>
+                    {
+                        WatchManager.SetCaptureStackTrace(name, !isCapturing);
                     });
                     menu.AddSeparator("");
                 }

@@ -37,11 +37,27 @@ namespace UnityEnhancedConsole
         const float LineWidth = 1.5f;
         const int MaxGridLines = 5;
 
+        // --- Scrubber ---
+        static readonly Color ScrubberColor = new Color(1f, 0.7f, 0.2f, 0.9f);
+        static readonly Color ScrubberDotColor = new Color(1f, 0.85f, 0.4f, 1f);
+
         // --- State ---
         private WatchEntry _entry;
         private VisualElement _graphElement;
         private Label _tooltipLabel;
+        private Label _scrubberLabel;
         private float _hoverX = -1f;
+
+        // Scrubber state
+        private int _scrubberIndex = -1;
+        private bool _isDraggingScrubber;
+        private List<WatchHistoryEntry> _renderedHistory;
+
+        // Frame axis mode
+        public bool UseFrameAxis { get; set; }
+
+        /// <summary>Fires with the history index when scrubber position changes.</summary>
+        public Action<int> OnScrubberPositionChanged;
 
         public VisualElement Build()
         {
@@ -50,12 +66,25 @@ namespace UnityEnhancedConsole
             container.style.flexGrow = 1;
             container.style.minHeight = 60;
 
+            // Scrubber value label (displayed above graph)
+            _scrubberLabel = new Label();
+            _scrubberLabel.AddToClassList("watch-scrubber-label");
+            _scrubberLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _scrubberLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _scrubberLabel.style.fontSize = 11;
+            _scrubberLabel.style.height = 18;
+            _scrubberLabel.style.display = DisplayStyle.None;
+            _scrubberLabel.style.color = ScrubberDotColor;
+            container.Add(_scrubberLabel);
+
             _graphElement = new VisualElement();
             _graphElement.AddToClassList("watch-graph");
             _graphElement.style.flexGrow = 1;
             _graphElement.generateVisualContent += OnGenerateVisualContent;
             _graphElement.RegisterCallback<MouseMoveEvent>(OnMouseMove);
             _graphElement.RegisterCallback<MouseLeaveEvent>(OnMouseLeave);
+            _graphElement.RegisterCallback<MouseDownEvent>(OnMouseDown);
+            _graphElement.RegisterCallback<MouseUpEvent>(OnMouseUp);
             container.Add(_graphElement);
 
             _tooltipLabel = new Label();
@@ -99,6 +128,8 @@ namespace UnityEnhancedConsole
 
         // --- Rendering ---
 
+        private double GetXValue(WatchHistoryEntry h) => UseFrameAxis ? h.FrameCount : h.Timestamp;
+
         private void OnGenerateVisualContent(MeshGenerationContext mgc)
         {
             if (_entry == null || _entry.HistoryCount < 2) return;
@@ -125,37 +156,48 @@ namespace UnityEnhancedConsole
                     history.Add(h);
             }
             if (history.Count < 2) return;
+            _renderedHistory = history;
 
-            double now = EditorApplication.timeSinceStartup;
-            double preferredStart = now - TimeRange;
-
-            // Adaptive time window: find actual data time bounds
-            double dataEarliest = double.MaxValue;
-            double dataLatest = double.MinValue;
-            foreach (var h in history)
+            // Compute X axis range (time or frame based)
+            double xStart, xEnd;
+            if (UseFrameAxis)
             {
-                if (h.Timestamp < dataEarliest) dataEarliest = h.Timestamp;
-                if (h.Timestamp > dataLatest) dataLatest = h.Timestamp;
-            }
-
-            // If preferred window contains data, use it; otherwise expand to cover all history
-            double timeStart, timeEnd;
-            bool hasDataInWindow = dataLatest >= preferredStart;
-            if (hasDataInWindow)
-            {
-                timeStart = preferredStart;
-                timeEnd = now;
+                int frameMin = int.MaxValue, frameMax = int.MinValue;
+                foreach (var h in history)
+                {
+                    if (h.FrameCount < frameMin) frameMin = h.FrameCount;
+                    if (h.FrameCount > frameMax) frameMax = h.FrameCount;
+                }
+                double span = frameMax - frameMin;
+                if (span < 1) span = 10;
+                xStart = frameMin - span * 0.05;
+                xEnd = frameMax + span * 0.05;
             }
             else
             {
-                // All data is older than preferred window — show all history with 10% right margin
-                double span = dataLatest - dataEarliest;
-                if (span < 0.01) span = 1.0; // avoid zero-width window
-                timeStart = dataEarliest - span * 0.05;
-                timeEnd = dataLatest + span * 0.1;
+                double now = EditorApplication.timeSinceStartup;
+                double preferredStart = now - TimeRange;
+                double dataEarliest = double.MaxValue, dataLatest = double.MinValue;
+                foreach (var h in history)
+                {
+                    if (h.Timestamp < dataEarliest) dataEarliest = h.Timestamp;
+                    if (h.Timestamp > dataLatest) dataLatest = h.Timestamp;
+                }
+                if (dataLatest >= preferredStart)
+                {
+                    xStart = preferredStart;
+                    xEnd = now;
+                }
+                else
+                {
+                    double span = dataLatest - dataEarliest;
+                    if (span < 0.01) span = 1.0;
+                    xStart = dataEarliest - span * 0.05;
+                    xEnd = dataLatest + span * 0.1;
+                }
             }
-            double timeDuration = timeEnd - timeStart;
-            if (timeDuration < 0.001) timeDuration = 1.0;
+            double xDuration = xEnd - xStart;
+            if (xDuration < 0.001) xDuration = 1.0;
 
             // Determine Y range
             float yMin = float.MaxValue, yMax = float.MinValue;
@@ -205,7 +247,7 @@ namespace UnityEnhancedConsole
             }
 
             // --- Draw grid ---
-            DrawGrid(painter, left, top, right, bottom, plotW, plotH, yMin, yMax, timeStart, timeEnd);
+            DrawGrid(painter, left, top, right, bottom, plotW, plotH, yMin, yMax, xStart, xEnd);
 
             // --- Draw zero line if in range ---
             if (yMin < 0 && yMax > 0)
@@ -222,11 +264,11 @@ namespace UnityEnhancedConsole
             // --- Draw value lines ---
             if (_entry.ValueType == WatchValueType.Vector)
             {
-                DrawVectorLines(painter, history, left, top, right, bottom, plotW, plotH, yMin, yMax, timeStart, timeDuration);
+                DrawVectorLines(painter, history, left, top, right, bottom, plotW, plotH, yMin, yMax, xStart, xDuration);
             }
             else
             {
-                DrawSingleLine(painter, history, left, top, right, bottom, plotW, plotH, yMin, yMax, timeStart, timeDuration, ValueLineColor);
+                DrawSingleLine(painter, history, left, top, right, bottom, plotW, plotH, yMin, yMax, xStart, xDuration, ValueLineColor);
             }
 
             // --- Draw hover line ---
@@ -238,6 +280,36 @@ namespace UnityEnhancedConsole
                 painter.MoveTo(new Vector2(_hoverX, top));
                 painter.LineTo(new Vector2(_hoverX, bottom));
                 painter.Stroke();
+            }
+
+            // --- Draw scrubber ---
+            if (_scrubberIndex >= 0 && _scrubberIndex < _renderedHistory.Count && xDuration > 0)
+            {
+                var scrubEntry = _renderedHistory[_scrubberIndex];
+                float sx = (float)((GetXValue(scrubEntry) - xStart) / xDuration);
+                float scrubX = left + sx * plotW;
+
+                // Scrubber vertical line
+                painter.strokeColor = ScrubberColor;
+                painter.lineWidth = 2f;
+                painter.BeginPath();
+                painter.MoveTo(new Vector2(scrubX, top));
+                painter.LineTo(new Vector2(scrubX, bottom));
+                painter.Stroke();
+
+                // Scrubber dot at value intersection
+                if (scrubEntry.HasNumericValue)
+                {
+                    float vy = ((float)scrubEntry.NumericValue - yMin) / (yMax - yMin);
+                    float dotY = bottom - Mathf.Clamp01(vy) * plotH;
+                    painter.fillColor = ScrubberColor;
+                    painter.BeginPath();
+                    painter.Arc(new Vector2(scrubX, dotY), 4f, 0f, 360f);
+                    painter.Fill();
+                }
+
+                // Update scrubber label
+                UpdateScrubberLabel(scrubEntry);
             }
         }
 
@@ -293,7 +365,7 @@ namespace UnityEnhancedConsole
             {
                 var h = history[i];
 
-                float tx = (float)((h.Timestamp - timeStart) / timeDuration);
+                float tx = (float)((GetXValue(h) - timeStart) / timeDuration);
                 float ty = ((float)h.NumericValue - yMin) / (yMax - yMin);
                 float x = left + tx * plotW;
                 float y = bottom - ty * plotH;
@@ -317,7 +389,7 @@ namespace UnityEnhancedConsole
             for (int i = 0; i < history.Count; i++)
             {
                 var h = history[i];
-                float tx = (float)((h.Timestamp - timeStart) / timeDuration);
+                float tx = (float)((GetXValue(h) - timeStart) / timeDuration);
 
                 if (TryParseVectorComponents(h.FormattedValue, out var comp))
                 {
@@ -354,11 +426,100 @@ namespace UnityEnhancedConsole
             painter.Stroke();
         }
 
+        // --- Scrubber ---
+
+        private void UpdateScrubberLabel(WatchHistoryEntry entry)
+        {
+            if (_scrubberLabel == null) return;
+            string frameInfo = $"F{entry.FrameCount}";
+            double ago = EditorApplication.timeSinceStartup - entry.Timestamp;
+            _scrubberLabel.text = $"{entry.FormattedValue}  ({frameInfo}, {ago:F1}s ago)";
+            _scrubberLabel.style.display = DisplayStyle.Flex;
+        }
+
+        private int FindClosestHistoryIndex(float mouseX)
+        {
+            if (_renderedHistory == null || _renderedHistory.Count == 0) return -1;
+
+            var rect = _graphElement.contentRect;
+            float left = Padding;
+            float right = rect.width - PaddingRight;
+            float plotW = right - left;
+            if (plotW <= 0) return -1;
+
+            float tx = (mouseX - left) / plotW;
+            if (tx < 0f) tx = 0f;
+            if (tx > 1f) tx = 1f;
+
+            // Compute X range from rendered history
+            if (_renderedHistory.Count < 2) return 0;
+            double xMin = GetXValue(_renderedHistory[0]);
+            double xMax = GetXValue(_renderedHistory[_renderedHistory.Count - 1]);
+            if (UseFrameAxis)
+            {
+                foreach (var h in _renderedHistory) { if (GetXValue(h) < xMin) xMin = GetXValue(h); if (GetXValue(h) > xMax) xMax = GetXValue(h); }
+            }
+            else
+            {
+                double now = EditorApplication.timeSinceStartup;
+                xMax = now;
+                xMin = now - TimeRange;
+                if (GetXValue(_renderedHistory[0]) < xMin) xMin = GetXValue(_renderedHistory[0]);
+            }
+            double xRange = xMax - xMin;
+            if (xRange < 0.001) xRange = 1.0;
+            double targetX = xMin + tx * xRange;
+
+            int bestIdx = 0;
+            double bestDist = double.MaxValue;
+            for (int i = 0; i < _renderedHistory.Count; i++)
+            {
+                double dist = Math.Abs(GetXValue(_renderedHistory[i]) - targetX);
+                if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+            }
+            return bestIdx;
+        }
+
+        private void OnMouseDown(MouseDownEvent evt)
+        {
+            if (evt.button == 0) // Left click
+            {
+                _isDraggingScrubber = true;
+                int idx = FindClosestHistoryIndex(evt.localMousePosition.x);
+                if (idx >= 0 && idx != _scrubberIndex)
+                {
+                    _scrubberIndex = idx;
+                    OnScrubberPositionChanged?.Invoke(_scrubberIndex);
+                    _graphElement?.MarkDirtyRepaint();
+                }
+                evt.StopPropagation();
+            }
+        }
+
+        private void OnMouseUp(MouseUpEvent evt)
+        {
+            if (evt.button == 0)
+            {
+                _isDraggingScrubber = false;
+            }
+        }
+
         // --- Interaction ---
 
         private void OnMouseMove(MouseMoveEvent evt)
         {
             _hoverX = evt.localMousePosition.x;
+
+            if (_isDraggingScrubber)
+            {
+                int idx = FindClosestHistoryIndex(evt.localMousePosition.x);
+                if (idx >= 0 && idx != _scrubberIndex)
+                {
+                    _scrubberIndex = idx;
+                    OnScrubberPositionChanged?.Invoke(_scrubberIndex);
+                }
+            }
+
             _graphElement?.MarkDirtyRepaint();
             UpdateTooltip(evt.localMousePosition);
         }
@@ -366,6 +527,7 @@ namespace UnityEnhancedConsole
         private void OnMouseLeave(MouseLeaveEvent evt)
         {
             _hoverX = -1f;
+            _isDraggingScrubber = false;
             _tooltipLabel.style.display = DisplayStyle.None;
             _graphElement?.MarkDirtyRepaint();
         }
@@ -388,51 +550,60 @@ namespace UnityEnhancedConsole
                 return;
             }
 
-            // Compute the same adaptive time window as OnGenerateVisualContent
-            double now = EditorApplication.timeSinceStartup;
-            double preferredStart = now - TimeRange;
-            double dataEarliest = double.MaxValue;
-            double dataLatest = double.MinValue;
-            foreach (var h in _entry.GetHistoryOrdered())
+            // Use cached rendered history for tooltip (same data as rendering)
+            var history = _renderedHistory;
+            if (history == null || history.Count == 0)
             {
-                if (h.Timestamp < dataEarliest) dataEarliest = h.Timestamp;
-                if (h.Timestamp > dataLatest) dataLatest = h.Timestamp;
+                // Fallback: build from entry
+                history = new List<WatchHistoryEntry>();
+                foreach (var h in _entry.GetHistoryOrdered())
+                    history.Add(h);
             }
 
-            double timeStart, timeEnd;
-            if (dataLatest >= preferredStart)
+            // Compute X range matching OnGenerateVisualContent
+            double xStart, xEnd;
+            if (UseFrameAxis)
             {
-                timeStart = preferredStart;
-                timeEnd = now;
+                double minF = double.MaxValue, maxF = double.MinValue;
+                foreach (var h in history) { double v = h.FrameCount; if (v < minF) minF = v; if (v > maxF) maxF = v; }
+                double span = maxF - minF;
+                if (span < 1) span = 1;
+                xStart = minF - span * 0.05;
+                xEnd = maxF + span * 0.05;
             }
             else
             {
-                double span = dataLatest - dataEarliest;
-                if (span < 0.01) span = 1.0;
-                timeStart = dataEarliest - span * 0.05;
-                timeEnd = dataLatest + span * 0.1;
+                double now = EditorApplication.timeSinceStartup;
+                double preferredStart = now - TimeRange;
+                double dataEarliest = double.MaxValue, dataLatest = double.MinValue;
+                foreach (var h in history) { if (h.Timestamp < dataEarliest) dataEarliest = h.Timestamp; if (h.Timestamp > dataLatest) dataLatest = h.Timestamp; }
+                if (dataLatest >= preferredStart) { xStart = preferredStart; xEnd = now; }
+                else { double sp = dataLatest - dataEarliest; if (sp < 0.01) sp = 1.0; xStart = dataEarliest - sp * 0.05; xEnd = dataLatest + sp * 0.1; }
             }
-            double timeDuration = timeEnd - timeStart;
-            if (timeDuration < 0.001) timeDuration = 1.0;
+            double xDur = xEnd - xStart;
+            if (xDur < 0.001) xDur = 1.0;
 
             float tx = (mousePos.x - left) / plotW;
-            double targetTime = timeStart + tx * timeDuration;
+            double targetX = xStart + tx * xDur;
 
             // Find closest history entry
             WatchHistoryEntry closest = default;
             double closestDist = double.MaxValue;
-            foreach (var h in _entry.GetHistoryOrdered())
+            foreach (var h in history)
             {
-                double dist = Math.Abs(h.Timestamp - targetTime);
+                double dist = Math.Abs(GetXValue(h) - targetX);
                 if (dist < closestDist) { closestDist = dist; closest = h; }
             }
 
             if (closestDist < double.MaxValue)
             {
-                double ago = now - closest.Timestamp;
-                _tooltipLabel.text = $"{closest.FormattedValue}  ({ago:F1}s ago)";
+                double ago = EditorApplication.timeSinceStartup - closest.Timestamp;
+                string info = UseFrameAxis
+                    ? $"{closest.FormattedValue}  (F{closest.FrameCount}, {ago:F1}s ago)"
+                    : $"{closest.FormattedValue}  ({ago:F1}s ago, F{closest.FrameCount})";
+                _tooltipLabel.text = info;
                 _tooltipLabel.style.display = DisplayStyle.Flex;
-                _tooltipLabel.style.left = Mathf.Min(mousePos.x + 10, rect.width - 120);
+                _tooltipLabel.style.left = Mathf.Min(mousePos.x + 10, rect.width - 160);
                 _tooltipLabel.style.top = Mathf.Max(mousePos.y - 20, 0);
             }
             else

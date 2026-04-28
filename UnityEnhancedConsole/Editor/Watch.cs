@@ -13,51 +13,51 @@ namespace UnityEnhancedConsole
         // ─── Manual Set ───────────────────────────────────────
 
         [Conditional("UNITY_EDITOR")]
-        public static void Set(string name, object value, string format = null)
+        public static void Set(string name, object value, string format = null, bool captureStack = false)
         {
-            WatchManager.SetValue(name, value, WatchValueType.Object, format);
+            WatchManager.SetValue(name, value, WatchValueType.Object, format, captureStack);
         }
 
         [Conditional("UNITY_EDITOR")]
-        public static void Set(string name, float value, string format = null)
+        public static void Set(string name, float value, string format = null, bool captureStack = false)
         {
-            WatchManager.SetFloat(name, value, format ?? "F2");
+            WatchManager.SetFloat(name, value, format ?? "F2", captureStack);
         }
 
         [Conditional("UNITY_EDITOR")]
-        public static void Set(string name, int value, string format = null)
+        public static void Set(string name, int value, string format = null, bool captureStack = false)
         {
-            WatchManager.SetInt(name, value, format);
+            WatchManager.SetInt(name, value, format, captureStack);
         }
 
         [Conditional("UNITY_EDITOR")]
-        public static void Set(string name, bool value)
+        public static void Set(string name, bool value, bool captureStack = false)
         {
-            WatchManager.SetBool(name, value);
+            WatchManager.SetBool(name, value, captureStack);
         }
 
         [Conditional("UNITY_EDITOR")]
-        public static void Set(string name, Vector3 value, string format = null)
+        public static void Set(string name, Vector3 value, string format = null, bool captureStack = false)
         {
-            WatchManager.SetValue(name, value, WatchValueType.Vector, format ?? "F2");
+            WatchManager.SetValue(name, value, WatchValueType.Vector, format ?? "F2", captureStack);
         }
 
         [Conditional("UNITY_EDITOR")]
-        public static void Set(string name, Vector2 value, string format = null)
+        public static void Set(string name, Vector2 value, string format = null, bool captureStack = false)
         {
-            WatchManager.SetValue(name, value, WatchValueType.Vector, format ?? "F2");
+            WatchManager.SetValue(name, value, WatchValueType.Vector, format ?? "F2", captureStack);
         }
 
         [Conditional("UNITY_EDITOR")]
-        public static void Set(string name, Color value, string format = null)
+        public static void Set(string name, Color value, string format = null, bool captureStack = false)
         {
-            WatchManager.SetValue(name, value, WatchValueType.Color, format);
+            WatchManager.SetValue(name, value, WatchValueType.Color, format, captureStack);
         }
 
         [Conditional("UNITY_EDITOR")]
-        public static void Set(string name, string value)
+        public static void Set(string name, string value, bool captureStack = false)
         {
-            WatchManager.SetValue(name, value, WatchValueType.String, null);
+            WatchManager.SetValue(name, value, WatchValueType.String, null, captureStack);
         }
 
         // ─── Auto-watch ──────────────────────────────────────
