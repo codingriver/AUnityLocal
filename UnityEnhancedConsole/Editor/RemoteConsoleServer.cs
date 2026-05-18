@@ -26,7 +26,8 @@ namespace UnityEnhancedConsole
         private static Thread _acceptThread;
 
         // ── Pending messages (thread-safe) ─────────────────────
-        private static readonly List<RemoteMessage> _pendingMessages = new List<RemoteMessage>();
+        private static List<RemoteMessage> _pendingMessages = new List<RemoteMessage>();
+        private static List<RemoteMessage> _pendingMessagesBack = new List<RemoteMessage>();
         private static readonly object _pendingLock = new object();
         private const int MaxPendingMessages = 50000;
 
@@ -238,14 +239,30 @@ namespace UnityEnhancedConsole
         // ── Main Thread Processing ─────────────────────────────
 
         private static readonly List<RemoteMessage> _processBuffer = new List<RemoteMessage>();
+        private const int MaxProcessPerFrame = 500;
 
         private static void ProcessPendingMessages()
         {
             lock (_pendingLock)
             {
-                if (_pendingMessages.Count == 0) return;
-                _processBuffer.AddRange(_pendingMessages);
-                _pendingMessages.Clear();
+                int count = _pendingMessages.Count;
+                if (count == 0) return;
+                if (count <= MaxProcessPerFrame)
+                {
+                    // 整桶交换：O(1)
+                    var swap = _pendingMessages;
+                    _pendingMessages = _pendingMessagesBack;
+                    _pendingMessagesBack = swap;
+                    _processBuffer.AddRange(swap);
+                    swap.Clear();
+                }
+                else
+                {
+                    int take = MaxProcessPerFrame;
+                    for (int i = 0; i < take; i++)
+                        _processBuffer.Add(_pendingMessages[i]);
+                    _pendingMessages.RemoveRange(0, take);
+                }
             }
 
             foreach (var msg in _processBuffer)
@@ -284,29 +301,14 @@ namespace UnityEnhancedConsole
             string condition = RemoteConsoleProtocol.GetStringField(json, "c") ?? "";
             string stackTrace = RemoteConsoleProtocol.GetStringField(json, "s") ?? "";
             int logTypeInt = RemoteConsoleProtocol.GetIntField(json, "lt");
-            int frameCount = RemoteConsoleProtocol.GetIntField(json, "fc");
 
             LogType logType = LogType.Log;
             if (logTypeInt >= 0 && logTypeInt <= 4)
                 logType = (LogType)logTypeInt;
 
-            // Prefix with [Remote] tag for identification
-            string remoteCondition = $"[Remote] {condition}";
-
-            // Inject into Unity's log system so EnhancedConsoleWindow captures it
-            switch (logType)
-            {
-                case LogType.Error:
-                case LogType.Exception:
-                    Debug.LogError(remoteCondition);
-                    break;
-                case LogType.Warning:
-                    Debug.LogWarning(remoteCondition);
-                    break;
-                default:
-                    Debug.Log(remoteCondition);
-                    break;
-            }
+            // Prefix with [Remote] tag for identification, preserve remote stackTrace.
+            string remoteCondition = "[Remote] " + condition;
+            EnhancedConsoleWindow.EnqueueRemoteLog(remoteCondition, stackTrace, logType);
         }
 
         private static void ProcessHandshake(string json, string clientId)

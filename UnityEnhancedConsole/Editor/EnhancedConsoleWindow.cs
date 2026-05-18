@@ -4,6 +4,7 @@ using System.Linq;
 using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
@@ -25,48 +26,50 @@ namespace UnityEnhancedConsole
         
         #region ??????
 
-        private const string PrefCollapse = "EnhancedConsole.Collapse";
-        private const string PrefCollapseGlobal = "EnhancedConsole.CollapseGlobal";
-        private const string PrefClearOnPlay = "EnhancedConsole.ClearOnPlay";
-        private const string PrefClearOnBuild = "EnhancedConsole.ClearOnBuild";
-        private const string PrefErrorPause = "EnhancedConsole.ErrorPause";
-        private const string PrefShowLog = "EnhancedConsole.ShowLog";
-        private const string PrefShowWarning = "EnhancedConsole.ShowWarning";
-        private const string PrefShowError = "EnhancedConsole.ShowError";
-        private const string PrefEntryLines = "EnhancedConsole.EntryLines";
-        private const string PrefStackTraceLog = "EnhancedConsole.StackTraceLog";
-        private const string PrefStackTraceWarning = "EnhancedConsole.StackTraceWarning";
-        private const string PrefStackTraceError = "EnhancedConsole.StackTraceError";
-        private const string PrefDetailHeight = "EnhancedConsole.DetailHeight";
-        private const string PrefShowTimestamp = "EnhancedConsole.ShowTimestamp";
-        private const string PrefShowFrameCount = "EnhancedConsole.ShowFrameCount";
-        private const string PrefSearchRegex = "EnhancedConsole.SearchRegex";
-        private const string PrefSearchText = "EnhancedConsole.SearchText";
-        private const string PrefShowMessageNumber = "EnhancedConsole.ShowMessageNumber";
-        private const string PrefSearchHistoryPrefix = "EnhancedConsole.SearchHistory.";
-        private const int MaxSearchHistory = 20;
-        private const string PrefTagsEnabled = "EnhancedConsole.TagsEnabled";
-        private const string PrefSelectedTags = "EnhancedConsole.SelectedTags";
-        private const string PrefExcludedTags = "EnhancedConsole.ExcludedTags";
-        private const string PrefTagSortMode = "EnhancedConsole.TagSortMode";
-        private const string PrefTagSortDesc = "EnhancedConsole.TagSortDesc";
-        private const string PrefTagSearchText = "EnhancedConsole.TagSearchText";
-        private const string PrefMaxEntries = "EnhancedConsole.MaxEntries";
-        private const string PrefMaxLoadEntries = "EnhancedConsole.MaxLoadEntries";
-        private const string PrefViewLocked = "EnhancedConsole.ViewLocked";
-        private const string PrefFilterTimeRange = "EnhancedConsole.FilterTimeRange";
-        private const string PrefFilterNumberRange = "EnhancedConsole.FilterNumberRange";
-        private const string PrefFilterFrameRange = "EnhancedConsole.FilterFrameRange";
-        private const string PrefFilterTimeMin = "EnhancedConsole.FilterTimeMin";
-        private const string PrefFilterTimeMax = "EnhancedConsole.FilterTimeMax";
-        private const string PrefFilterNumberMin = "EnhancedConsole.FilterNumberMin";
-        private const string PrefFilterNumberMax = "EnhancedConsole.FilterNumberMax";
-        private const string PrefFilterFrameMin = "EnhancedConsole.FilterFrameMin";
-        private const string PrefFilterFrameMax = "EnhancedConsole.FilterFrameMax";
+        internal const string PrefCollapse = "EnhancedConsole.Collapse";
+        internal const string PrefCollapseGlobal = "EnhancedConsole.CollapseGlobal";
+        internal const string PrefClearOnPlay = "EnhancedConsole.ClearOnPlay";
+        internal const string PrefClearOnBuild = "EnhancedConsole.ClearOnBuild";
+        internal const string PrefErrorPause = "EnhancedConsole.ErrorPause";
+        internal const string PrefShowLog = "EnhancedConsole.ShowLog";
+        internal const string PrefShowWarning = "EnhancedConsole.ShowWarning";
+        internal const string PrefShowError = "EnhancedConsole.ShowError";
+        internal const string PrefEntryLines = "EnhancedConsole.EntryLines";
+        internal const string PrefStackTraceLog = "EnhancedConsole.StackTraceLog";
+        internal const string PrefStackTraceWarning = "EnhancedConsole.StackTraceWarning";
+        internal const string PrefStackTraceError = "EnhancedConsole.StackTraceError";
+        internal const string PrefDetailHeight = "EnhancedConsole.DetailHeight";
+        internal const string PrefShowTimestamp = "EnhancedConsole.ShowTimestamp";
+        internal const string PrefShowFrameCount = "EnhancedConsole.ShowFrameCount";
+        internal const string PrefShowStackTrace = "EnhancedConsole.ShowStackTrace";
+        internal const string PrefSearchRegex = "EnhancedConsole.SearchRegex";
+        internal const string PrefSearchText = "EnhancedConsole.SearchText";
+        internal const string PrefShowMessageNumber = "EnhancedConsole.ShowMessageNumber";
+        internal const string PrefSearchHistoryPrefix = "EnhancedConsole.SearchHistory.";
+        internal const int MaxSearchHistory = 20;
+        internal const string PrefTagsEnabled = "EnhancedConsole.TagsEnabled";
+        internal const string PrefSelectedTags = "EnhancedConsole.SelectedTags";
+        internal const string PrefExcludedTags = "EnhancedConsole.ExcludedTags";
+        internal const string PrefTagSortMode = "EnhancedConsole.TagSortMode";
+        internal const string PrefTagSortDesc = "EnhancedConsole.TagSortDesc";
+        internal const string PrefTagSearchText = "EnhancedConsole.TagSearchText";
+        internal const string PrefMaxEntries = "EnhancedConsole.MaxEntries";
+        internal const string PrefMaxLoadEntries = "EnhancedConsole.MaxLoadEntries";
+        internal const string PrefViewLocked = "EnhancedConsole.ViewLocked";
+        internal const string PrefFilterTimeRange = "EnhancedConsole.FilterTimeRange";
+        internal const string PrefFilterNumberRange = "EnhancedConsole.FilterNumberRange";
+        internal const string PrefFilterFrameRange = "EnhancedConsole.FilterFrameRange";
+        internal const string PrefFilterTimeMin = "EnhancedConsole.FilterTimeMin";
+        internal const string PrefFilterTimeMax = "EnhancedConsole.FilterTimeMax";
+        internal const string PrefFilterNumberMin = "EnhancedConsole.FilterNumberMin";
+        internal const string PrefFilterNumberMax = "EnhancedConsole.FilterNumberMax";
+        internal const string PrefFilterFrameMin = "EnhancedConsole.FilterFrameMin";
+        internal const string PrefFilterFrameMax = "EnhancedConsole.FilterFrameMax";
         private const float SplitterHeight = 5f;
         private const float TimeFrameGap = 0f;
         private const float MinListHeight = 60f;
         private const float MinDetailHeight = 60f;
+        private const double MinFilterRebuildIntervalMs = 200;
         /// <summary> ????????????????????N ???</summary>
         private const int DefaultMaxEntries = 20000;
         /// <summary> ??????????????????????????????N ????</summary>
@@ -74,11 +77,12 @@ namespace UnityEnhancedConsole
         /// <summary> ?????????????????</summary>
         private const int ListVirtualBufferRows = 10;
         /// <summary> ??????AddEntry ??Repaint ???????????????</summary>
-        private const double MinRepaintIntervalMs = 50;
+        private const double MinRepaintIntervalMs = 150;
         /// <summary> ?????? / ???????????????????????????</summary>
         private const int MaxCopyLines = 100000;
 
-        private static readonly List<LogEntry> PendingEntries = new List<LogEntry>();
+        private static List<LogEntry> PendingEntries = new List<LogEntry>();
+        private static List<LogEntry> PendingEntriesBackBuffer = new List<LogEntry>();
         private static readonly object PendingLock = new object();
 
         /// <summary> ????????????????Clear ???????????????????</summary>
@@ -102,11 +106,63 @@ namespace UnityEnhancedConsole
             new Color(0.52f, 0.32f, 0.48f, 0.92f), // ??
         };
 
+        private static readonly Dictionary<string, string> _shortStringPool = new Dictionary<string, string>();
+        private const int ShortStringPoolMaxSize = 5000;
+        private static readonly Dictionary<string, string> _longStringPool = new Dictionary<string, string>();
+        private const int LongStringPoolMaxSize = 2000;
+        private const int LongStringMaxLen = 16 * 1024;
+        private static readonly object _stringPoolLock = new object();
+
+        private static string ShareShortString(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            if (s.Length <= 256)
+            {
+                lock (_stringPoolLock)
+                {
+                    if (_shortStringPool.TryGetValue(s, out var existing)) return existing;
+                    if (_shortStringPool.Count >= ShortStringPoolMaxSize)
+                    {
+                        int target = ShortStringPoolMaxSize * 3 / 4;
+                        var keys = new List<string>(_shortStringPool.Keys);
+                        int remove = _shortStringPool.Count - target;
+                        for (int i = 0; i < remove && i < keys.Count; i++)
+                            _shortStringPool.Remove(keys[i]);
+                    }
+                    _shortStringPool[s] = s;
+                    return s;
+                }
+            }
+            if (s.Length <= LongStringMaxLen)
+            {
+                lock (_stringPoolLock)
+                {
+                    if (_longStringPool.TryGetValue(s, out var existing)) return existing;
+                    if (_longStringPool.Count >= LongStringPoolMaxSize)
+                    {
+                        int target = LongStringPoolMaxSize * 3 / 4;
+                        var keys = new List<string>(_longStringPool.Keys);
+                        int remove = _longStringPool.Count - target;
+                        for (int i = 0; i < remove && i < keys.Count; i++)
+                            _longStringPool.Remove(keys[i]);
+                    }
+                    _longStringPool[s] = s;
+                    return s;
+                }
+            }
+            return s;
+        }
+
         private static Color GetTagColor(string tag)
         {
             if (string.IsNullOrEmpty(tag)) return TagColors[0];
             int i = (tag.GetHashCode() & 0x7FFFFFFF) % TagColors.Length;
             return TagColors[i];
+        }
+
+        private static string ClampCount(int count, int cap)
+        {
+            return count > cap ? cap + "+" : count.ToString();
         }
 
         /// <summary> ??????????????</summary>
@@ -169,6 +225,7 @@ namespace UnityEnhancedConsole
         private bool _showTimestamp;
         private bool _showFrameCount;
         private bool _showMessageNumber;
+        private bool _showStackTrace = true;
         private int _entryLines = 2;
         private int _maxEntries = DefaultMaxEntries;
         private int _maxLoadEntries = DefaultMaxLoadEntries;
@@ -185,6 +242,7 @@ namespace UnityEnhancedConsole
         private TagSortMode _tagSortMode = TagSortMode.Name;
         private bool _tagSortDesc;
         private string _tagSearch = "";
+        private double _lastFilterRebuildTime;
         private bool _filterTimeRange;
         private bool _filterNumberRange;
         private bool _filterFrameRange;
@@ -199,14 +257,41 @@ namespace UnityEnhancedConsole
         private List<FilteredRow> _cachedFilteredRows;
         private Dictionary<int, CollapseGroupInfo> _cachedCollapseGroupInfo;
         private bool _filterDirty = true;
+        // 增量过滤：仅当上次完整过滤后只有 _entries 末尾追加时为 true，可走增量路径。
+        // 任何会破坏 entryIndex 稳定性 / 改变筛选条件 / 改变 _entries 中已存在元素的操作都必须设为 false。
+        private bool _filterAppendOnly = false;
+        private int _lastFilteredEntriesEnd = 0;
+        // collapse 全局模式下的分组缓存（key→该 group 的 list 行索引）
+        private Dictionary<LogKey, int> _collapseRowIndexByKey;
+        private System.Threading.CancellationTokenSource _filterCts;
+        private bool _filterRebuildPending;
+        // 每次过滤条件（搜索/类型/tag/折叠/范围 等）改变时由 InvalidateFilterCriteria() 递增。
+        // 后台过滤任务用此版本号判断"我跑出的结果是否还匹配当前条件"，不匹配则丢弃。
+        private int _filterCriteriaVersion;
+        // 行渲染缓存版本：showMessageNumber/showTimestamp/showFrameCount/entryLines/searchApplied/searchRegex 任一变化即 ++
+        // bindItem 用此判断 LogEntry.CachedDisplayText 是否仍然有效。
+        private int _displayCacheVersion;
+        private int _lastDisplayParamsHash = -1;
+
+        /// <summary>
+        /// 标记所有"行显示文本缓存"已过期。任何会改变行 msg 输出（前缀/折行/搜索高亮）的状态变化都应调用此方法。
+        /// </summary>
+        private void InvalidateDisplayCache() { _displayCacheVersion++; }
+        private bool _listViewNeedsRebuild;
+        private List<FilteredRow> _currentFilteredRowsForBinding;
         private Dictionary<string, TagInfo> _cachedTagInfo;
         private bool _tagCountsDirty = true;
         private string _searchApplied = "";
         private double _searchInputLastChangeTime;
         private double _lastRepaintTime;
-        private bool _repaintScheduled;
+        private bool _repaintScheduled; // legacy, kept for binary serialization compat; no longer used
         private bool _viewLocked;
         private readonly List<LogEntry> _flushBuffer = new List<LogEntry>();
+        private int _deferredTagComputeIndex;
+        private bool _deferredTagComputing;
+        private int _unfilteredLogCount;
+        private int _unfilteredWarnCount;
+        private int _unfilteredErrCount;
         private Button _remoteButton;
 
         /* UI Toolkit ?? */
@@ -217,6 +302,8 @@ namespace UnityEnhancedConsole
         private TextField _searchField;
         private TwoPaneSplitView _mainSplit;
         private VisualElement _tagBarContainer;
+        private readonly Dictionary<string, Button> _tagButtonPool = new Dictionary<string, Button>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<string> _lastTagBarOrder = new List<string>();
         private Texture2D _iconLog;
         private Texture2D _iconWarning;
         private Texture2D _iconError;
@@ -246,31 +333,24 @@ namespace UnityEnhancedConsole
             w.Focus();
         }
 
+        // 异步加载历史日志的 token：OnDisable 时取消
+        private System.Threading.CancellationTokenSource _loadHistoryCts;
+        private bool _historyLoading;
+
         private void OnEnable()
         {
             LoadPrefs();
             _entries.Clear();
-            _entries.AddRange(EnhancedConsoleLogFile.LoadEntries(_maxLoadEntries));
-            for (int i = 0; i < _entries.Count; i++)
-            {
-                var e = _entries[i];
-                if (e != null)
-                {
-                    if (string.IsNullOrEmpty(e.FirstTimeStamp)) e.FirstTimeStamp = e.TimeStamp;
-                    if (string.IsNullOrEmpty(e.LastTimeStamp)) e.LastTimeStamp = e.TimeStamp;
-                }
-                _entries[i].MessageNumber = i + 1;
-            }
-            _nextMessageNumber = _entries.Count;
-            for (int i = 0; i < _entries.Count; i++)
-                EnhancedConsoleTagLogic.ComputeTags(_entries[i]);
+            _nextMessageNumber = 0;
             _cachedFilteredRows = null;
             _cachedTagInfo = null;
+            _filterAppendOnly = false;
             _filterDirty = true;
+            _filterCriteriaVersion++;
             _tagCountsDirty = true;
-            TrimEntriesToMax();
-            // ????Threaded???? logMessageReceived ???Unity ??????????????
-            
+
+            // 阶段 A：先注册回调，让历史加载期间发生的新日志先进 PendingEntries（lock 保护）
+            EnhancedConsoleTagLogic.PrimeCachesMainThread();
             Application.logMessageReceivedThreaded += HandleLogThreaded;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
 
@@ -279,11 +359,111 @@ namespace UnityEnhancedConsole
             ApplyStackTraceSettings();
             EditorApplication.update += ApplySearchDebounced;
             EditorApplication.update += FlushPendingEntries;
+            EditorApplication.update += TickRefreshUI;
 
             // Auto-start remote server if configured
             RemoteConsoleServer.OnClientCountChanged += OnRemoteClientCountChanged;
             if (RemoteConsoleServer.GetAutoStart() && !RemoteConsoleServer.IsRunning)
                 RemoteConsoleServer.Start();
+
+            // 阶段 B/C：异步读文件，完成后回主线程 swap
+            _loadHistoryCts?.Cancel();
+            _loadHistoryCts = new System.Threading.CancellationTokenSource();
+            var cts = _loadHistoryCts;
+            int maxLoad = _maxLoadEntries;
+            _historyLoading = true;
+            Task.Run(() =>
+            {
+                List<LogEntry> loaded = null;
+                try { loaded = EnhancedConsoleLogFile.LoadEntries(maxLoad); }
+                catch { loaded = new List<LogEntry>(); }
+                if (cts.IsCancellationRequested) return;
+                EditorApplication.delayCall += () =>
+                {
+                    if (cts.IsCancellationRequested) return;
+                    OnHistoryLoaded(loaded);
+                };
+            });
+        }
+
+        private void OnHistoryLoaded(List<LogEntry> loaded)
+        {
+            _historyLoading = false;
+            if (loaded == null || loaded.Count == 0)
+            {
+                _nextMessageNumber = _entries.Count;
+                CleanupStaleTags();
+                RecalculateUnfilteredCounts();
+                _filterAppendOnly = false;
+                _filterDirty = true;
+                _filterCriteriaVersion++;
+                _tagCountsDirty = true;
+                RefreshUI();
+                return;
+            }
+            // 历史日志放在前面，已收到的新日志（_entries 已有内容）顺延到末尾
+            // 重排序号：1..N
+            int total = loaded.Count + _entries.Count;
+            // 先把 loaded 拷贝到一个新列表，再 append 已有 _entries
+            var existing = new List<LogEntry>(_entries);
+            _entries.Clear();
+            _entries.AddRange(loaded);
+            _entries.AddRange(existing);
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                var e = _entries[i];
+                if (e == null) continue;
+                if (string.IsNullOrEmpty(e.FirstTimeStamp)) e.FirstTimeStamp = e.TimeStamp;
+                if (string.IsNullOrEmpty(e.LastTimeStamp)) e.LastTimeStamp = e.TimeStamp;
+                e.MessageNumber = i + 1;
+            }
+            _nextMessageNumber = _entries.Count;
+            TrimEntriesToMax();
+
+            _deferredTagComputeIndex = 0;
+            _deferredTagComputing = _entries.Count > 0;
+            if (_deferredTagComputing)
+                StartDeferredComputeTags();
+
+            CleanupStaleTags();
+            RecalculateUnfilteredCounts();
+            _filterAppendOnly = false;
+            _filterDirty = true;
+            _filterCriteriaVersion++;
+            _tagCountsDirty = true;
+            RefreshUI();
+        }
+
+        /// <summary>
+        /// 搜索 fast-path：若新 search 是旧 search 的超集（new.StartsWith(old)，非 regex），
+        /// 且非 collapse 模式且 cache 存在 → 在 _cachedFilteredRows 上原地缩减，避免全量重扫 _entries。
+        /// 返回 true 表示 fast-path 已处理，调用方无需 invalidate filter。
+        /// </summary>
+        private bool TrySearchShrinkInPlace(string prevApplied, string newApplied)
+        {
+            if (_searchRegex) return false;
+            if (_collapse) return false; // collapse 分组依赖整组，简化起见跳过
+            if (_cachedFilteredRows == null) return false;
+            if (string.IsNullOrEmpty(prevApplied)) return false; // 旧无搜索 → 无法保证新结果是旧的子集
+            if (string.IsNullOrEmpty(newApplied)) return false;
+            if (!newApplied.StartsWith(prevApplied, StringComparison.OrdinalIgnoreCase)) return false;
+            // 原地保留满足新搜索的行
+            var rows = _cachedFilteredRows;
+            int write = 0;
+            for (int read = 0; read < rows.Count; read++)
+            {
+                int ei = rows[read].entryIndex;
+                if (ei < 0 || ei >= _entries.Count) continue;
+                var cond = _entries[ei].Condition;
+                if (cond != null && cond.IndexOf(newApplied, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (write != read) rows[write] = rows[read];
+                    write++;
+                }
+            }
+            if (write < rows.Count) rows.RemoveRange(write, rows.Count - write);
+            _collapseRowIndexByKey = null; // 索引可能因行删除而失效
+            return true;
         }
 
         /// <summary>
@@ -293,8 +473,24 @@ namespace UnityEnhancedConsole
         {
             if (_search == _searchApplied) return;
             if ((EditorApplication.timeSinceStartup - _searchInputLastChangeTime) < 0.35) return;
+            string prev = _searchApplied;
             _searchApplied = _search;
+            // 显示缓存必失效（高亮变化）
+            InvalidateDisplayCache();
+            // fast-path：搜索仅在原结果上收紧 → 跳过 filter task
+            if (TrySearchShrinkInPlace(prev, _searchApplied))
+            {
+                _filterCriteriaVersion++;
+                _filterDirty = false;
+                _filterAppendOnly = false;
+                _lastFilteredEntriesEnd = _entries.Count;
+                SavePrefs();
+                RefreshUI();
+                return;
+            }
+            _filterAppendOnly = false;
             _filterDirty = true;
+            _filterCriteriaVersion++;
             _tagCountsDirty = true;
             SavePrefs();
             RefreshUI();
@@ -319,42 +515,104 @@ namespace UnityEnhancedConsole
 
         private void OnDisable()
         {
+            _filterCts?.Cancel();
+            _loadHistoryCts?.Cancel();
+            _deferredTagComputing = false;
             EditorApplication.update -= ApplySearchDebounced;
             EditorApplication.update -= FlushPendingEntries;
+            EditorApplication.update -= TickRefreshUI;
             Application.logMessageReceivedThreaded -= HandleLogThreaded;
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
             RemoteConsoleServer.OnClientCountChanged -= OnRemoteClientCountChanged;
-            if (_mainSplit != null)
-            {
-                var detailPane = _mainSplit.Q<VisualElement>("detailScroll");
-                if (detailPane != null)
-                    _detailHeight = Mathf.Max(MinDetailHeight, detailPane.resolvedStyle.height);
-            }
             SavePrefs();
+        }
+
+        private void OnDetailPaneGeometryChanged(GeometryChangedEvent evt)
+        {
+            float h = evt.newRect.height;
+            if (h >= MinDetailHeight && Mathf.Abs(h - _detailHeight) > 0.5f)
+            {
+                _detailHeight = h;
+                EditorPrefs.SetFloat(PrefDetailHeight, _detailHeight);
+            }
+        }
+
+        private void StartDeferredComputeTags()
+        {
+            if (!_deferredTagComputing) return;
+            var entriesSnapshot = _entries.ToList();
+            Task.Run(() =>
+            {
+                const int batch = 500;
+                for (int idx = 0; idx < entriesSnapshot.Count; idx += batch)
+                {
+                    if (!_deferredTagComputing) break;
+                    int end = Mathf.Min(idx + batch, entriesSnapshot.Count);
+                    for (int i = idx; i < end; i++)
+                    {
+                        EnhancedConsoleTagLogic.ComputeTags(entriesSnapshot[i]);
+                    }
+                }
+                _deferredTagComputing = false;
+                EditorApplication.delayCall += () =>
+                {
+                    _tagCountsDirty = true;
+                    RefreshUI();
+                };
+            });
         }
 
         private void HandleLogThreaded(string condition, string stackTrace, LogType type)
         {
+            var entry = CreateEntry(condition, stackTrace, type);
+            // 在后台线程预先计算 tag，避免主线程 Flush 时阻塞
+            try { EnhancedConsoleTagLogic.ComputeTags(entry); } catch { }
             lock (PendingLock)
             {
-                PendingEntries.Add(CreateEntry(condition, stackTrace, type));
+                PendingEntries.Add(entry);
             }
         }
 
-        private static LogEntry CreateEntry(string condition, string stackTrace, LogType type)
+        /// <summary>
+        /// 由 RemoteConsoleServer 调用：直接将远程日志注入 pending 队列，保留远程 stackTrace。
+        /// 不走 Debug.Log，避免 Unity 内置控制台双写 + stack 被本地堆栈覆盖。
+        /// </summary>
+        internal static void EnqueueRemoteLog(string condition, string stackTrace, LogType type)
         {
             string timeStamp = DateTime.Now.ToString("HH:mm:ss.fff");
             var entry = new LogEntry
             {
-                Condition = condition ?? "",
-                StackTrace = stackTrace ?? "",
+                Condition = ShareShortString(condition ?? ""),
+                StackTrace = ShareShortString(stackTrace ?? ""),
+                LogType = type,
+                Count = 1,
+                TimeStamp = timeStamp,
+                FirstTimeStamp = timeStamp,
+                LastTimeStamp = timeStamp,
+                FrameCount = 0,
+                Tags = null // 由后台线程 ComputeTags 填充；主线程 Flush 时 EnsureTagsComputed 兜底
+            };
+            try { EnhancedConsoleTagLogic.ComputeTags(entry); } catch { }
+            lock (PendingLock)
+            {
+                PendingEntries.Add(entry);
+            }
+        }
+
+        private LogEntry CreateEntry(string condition, string stackTrace, LogType type)
+        {
+            string timeStamp = DateTime.Now.ToString("HH:mm:ss.fff");
+            var entry = new LogEntry
+            {
+                Condition = ShareShortString(condition ?? ""),
+                StackTrace = _showStackTrace ? ShareShortString(stackTrace ?? "") : "",
                 LogType = type,
                 Count = 1,
                 TimeStamp = timeStamp,
                 FirstTimeStamp = timeStamp,
                 LastTimeStamp = timeStamp,
                 FrameCount = GetFrameCountSafe(),
-                Tags = new List<string>()
+                Tags = null
             };
             return entry;
         }
@@ -389,7 +647,12 @@ namespace UnityEnhancedConsole
                     last.Count++;
                     if (string.IsNullOrEmpty(last.FirstTimeStamp)) last.FirstTimeStamp = last.TimeStamp;
                     last.LastTimeStamp = entry.TimeStamp;
-                    _filterDirty = true;
+                    // 优先尝试 O(1) 行更新，避免全量重建
+                    if (!TryFastCollapseHitUpdate(last, 1, entry.TimeStamp))
+                    {
+                        _filterDirty = true;
+                        _filterAppendOnly = false;
+                    }
                     UpdateTagCacheForEntry(last, 1, entry.TimeStamp);
                     if (!tagCacheActive) _tagCountsDirty = true;
                     if (_errorPause && (type == LogType.Error || type == LogType.Exception) && EditorApplication.isPlaying)
@@ -403,6 +666,11 @@ namespace UnityEnhancedConsole
             _entries.Add(entry);
             bool tagCacheActive2 = _cachedTagInfo != null && !_tagCountsDirty;
             UpdateTagCacheForEntry(entry, entry.Count, entry.TimeStamp);
+            // 末尾追加：如已无前置 dirty 则可走增量
+            if (!_filterDirty || _filterAppendOnly)
+            {
+                _filterAppendOnly = true;
+            }
             _filterDirty = true;
             if (!tagCacheActive2) _tagCountsDirty = true;
             TrimEntriesToMax();
@@ -416,14 +684,34 @@ namespace UnityEnhancedConsole
             RepaintThrottled();
         }
 
+        private const int MaxFlushEntriesPerFrame = 1000;
+
         private void FlushPendingEntries()
         {
             lock (PendingLock)
             {
-                if (PendingEntries.Count == 0) return;
-                _flushBuffer.AddRange(PendingEntries);
-                PendingEntries.Clear();
+                int count = PendingEntries.Count;
+                if (count == 0) return;
+                if (count <= MaxFlushEntriesPerFrame)
+                {
+                    // 快速路径：整桶交换，O(1)，避免 RemoveRange(0,N) 的搬移开销
+                    var swap = PendingEntries;
+                    PendingEntries = PendingEntriesBackBuffer;
+                    PendingEntriesBackBuffer = swap;
+                    // _flushBuffer 应是空的（上一帧 Clear 过）；直接 AddRange 取过来
+                    _flushBuffer.AddRange(swap);
+                    swap.Clear();
+                }
+                else
+                {
+                    int take = MaxFlushEntriesPerFrame;
+                    for (int i = 0; i < take; i++)
+                        _flushBuffer.Add(PendingEntries[i]);
+                    PendingEntries.RemoveRange(0, take);
+                }
             }
+            // 提前确保规则 / 过滤策略缓存已被 LoadRules/LoadFilterSettings prime（主线程读取 EditorPrefs）
+            EnhancedConsoleTagLogic.PrimeCachesMainThread();
 
             foreach (var e in _flushBuffer)
             {
@@ -436,7 +724,12 @@ namespace UnityEnhancedConsole
                         last.Count++;
                         if (string.IsNullOrEmpty(last.FirstTimeStamp)) last.FirstTimeStamp = last.TimeStamp;
                         last.LastTimeStamp = e.TimeStamp;
-                        _filterDirty = true;
+                        if (!TryFastCollapseHitUpdate(last, 1, e.TimeStamp))
+                        {
+                            _filterDirty = true;
+                            _filterAppendOnly = false;
+                        }
+                        UpdateUnfilteredCounts(last, 1);
                         UpdateTagCacheForEntry(last, 1, e.TimeStamp);
                         if (!tagCacheActive) _tagCountsDirty = true;
                         if (_errorPause && (e.LogType == LogType.Error || e.LogType == LogType.Exception) && EditorApplication.isPlaying)
@@ -444,11 +737,16 @@ namespace UnityEnhancedConsole
                         continue;
                     }
                 }
-                EnhancedConsoleTagLogic.ComputeTags(e);
+                EnhancedConsoleTagLogic.EnsureTagsComputed(e);
                 e.MessageNumber = GetAndAdvanceNextMessageNumber();
                 _entries.Add(e);
+                UpdateUnfilteredCounts(e, e.Count);
                 bool tagCacheActive2 = _cachedTagInfo != null && !_tagCountsDirty;
                 UpdateTagCacheForEntry(e, e.Count, e.TimeStamp);
+                if (!_filterDirty || _filterAppendOnly)
+                {
+                    _filterAppendOnly = true;
+                }
                 _filterDirty = true;
                 if (!tagCacheActive2) _tagCountsDirty = true;
                 if (_errorPause && (e.LogType == LogType.Error || e.LogType == LogType.Exception))
@@ -460,7 +758,7 @@ namespace UnityEnhancedConsole
             _flushBuffer.Clear();
             TrimEntriesToMax();
             if (!_viewLocked)
-                RefreshUI();
+                RepaintThrottled();
         }
 
         private void OnPlayModeStateChanged(PlayModeStateChange state)
@@ -490,6 +788,7 @@ namespace UnityEnhancedConsole
             _detailHeight = Mathf.Max(MinDetailHeight, EditorPrefs.GetFloat(PrefDetailHeight, 120f));
             _showTimestamp = EditorPrefs.GetBool(PrefShowTimestamp, false);
             _showFrameCount = EditorPrefs.GetBool(PrefShowFrameCount, false);
+            _showStackTrace = EditorPrefs.GetBool(PrefShowStackTrace, true);
             _searchRegex = EditorPrefs.GetBool(PrefSearchRegex, false);
             _search = EditorPrefs.GetString(PrefSearchText, "");
             _searchApplied = _search;
@@ -595,6 +894,23 @@ namespace UnityEnhancedConsole
             return !string.IsNullOrEmpty(e.LastTimeStamp) ? e.LastTimeStamp : e.TimeStamp;
         }
 
+        public static void NotifySettingsChanged()
+        {
+            var windows = Resources.FindObjectsOfTypeAll<EnhancedConsoleWindow>();
+            if (windows != null)
+            {
+                foreach (var w in windows)
+                {
+                    if (w == null) continue;
+                    w.LoadPrefs();
+                    w._filterAppendOnly = false;
+                    w._filterDirty = true;
+                    w._tagCountsDirty = true;
+                    w.RefreshUI();
+                }
+            }
+        }
+
         private static void UpdateGroupTimeRange(ref CollapseGroupState state, LogEntry e)
         {
             string first = GetEntryFirstTime(e);
@@ -624,6 +940,7 @@ namespace UnityEnhancedConsole
             EditorPrefs.SetFloat(PrefDetailHeight, _detailHeight);
             EditorPrefs.SetBool(PrefShowTimestamp, _showTimestamp);
             EditorPrefs.SetBool(PrefShowFrameCount, _showFrameCount);
+            EditorPrefs.SetBool(PrefShowStackTrace, _showStackTrace);
             EditorPrefs.SetBool(PrefSearchRegex, _searchRegex);
             EditorPrefs.SetString(PrefSearchText, _searchApplied ?? "");
             EditorPrefs.SetBool(PrefShowMessageNumber, _showMessageNumber);
@@ -683,20 +1000,40 @@ namespace UnityEnhancedConsole
         /// </summary>
         private (int log, int warn, int err) CountByTypeUnfiltered()
         {
-            int log = 0, warn = 0, err = 0;
+            return (_unfilteredLogCount, _unfilteredWarnCount, _unfilteredErrCount);
+        }
+
+        private void UpdateUnfilteredCounts(LogEntry e, int delta)
+        {
+            if (e == null) return;
+            switch (e.LogType)
+            {
+                case LogType.Log:
+                case LogType.Assert: _unfilteredLogCount += delta; break;
+                case LogType.Warning: _unfilteredWarnCount += delta; break;
+                case LogType.Error:
+                case LogType.Exception: _unfilteredErrCount += delta; break;
+            }
+        }
+
+        private void RecalculateUnfilteredCounts()
+        {
+            _unfilteredLogCount = 0;
+            _unfilteredWarnCount = 0;
+            _unfilteredErrCount = 0;
             foreach (var e in _entries)
             {
+                if (e == null) continue;
                 int c = e.Count;
                 switch (e.LogType)
                 {
                     case LogType.Log:
-                    case LogType.Assert: log += c; break;
-                    case LogType.Warning: warn += c; break;
+                    case LogType.Assert: _unfilteredLogCount += c; break;
+                    case LogType.Warning: _unfilteredWarnCount += c; break;
                     case LogType.Error:
-                    case LogType.Exception: err += c; break;
+                    case LogType.Exception: _unfilteredErrCount += c; break;
                 }
             }
-            return (log, warn, err);
         }
 
         private bool ShowType(LogType type)
@@ -786,19 +1123,16 @@ namespace UnityEnhancedConsole
 
         private void UpdateTagCacheForEntry(LogEntry e, int addCount, string lastTime)
         {
-            if (_cachedTagInfo == null || _tagCountsDirty) return;
+            // 仅维护 tag 名集合（不再统计 count / lastTime），与 GetAllTagsFromRowsWithoutTagFilter 一致
+            if (_cachedTagInfo == null) return;
             if (e == null) return;
-            Regex searchRegex = GetOrCreateSearchRegex();
-            if (!EntryMatchesFiltersExceptTag(e, searchRegex)) return;
-            foreach (var t in e.TagsOrEmpty)
+            var tags = e.TagsOrEmpty;
+            for (int i = 0; i < tags.Length; i++)
             {
+                var t = tags[i];
                 if (string.IsNullOrEmpty(t)) continue;
-                if (!_cachedTagInfo.TryGetValue(t, out var info))
-                    info = new TagInfo { count = 0, lastTime = null };
-                info.count += addCount;
-                if (!string.IsNullOrEmpty(lastTime) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(lastTime, info.lastTime, StringComparison.Ordinal) > 0))
-                    info.lastTime = lastTime;
-                _cachedTagInfo[t] = info;
+                if (!_cachedTagInfo.ContainsKey(t))
+                    _cachedTagInfo[t] = default(TagInfo);
             }
         }
 
@@ -1131,7 +1465,7 @@ namespace UnityEnhancedConsole
             var ve = target;
             while (ve != null && ve != _logListView)
             {
-                if (ve.name == "log-row" && ve.userData is int idx) return idx;
+                if (ve.name == "log-row" && ve.userData is RowChildren rc2) return rc2.RowIndex;
                 ve = ve.parent as VisualElement;
             }
             return -1;
@@ -1174,16 +1508,14 @@ namespace UnityEnhancedConsole
                 int i = text.IndexOf('\n');
                 return i >= 0 ? text.Substring(0, i) : text;
             }
-            int count = 0;
-            for (int i = 0; i < text.Length; i++)
+            int pos = -1;
+            for (int i = 0; i < maxLines; i++)
             {
-                if (text[i] == '\n')
-                {
-                    count++;
-                    if (count >= maxLines) return text.Substring(0, i + 1);
-                }
+                int next = text.IndexOf('\n', pos + 1);
+                if (next < 0) return text;
+                pos = next;
             }
-            return text;
+            return text.Substring(0, pos + 1);
         }
 
         /// <summary>
@@ -1191,6 +1523,22 @@ namespace UnityEnhancedConsole
         /// ?? Collapse??????????????????????
         /// </summary>
         private struct FilteredRow { public int entryIndex; public int displayCount; }
+
+        // ListView 行的子节点引用缓存。makeItem 时填充，bindItem 直接读，避免反复 Q<>。
+        private sealed class RowChildren
+        {
+            public int RowIndex;
+            public Image Icon;
+            public Label Message;
+            public VisualElement Tags;
+            public Label Count;
+            public List<Label> TagLabels; // 复用的 tag 子标签池
+            // 上一次绑定记录，用于跳过完全相同的 bind
+            public LogEntry LastEntry;
+            public int LastDisplayCount;
+            public int LastDisplayCacheVersion;
+            public bool LastCollapseShowing;
+        }
 
         private struct CollapseGroupInfo
         {
@@ -1205,7 +1553,7 @@ namespace UnityEnhancedConsole
             public string lastTime;
         }
 
-        private enum TagSortMode
+        internal enum TagSortMode
         {
             Name = 0,
             Count = 1,
@@ -1225,18 +1573,43 @@ namespace UnityEnhancedConsole
             private readonly string _condition;
             private readonly string _stackTrace;
             private readonly LogType _logType;
+            private readonly int _hash;
 
             public LogKey(LogEntry entry)
             {
                 _condition = entry?.Condition ?? "";
                 _stackTrace = entry?.StackTrace ?? "";
                 _logType = entry != null ? entry.LogType : LogType.Log;
+                if (entry != null)
+                {
+                    int h = entry.CachedKeyHash;
+                    if (h == 0)
+                    {
+                        unchecked
+                        {
+                            h = (int)_logType;
+                            h = (h * 397) ^ (_condition != null ? _condition.GetHashCode() : 0);
+                            h = (h * 397) ^ (_stackTrace != null ? _stackTrace.GetHashCode() : 0);
+                            if (h == 0) h = 1; // 0 用作"未计算"标记
+                        }
+                        entry.CachedKeyHash = h;
+                    }
+                    _hash = h;
+                }
+                else
+                {
+                    _hash = 0;
+                }
             }
 
             public bool Equals(LogKey other)
             {
-                return _logType == other._logType &&
-                       string.Equals(_condition, other._condition, StringComparison.Ordinal) &&
+                if (_hash != other._hash) return false;
+                if (_logType != other._logType) return false;
+                // 引用相等快路径（ShareShortString 已 intern 短串）
+                if (ReferenceEquals(_condition, other._condition) && ReferenceEquals(_stackTrace, other._stackTrace))
+                    return true;
+                return string.Equals(_condition, other._condition, StringComparison.Ordinal) &&
                        string.Equals(_stackTrace, other._stackTrace, StringComparison.Ordinal);
             }
 
@@ -1245,16 +1618,7 @@ namespace UnityEnhancedConsole
                 return obj is LogKey other && Equals(other);
             }
 
-            public override int GetHashCode()
-            {
-                unchecked
-                {
-                    int hash = (int)_logType;
-                    hash = (hash * 397) ^ (_condition != null ? _condition.GetHashCode() : 0);
-                    hash = (hash * 397) ^ (_stackTrace != null ? _stackTrace.GetHashCode() : 0);
-                    return hash;
-                }
-            }
+            public override int GetHashCode() => _hash;
         }
 
         [Serializable]
@@ -1263,27 +1627,110 @@ namespace UnityEnhancedConsole
             public List<string> items = new List<string>();
         }
 
-        private List<FilteredRow> GetFilteredRows()
+        private struct FilterJobInput
         {
-            if (!_filterDirty && _cachedFilteredRows != null)
-                return _cachedFilteredRows;
+            // 使用数组快照，避免后台过滤与主线程修改 _entries 产生竞态
+            public LogEntry[] Entries;
+            public int EntriesCount;
+            public Regex SearchRegexObj;
+            public string SearchApplied;
+            public bool Collapse;
+            public bool CollapseGlobal;
+            public bool ShowLog;
+            public bool ShowWarning;
+            public bool ShowError;
+            public bool TagsEnabled;
+            public HashSet<string> ExcludedTags;
+            public HashSet<string> SelectedTags;
+            public bool FilterTimeRange;
+            public bool FilterNumberRange;
+            public bool FilterFrameRange;
+            public string FilterTimeMin;
+            public string FilterTimeMax;
+            public int FilterNumberMin;
+            public int FilterNumberMax;
+            public int FilterFrameMin;
+            public int FilterFrameMax;
+        }
 
+        private struct FilterJobOutput
+        {
+            public List<FilteredRow> Rows;
+            public Dictionary<int, CollapseGroupInfo> CollapseInfo;
+        }
+
+        private static bool MatchesFilters(LogEntry e, FilterJobInput input)
+        {
+            if (!string.IsNullOrEmpty(input.SearchApplied))
+            {
+                if (e?.Condition == null) return false;
+                bool searchMatched;
+                if (input.SearchRegexObj != null)
+                {
+                    try { searchMatched = input.SearchRegexObj.IsMatch(e.Condition); }
+                    catch { searchMatched = false; }
+                }
+                else
+                {
+                    searchMatched = e.Condition.IndexOf(input.SearchApplied, StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+                if (!searchMatched) return false;
+            }
+
+            if (input.FilterTimeRange)
+            {
+                if (e == null || string.IsNullOrEmpty(e.TimeStamp))
+                {
+                    if (!string.IsNullOrEmpty(input.FilterTimeMin) || !string.IsNullOrEmpty(input.FilterTimeMax)) return false;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(input.FilterTimeMin) && string.Compare(e.TimeStamp, input.FilterTimeMin, StringComparison.Ordinal) < 0) return false;
+                    if (!string.IsNullOrEmpty(input.FilterTimeMax) && string.Compare(e.TimeStamp, input.FilterTimeMax, StringComparison.Ordinal) > 0) return false;
+                }
+            }
+
+            if (input.FilterNumberRange)
+            {
+                if (e == null) return false;
+                if (e.MessageNumber < input.FilterNumberMin || e.MessageNumber > input.FilterNumberMax) return false;
+            }
+
+            if (input.FilterFrameRange)
+            {
+                if (e == null) return false;
+                if (e.FrameCount < input.FilterFrameMin || e.FrameCount > input.FilterFrameMax) return false;
+            }
+
+            switch (e.LogType)
+            {
+                case LogType.Log:
+                case LogType.Assert: if (!input.ShowLog) return false; break;
+                case LogType.Warning: if (!input.ShowWarning) return false; break;
+                case LogType.Error:
+                case LogType.Exception: if (!input.ShowError) return false; break;
+            }
+
+            if (input.TagsEnabled && input.ExcludedTags != null && input.ExcludedTags.Count > 0 && e.HasAnyTag(input.ExcludedTags)) return false;
+            if (input.TagsEnabled && input.SelectedTags != null && input.SelectedTags.Count > 0 && !e.HasAnyTag(input.SelectedTags)) return false;
+
+            return true;
+        }
+
+        private static FilterJobOutput BuildFilteredRowsSync(FilterJobInput input)
+        {
             var list = new List<FilteredRow>();
-            Regex searchRegex = GetOrCreateSearchRegex();
-            if (_collapse && _collapseGlobal)
+            Dictionary<int, CollapseGroupInfo> infoMap = null;
+
+            if (input.Collapse && input.CollapseGlobal)
             {
                 var groups = new Dictionary<LogKey, CollapseGroupState>();
                 var order = new List<LogKey>();
-                for (int i = 0; i < _entries.Count; i++)
+                int n = input.EntriesCount;
+                for (int i = 0; i < n; i++)
                 {
-                    var e = _entries[i];
-                    if (!EntryMatchesSearch(e, searchRegex)) continue;
-                    if (!EntryMatchesTimeRange(e)) continue;
-                    if (!EntryMatchesNumberRange(e)) continue;
-                    if (!EntryMatchesFrameRange(e)) continue;
-                    if (!ShowType(e.LogType)) continue;
-                    if (_tagsEnabled && _excludedTags.Count > 0 && e.HasAnyTag(_excludedTags)) continue;
-                    if (_tagsEnabled && _selectedTags.Count > 0 && !e.HasAnyTag(_selectedTags)) continue;
+                    var e = input.Entries[i];
+                    if (!MatchesFilters(e, input)) continue;
                     var key = new LogKey(e);
                     if (groups.TryGetValue(key, out var state))
                     {
@@ -1304,140 +1751,352 @@ namespace UnityEnhancedConsole
                         order.Add(key);
                     }
                 }
-                var infoMap = new Dictionary<int, CollapseGroupInfo>(order.Count);
+                infoMap = new Dictionary<int, CollapseGroupInfo>(order.Count);
                 foreach (var key in order)
                 {
                     var g = groups[key];
                     list.Add(new FilteredRow { entryIndex = g.firstIndex, displayCount = g.totalCount });
                     infoMap[g.firstIndex] = new CollapseGroupInfo { totalCount = g.totalCount, firstTime = g.firstTime, lastTime = g.lastTime };
                 }
-                _cachedCollapseGroupInfo = infoMap;
             }
-            else if (_collapse)
+            else if (input.Collapse)
             {
-                for (int i = 0; i < _entries.Count; i++)
+                int n = input.EntriesCount;
+                for (int i = 0; i < n; i++)
                 {
-                    var e = _entries[i];
-                    if (!EntryMatchesSearch(e, searchRegex)) continue;
-                    if (!EntryMatchesTimeRange(e)) continue;
-                    if (!EntryMatchesNumberRange(e)) continue;
-                    if (!EntryMatchesFrameRange(e)) continue;
-                    if (!ShowType(e.LogType)) continue;
-                    if (_tagsEnabled && _excludedTags.Count > 0 && e.HasAnyTag(_excludedTags)) continue;
-                    if (_tagsEnabled && _selectedTags.Count > 0 && !e.HasAnyTag(_selectedTags)) continue;
+                    var e = input.Entries[i];
+                    if (!MatchesFilters(e, input)) continue;
                     list.Add(new FilteredRow { entryIndex = i, displayCount = e.Count });
                 }
-                _cachedCollapseGroupInfo = null;
             }
             else
             {
-                for (int i = 0; i < _entries.Count; i++)
+                int n = input.EntriesCount;
+                for (int i = 0; i < n; i++)
                 {
-                    var e = _entries[i];
-                    if (!EntryMatchesSearch(e, searchRegex)) continue;
-                    if (!EntryMatchesTimeRange(e)) continue;
-                    if (!EntryMatchesNumberRange(e)) continue;
-                    if (!EntryMatchesFrameRange(e)) continue;
-                    if (!ShowType(e.LogType)) continue;
-                    if (_tagsEnabled && _excludedTags.Count > 0 && e.HasAnyTag(_excludedTags)) continue;
-                    if (_tagsEnabled && _selectedTags.Count > 0 && !e.HasAnyTag(_selectedTags)) continue;
-                    for (int k = 0; k < e.Count; k++)
+                    var e = input.Entries[i];
+                    if (!MatchesFilters(e, input)) continue;
+                    if (e.Count == 1)
+                    {
                         list.Add(new FilteredRow { entryIndex = i, displayCount = 1 });
+                    }
+                    else
+                    {
+                        for (int k = 0; k < e.Count; k++)
+                            list.Add(new FilteredRow { entryIndex = i, displayCount = 1 });
+                    }
                 }
-                _cachedCollapseGroupInfo = null;
             }
-            _cachedFilteredRows = list;
+
+            return new FilterJobOutput { Rows = list, CollapseInfo = infoMap };
+        }
+
+        /// <summary>
+        /// 在已有 cached rows 上做"仅追加"增量过滤：从 startIndex 扫描到 _entries 末尾。
+        /// collapse 全局模式下命中已有分组时更新该 row 的 displayCount / lastTime。
+        /// 仅当 _filterAppendOnly==true 且 cache 已存在时调用。
+        /// </summary>
+        private void AppendIncrementalFilter(int startIndex)
+        {
+            if (_cachedFilteredRows == null) return;
+            int n = _entries.Count;
+            if (startIndex >= n) return;
+
+            var input = BuildFilterJobInput(forBackgroundJob: false);
+
+            if (input.Collapse && input.CollapseGlobal)
+            {
+                // 重建 key→rowIndex 索引（首次或被清失效时）
+                if (_collapseRowIndexByKey == null)
+                {
+                    _collapseRowIndexByKey = new Dictionary<LogKey, int>(_cachedFilteredRows.Count);
+                    for (int r = 0; r < _cachedFilteredRows.Count; r++)
+                    {
+                        var er = input.Entries[_cachedFilteredRows[r].entryIndex];
+                        _collapseRowIndexByKey[new LogKey(er)] = r;
+                    }
+                }
+                if (_cachedCollapseGroupInfo == null)
+                    _cachedCollapseGroupInfo = new Dictionary<int, CollapseGroupInfo>(_cachedFilteredRows.Count);
+
+                for (int i = startIndex; i < n; i++)
+                {
+                    var e = input.Entries[i];
+                    if (!MatchesFilters(e, input)) continue;
+                    var key = new LogKey(e);
+                    if (_collapseRowIndexByKey.TryGetValue(key, out int rowIdx))
+                    {
+                        var row = _cachedFilteredRows[rowIdx];
+                        row.displayCount += e.Count;
+                        _cachedFilteredRows[rowIdx] = row;
+                        if (_cachedCollapseGroupInfo.TryGetValue(row.entryIndex, out var info))
+                        {
+                            info.totalCount = row.displayCount;
+                            string lt = GetEntryLastTime(e);
+                            if (!string.IsNullOrEmpty(lt) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(lt, info.lastTime, StringComparison.Ordinal) > 0))
+                                info.lastTime = lt;
+                            _cachedCollapseGroupInfo[row.entryIndex] = info;
+                        }
+                    }
+                    else
+                    {
+                        var row = new FilteredRow { entryIndex = i, displayCount = e.Count };
+                        int newRowIdx = _cachedFilteredRows.Count;
+                        _cachedFilteredRows.Add(row);
+                        _collapseRowIndexByKey[key] = newRowIdx;
+                        _cachedCollapseGroupInfo[i] = new CollapseGroupInfo
+                        {
+                            totalCount = e.Count,
+                            firstTime = GetEntryFirstTime(e),
+                            lastTime = GetEntryLastTime(e)
+                        };
+                    }
+                }
+            }
+            else if (input.Collapse)
+            {
+                for (int i = startIndex; i < n; i++)
+                {
+                    var e = input.Entries[i];
+                    if (!MatchesFilters(e, input)) continue;
+                    _cachedFilteredRows.Add(new FilteredRow { entryIndex = i, displayCount = e.Count });
+                }
+            }
+            else
+            {
+                for (int i = startIndex; i < n; i++)
+                {
+                    var e = input.Entries[i];
+                    if (!MatchesFilters(e, input)) continue;
+                    if (e.Count == 1)
+                    {
+                        _cachedFilteredRows.Add(new FilteredRow { entryIndex = i, displayCount = 1 });
+                    }
+                    else
+                    {
+                        for (int k = 0; k < e.Count; k++)
+                            _cachedFilteredRows.Add(new FilteredRow { entryIndex = i, displayCount = 1 });
+                    }
+                }
+            }
+            _lastFilteredEntriesEnd = n;
+        }
+
+        /// <summary>
+        /// 标记筛选条件已改变，必须做全量重建。
+        /// </summary>
+        private void InvalidateFilterFull()
+        {
+            _filterDirty = true;
+            _filterAppendOnly = false;
+        }
+
+        /// <summary>
+        /// 拷贝 _entries 到指定数组（必要时扩容），避免后台过滤与主线程修改冲突。
+        /// reuseBuffer=true 时复用内部 buffer（仅同步主线程使用，且后续不再被读取）。
+        /// reuseBuffer=false 时分配新数组（用于后台 Task，buffer 生命周期独立）。
+        /// </summary>
+        private LogEntry[] _entriesSnapshotBuffer;
+        private int SnapshotEntries(bool reuseBuffer, out LogEntry[] arr)
+        {
+            int n = _entries.Count;
+            if (!reuseBuffer)
+            {
+                arr = new LogEntry[n];
+                if (n > 0) _entries.CopyTo(0, arr, 0, n);
+                return n;
+            }
+            if (_entriesSnapshotBuffer == null || _entriesSnapshotBuffer.Length < n)
+            {
+                int cap = Math.Max(64, _entriesSnapshotBuffer == null ? n : _entriesSnapshotBuffer.Length * 2);
+                while (cap < n) cap *= 2;
+                _entriesSnapshotBuffer = new LogEntry[cap];
+            }
+            if (n > 0) _entries.CopyTo(0, _entriesSnapshotBuffer, 0, n);
+            arr = _entriesSnapshotBuffer;
+            return n;
+        }
+
+        private FilterJobInput BuildFilterJobInput(bool forBackgroundJob)
+        {
+            int count = SnapshotEntries(!forBackgroundJob, out var arr);
+            return new FilterJobInput
+            {
+                Entries = arr,
+                EntriesCount = count,
+                SearchRegexObj = GetOrCreateSearchRegex(),
+                SearchApplied = _searchApplied,
+                Collapse = _collapse,
+                CollapseGlobal = _collapseGlobal,
+                ShowLog = _showLog,
+                ShowWarning = _showWarning,
+                ShowError = _showError,
+                TagsEnabled = _tagsEnabled,
+                ExcludedTags = _excludedTags,
+                SelectedTags = _selectedTags,
+                FilterTimeRange = _filterTimeRange,
+                FilterNumberRange = _filterNumberRange,
+                FilterFrameRange = _filterFrameRange,
+                FilterTimeMin = _filterTimeMin,
+                FilterTimeMax = _filterTimeMax,
+                FilterNumberMin = _filterNumberMin,
+                FilterNumberMax = _filterNumberMax,
+                FilterFrameMin = _filterFrameMin,
+                FilterFrameMax = _filterFrameMax,
+            };
+        }
+
+        /// <summary>
+        /// collapse 命中已有分组时，尝试在 cached rows 上做 O(1) 行更新，避免触发全量重建。
+        /// 仅 collapse + collapseGlobal + cache 已存在时有效；命中返回 true。
+        /// </summary>
+        private bool TryFastCollapseHitUpdate(LogEntry last, int addedCount, string newLastTime)
+        {
+            if (_cachedFilteredRows == null) return false;
+            if (!_collapse || !_collapseGlobal) return false;
+
+            // 懒构建 key→rowIndex 索引
+            if (_collapseRowIndexByKey == null)
+            {
+                _collapseRowIndexByKey = new Dictionary<LogKey, int>(_cachedFilteredRows.Count);
+                for (int r = 0; r < _cachedFilteredRows.Count; r++)
+                {
+                    int ei = _cachedFilteredRows[r].entryIndex;
+                    if (ei < 0 || ei >= _entries.Count) continue;
+                    _collapseRowIndexByKey[new LogKey(_entries[ei])] = r;
+                }
+            }
+
+            var key = new LogKey(last);
+            if (!_collapseRowIndexByKey.TryGetValue(key, out int rowIdx)) return false;
+
+            var row = _cachedFilteredRows[rowIdx];
+            row.displayCount += addedCount;
+            _cachedFilteredRows[rowIdx] = row;
+            if (_cachedCollapseGroupInfo != null && _cachedCollapseGroupInfo.TryGetValue(row.entryIndex, out var info))
+            {
+                info.totalCount = row.displayCount;
+                if (!string.IsNullOrEmpty(newLastTime) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(newLastTime, info.lastTime, StringComparison.Ordinal) > 0))
+                    info.lastTime = newLastTime;
+                _cachedCollapseGroupInfo[row.entryIndex] = info;
+            }
+            return true;
+        }
+
+        private void TryScheduleBackgroundFilter()
+        {
+            if (!_filterDirty || _cachedFilteredRows == null || _filterRebuildPending) return;
+
+            _filterCts?.Cancel();
+            _filterCts = new System.Threading.CancellationTokenSource();
+            var cts = _filterCts;
+            var input = BuildFilterJobInput(forBackgroundJob: true);
+            int snapshotCount = input.EntriesCount;
+            int scheduledVersion = _filterCriteriaVersion;
+            _filterRebuildPending = true;
+
+            Task.Run(() =>
+            {
+                var output = BuildFilteredRowsSync(input);
+                if (cts.IsCancellationRequested) return;
+
+                EditorApplication.delayCall += () =>
+                {
+                    if (cts.IsCancellationRequested) return;
+                    _filterRebuildPending = false;
+                    // 调度期间用户改了过滤条件（如 selectedTags / search / show-type 等），结果已过期 → 丢弃，重新调度
+                    if (_filterCriteriaVersion != scheduledVersion)
+                    {
+                        // 保持 _filterDirty / _filterAppendOnly 当前值（已被改条件的代码设为 dirty + non-append）
+                        TryScheduleBackgroundFilter();
+                        return;
+                    }
+                    _cachedFilteredRows = output.Rows;
+                    _cachedCollapseGroupInfo = output.CollapseInfo;
+                    _collapseRowIndexByKey = null;
+                    _lastFilteredEntriesEnd = snapshotCount;
+                    // 后台过滤期间 _entries 可能继续追加：保留 append-only dirty
+                    if (_entries.Count > snapshotCount)
+                    {
+                        _filterDirty = true;
+                        _filterAppendOnly = true;
+                    }
+                    else
+                    {
+                        _filterDirty = false;
+                        _filterAppendOnly = false;
+                    }
+                    RefreshUI();
+                };
+            });
+        }
+
+        private List<FilteredRow> GetFilteredRows()
+        {
+            if (!_filterDirty && _cachedFilteredRows != null)
+                return _cachedFilteredRows;
+
+            // 增量路径：仅当筛选条件未变、只有末尾追加时
+            if (_filterDirty && _filterAppendOnly && _cachedFilteredRows != null && _lastFilteredEntriesEnd <= _entries.Count)
+            {
+                AppendIncrementalFilter(_lastFilteredEntriesEnd);
+                _filterDirty = false;
+                _filterAppendOnly = false;
+                _lastFilterRebuildTime = EditorApplication.timeSinceStartup;
+                return _cachedFilteredRows;
+            }
+
+            if (_filterRebuildPending && _cachedFilteredRows != null)
+                return _cachedFilteredRows;
+
+            double now = EditorApplication.timeSinceStartup;
+            if (_filterDirty && _cachedFilteredRows != null && (now - _lastFilterRebuildTime) * 1000 < MinFilterRebuildIntervalMs)
+                return _cachedFilteredRows;
+            _lastFilterRebuildTime = now;
+
+            var input = BuildFilterJobInput(forBackgroundJob: false);
+            var output = BuildFilteredRowsSync(input);
+            _cachedFilteredRows = output.Rows;
+            _cachedCollapseGroupInfo = output.CollapseInfo;
+            _collapseRowIndexByKey = null; // 让增量路径在下次需要时重建
             _filterDirty = false;
-            return list;
+            _filterAppendOnly = false;
+            _filterRebuildPending = false;
+            _lastFilteredEntriesEnd = input.EntriesCount;
+            return output.Rows;
         }
 
         /// <summary>
         /// ????????????????????????????????????????????????????0 ???????
         /// </summary>
+        /// <summary>
+        /// 返回所有出现过的 tag（不含 tag 自身过滤），仅维护"tag 集合"，不再统计计数/最近时间。
+        /// 性能优先：只在 cache 为空时做一次 O(N) 扫描；新增 entry 由 UpdateTagCacheForEntry 增量加入；
+        /// 删除（Trim/Clear）走 CleanupStaleTags 偶尔做一次重建。
+        /// </summary>
         private Dictionary<string, TagInfo> GetAllTagsFromRowsWithoutTagFilter()
         {
-            if (!_tagCountsDirty && _cachedTagInfo != null)
+            if (_cachedTagInfo != null && !_tagCountsDirty)
                 return _cachedTagInfo;
 
+            // dirty 但已存在：保留旧字典，避免每次 toggle 都重建（仅在首次 / Clear 后真正重建）
+            if (_cachedTagInfo != null)
+            {
+                _tagCountsDirty = false;
+                return _cachedTagInfo;
+            }
+
             var allTags = new Dictionary<string, TagInfo>(StringComparer.OrdinalIgnoreCase);
-            Regex searchRegex = GetOrCreateSearchRegex();
-            if (_collapse && _collapseGlobal)
+            for (int i = 0; i < _entries.Count; i++)
             {
-                var groups = new Dictionary<LogKey, CollapseGroupState>();
-                var order = new List<LogKey>();
-                for (int i = 0; i < _entries.Count; i++)
+                var e = _entries[i];
+                var tags = e.TagsOrEmpty;
+                for (int j = 0; j < tags.Length; j++)
                 {
-                    var e = _entries[i];
-                    if (!EntryMatchesFiltersExceptTag(e, searchRegex)) continue;
-                    var key = new LogKey(e);
-                    if (groups.TryGetValue(key, out var state))
-                    {
-                        state.totalCount += e.Count;
-                        groups[key] = state;
-                    }
-                    else
-                    {
-                        state = new CollapseGroupState { firstIndex = i, totalCount = e.Count };
-                        groups.Add(key, state);
-                        order.Add(key);
-                    }
-                }
-                foreach (var key in order)
-                {
-                    var g = groups[key];
-                    var e = _entries[g.firstIndex];
-                    int c = g.totalCount;
-                    string last = GetEntryLastTime(e);
-                    foreach (var t in e.TagsOrEmpty)
-                    {
-                        if (string.IsNullOrEmpty(t)) continue;
-                        if (!allTags.TryGetValue(t, out var info))
-                            info = new TagInfo { count = 0, lastTime = null };
-                        info.count += c;
-                        if (!string.IsNullOrEmpty(last) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(last, info.lastTime, StringComparison.Ordinal) > 0))
-                            info.lastTime = last;
-                        allTags[t] = info;
-                    }
-                }
-            }
-            else if (_collapse)
-            {
-                for (int i = 0; i < _entries.Count; i++)
-                {
-                    var e = _entries[i];
-                    if (!EntryMatchesFiltersExceptTag(e, searchRegex)) continue;
-                    int c = e.Count;
-                    string last = GetEntryLastTime(e);
-                    foreach (var t in e.TagsOrEmpty)
-                    {
-                        if (string.IsNullOrEmpty(t)) continue;
-                        if (!allTags.TryGetValue(t, out var info))
-                            info = new TagInfo { count = 0, lastTime = null };
-                        info.count += c;
-                        if (!string.IsNullOrEmpty(last) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(last, info.lastTime, StringComparison.Ordinal) > 0))
-                            info.lastTime = last;
-                        allTags[t] = info;
-                    }
-                }
-            }
-            else
-            {
-                for (int i = 0; i < _entries.Count; i++)
-                {
-                    var e = _entries[i];
-                    if (!EntryMatchesFiltersExceptTag(e, searchRegex)) continue;
-                    int c = e.Count;
-                    string last = GetEntryLastTime(e);
-                    foreach (var t in e.TagsOrEmpty)
-                    {
-                        if (string.IsNullOrEmpty(t)) continue;
-                        if (!allTags.TryGetValue(t, out var info))
-                            info = new TagInfo { count = 0, lastTime = null };
-                        info.count += c;
-                        if (!string.IsNullOrEmpty(last) && (string.IsNullOrEmpty(info.lastTime) || string.Compare(last, info.lastTime, StringComparison.Ordinal) > 0))
-                            info.lastTime = last;
-                        allTags[t] = info;
-                    }
+                    var t = tags[j];
+                    if (string.IsNullOrEmpty(t)) continue;
+                    if (!allTags.ContainsKey(t))
+                        allTags[t] = default(TagInfo);
                 }
             }
             _cachedTagInfo = allTags;
@@ -1521,9 +2180,66 @@ namespace UnityEnhancedConsole
         {
             foreach (var e in _entries)
                 EnhancedConsoleTagLogic.ComputeTags(e);
+            _filterAppendOnly = false;
             _filterDirty = true;
+            _filterCriteriaVersion++;
             _tagCountsDirty = true;
+            _cachedTagInfo = null;
+            InvalidateDisplayCache();
             RefreshUI();
+        }
+
+        internal void JumpToMessageNumber(int targetNumber)
+        {
+            if (targetNumber <= 0)
+            {
+                ShowNotification(new GUIContent("请输入有效的日志编号"), 2f);
+                return;
+            }
+
+            int entryIndex = FindEntryIndexByMessageNumber(targetNumber);
+            if (entryIndex < 0)
+            {
+                ShowNotification(new GUIContent($"日志编号 {targetNumber} 不存在"), 2f);
+                return;
+            }
+
+            _selectedIndex = entryIndex;
+
+            var filtered = GetFilteredRows();
+            int filteredIndex = -1;
+            for (int i = 0; i < filtered.Count; i++)
+            {
+                if (filtered[i].entryIndex == entryIndex)
+                {
+                    filteredIndex = i;
+                    break;
+                }
+            }
+
+            if (filteredIndex < 0)
+            {
+                ShowNotification(new GUIContent($"日志编号 {targetNumber} 被当前过滤条件隐藏"), 2f);
+                return;
+            }
+
+            _logListView.SetSelectionWithoutNotify(new[] { filteredIndex });
+            _logListView.ScrollToItem(filteredIndex);
+            UpdateDetailPanel();
+        }
+
+        private int FindEntryIndexByMessageNumber(int number)
+        {
+            int lo = 0, hi = _entries.Count - 1;
+            while (lo <= hi)
+            {
+                int mid = (lo + hi) >> 1;
+                int midNum = _entries[mid].MessageNumber;
+                if (midNum == number) return mid;
+                if (midNum < number) lo = mid + 1;
+                else hi = mid - 1;
+            }
+            return -1;
         }
 
         private void SetStackTrace(LogType type, StackTraceLogType stackType)
@@ -1591,11 +2307,18 @@ namespace UnityEnhancedConsole
             }
             _selectedTags.Clear();
             _excludedTags.Clear();
+            _tagButtonPool.Clear();
+            _lastTagBarOrder.Clear();
             _cachedFilteredRows = null;
             _cachedTagInfo = null;
+            _cachedCollapseGroupInfo = null;
+            _collapseRowIndexByKey = null;
+            _filterAppendOnly = false;
             _filterDirty = true;
+            _listViewNeedsRebuild = true;
             _tagCountsDirty = true;
             _selectedIndex = -1;
+            RecalculateUnfilteredCounts();
             SavePrefs();
             RefreshUI();
         }
@@ -1613,8 +2336,23 @@ namespace UnityEnhancedConsole
         /// </summary>
         private void TrimEntriesToMax()
         {
-            if (_entries.Count <= _maxEntries) return;
+            int threshold = (int)(_maxEntries * 1.2);
+            if (_entries.Count <= threshold) return;
             int removeCount = _entries.Count - _maxEntries;
+            for (int i = 0; i < removeCount; i++)
+            {
+                var e = _entries[i];
+                if (e == null) continue;
+                int c = e.Count;
+                switch (e.LogType)
+                {
+                    case LogType.Log:
+                    case LogType.Assert: _unfilteredLogCount -= c; break;
+                    case LogType.Warning: _unfilteredWarnCount -= c; break;
+                    case LogType.Error:
+                    case LogType.Exception: _unfilteredErrCount -= c; break;
+                }
+            }
             _entries.RemoveRange(0, removeCount);
             if (_selectedIndex >= 0)
             {
@@ -1623,30 +2361,54 @@ namespace UnityEnhancedConsole
             }
             _cachedTagInfo = null;
             _tagCountsDirty = true;
+            // entryIndex 已整体偏移，必须全量重建
+            _filterAppendOnly = false;
+            _cachedFilteredRows = null;
+            _cachedCollapseGroupInfo = null;
+            _collapseRowIndexByKey = null;
+            _filterDirty = true;
+            CleanupStaleTags();
+        }
+
+        private void CleanupStaleTags()
+        {
+            if (_selectedTags.Count == 0 && _excludedTags.Count == 0) return;
+            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var e in _entries)
+            {
+                if (e?.Tags == null) continue;
+                foreach (var t in e.Tags)
+                    if (!string.IsNullOrEmpty(t)) existing.Add(t);
+            }
+            _selectedTags.RemoveWhere(t => !existing.Contains(t));
+            _excludedTags.RemoveWhere(t => !existing.Contains(t));
         }
 
         /// <summary>
         /// ??????AddEntry ??????Repaint ?? N ms ???? Repaint????????????
         /// </summary>
+        /// <summary>
+        /// 节流：高频路径（AddEntry/Flush/远程接收）调用此方法只置 dirty 标志，由 EditorApplication.update tick 合并执行 RefreshUI。
+        /// 替代以前的 EditorApplication.delayCall 链，避免同帧多次注册回调。
+        /// </summary>
         private void RepaintThrottled()
         {
             if (_viewLocked) return;
+            _uiRefreshRequested = true;
+        }
+
+        private bool _uiRefreshRequested;
+
+        private void TickRefreshUI()
+        {
+            if (!_uiRefreshRequested) return;
+            if (_viewLocked) { _uiRefreshRequested = false; return; }
             double now = EditorApplication.timeSinceStartup;
-            if ((now - _lastRepaintTime) * 1000 >= MinRepaintIntervalMs)
-            {
-                _lastRepaintTime = now;
-                RefreshUI();
-            }
-            else if (!_repaintScheduled)
-            {
-                _repaintScheduled = true;
-                EditorApplication.delayCall += () =>
-                {
-                    _repaintScheduled = false;
-                    _lastRepaintTime = EditorApplication.timeSinceStartup;
-                    RefreshUI();
-                };
-            }
+            if ((now - _lastRepaintTime) * 1000 < MinRepaintIntervalMs) return;
+            _uiRefreshRequested = false;
+            _lastRepaintTime = now;
+            try { RefreshUI(); }
+            catch (Exception ex) { UnityEngine.Debug.LogException(ex); }
         }
 
         #region UI Toolkit
@@ -1669,16 +2431,12 @@ namespace UnityEnhancedConsole
             _mainSplit = innerRoot.Q<TwoPaneSplitView>("mainSplit");
             if (_mainSplit != null)
             {
-                bool restored = false;
-                _mainSplit.RegisterCallback<GeometryChangedEvent>(evt =>
+                var detailPane = _mainSplit.Q<VisualElement>("detailScroll");
+                if (detailPane != null)
                 {
-                    if (restored) return;
-                    if (_mainSplit.resolvedStyle.width > 0 && _mainSplit.resolvedStyle.height > 0)
-                    {
-                        _mainSplit.fixedPaneInitialDimension = _detailHeight;
-                        restored = true;
-                    }
-                });
+                    _mainSplit.fixedPaneInitialDimension = _detailHeight;
+                    detailPane.RegisterCallback<GeometryChangedEvent>(OnDetailPaneGeometryChanged);
+                }
             }
 
             _logListView = innerRoot.Q<ListView>("logListView");
@@ -1750,6 +2508,11 @@ namespace UnityEnhancedConsole
                         evt.StopPropagation();
                     }
                 }
+                if ((evt.ctrlKey || evt.commandKey) && evt.keyCode == KeyCode.G)
+                {
+                    JumpToLineWindow.Open(this);
+                    evt.StopPropagation();
+                }
             });
 
             RefreshUI();
@@ -1798,7 +2561,7 @@ namespace UnityEnhancedConsole
                 toggleCollapse.RegisterValueChangedCallback(ev =>
                 {
                     _collapse = ev.newValue;
-                    _filterDirty = true; _tagCountsDirty = true;
+                    _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                     SavePrefs();
                     RefreshUI();
                 });
@@ -1825,11 +2588,11 @@ namespace UnityEnhancedConsole
             }
 
             var toggleLog = root.Q<Toggle>("toggleLog");
-            if (toggleLog != null) { toggleLog.value = _showLog; toggleLog.RegisterValueChangedCallback(ev => { _showLog = ev.newValue; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); }); }
+            if (toggleLog != null) { toggleLog.value = _showLog; toggleLog.RegisterValueChangedCallback(ev => { _showLog = ev.newValue; _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true; SavePrefs(); RefreshUI(); }); }
             var toggleWarning = root.Q<Toggle>("toggleWarning");
-            if (toggleWarning != null) { toggleWarning.value = _showWarning; toggleWarning.RegisterValueChangedCallback(ev => { _showWarning = ev.newValue; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); }); }
+            if (toggleWarning != null) { toggleWarning.value = _showWarning; toggleWarning.RegisterValueChangedCallback(ev => { _showWarning = ev.newValue; _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true; SavePrefs(); RefreshUI(); }); }
             var toggleError = root.Q<Toggle>("toggleError");
-            if (toggleError != null) { toggleError.value = _showError; toggleError.RegisterValueChangedCallback(ev => { _showError = ev.newValue; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); }); }
+            if (toggleError != null) { toggleError.value = _showError; toggleError.RegisterValueChangedCallback(ev => { _showError = ev.newValue; _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true; SavePrefs(); RefreshUI(); }); }
 
             var btnTagToggle = root.Q<Button>("btnTagToggle");
             if (btnTagToggle != null)
@@ -1837,7 +2600,7 @@ namespace UnityEnhancedConsole
                 btnTagToggle.clicked += () =>
                 {
                     _tagsEnabled = !_tagsEnabled;
-                    _filterDirty = true; _tagCountsDirty = true;
+                    _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                     SavePrefs();
                     RefreshUI();
                 };
@@ -1885,7 +2648,8 @@ namespace UnityEnhancedConsole
                 btnSearchClear.clicked += () =>
                 {
                     _search = ""; _searchApplied = "";
-                    _filterDirty = true; _tagCountsDirty = true;
+                    _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
+                    InvalidateDisplayCache();
                     if (_searchField != null) _searchField.value = "";
                     SavePrefs();
                     RefreshUI();
@@ -1896,7 +2660,7 @@ namespace UnityEnhancedConsole
             if (toggleRegex != null)
             {
                 toggleRegex.value = _searchRegex;
-                toggleRegex.RegisterValueChangedCallback(ev => { _searchRegex = ev.newValue; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+                toggleRegex.RegisterValueChangedCallback(ev => { _searchRegex = ev.newValue; _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true; InvalidateDisplayCache(); SavePrefs(); RefreshUI(); });
             }
 
             // Copy Results & Copy Matches are now accessible via ☰ Menu (ShowContextMenu)
@@ -1908,6 +2672,7 @@ namespace UnityEnhancedConsole
             if (_logListView == null) return;
             float lineHeight = 18f;
             _logListView.fixedItemHeight = lineHeight * Mathf.Clamp(_entryLines, 1, 10) + 4;
+            _logListView.virtualizationMethod = CollectionVirtualizationMethod.FixedHeight;
             _logListView.makeItem = () =>
             {
                 var row = new VisualElement { name = "log-row", style = { flexDirection = FlexDirection.Row } };
@@ -1931,64 +2696,110 @@ namespace UnityEnhancedConsole
                 row.Add(content);
                 row.Add(tags);
                 row.Add(count);
+                // 一次性缓存 child 引用，避免 bindItem 中反复 Q<>（10k+ 条滚动时差距巨大）
+                row.userData = new RowChildren { Icon = icon, Message = msg, Tags = tags, Count = count, TagLabels = new List<Label>() };
                 return row;
             };
             _logListView.selectionType = SelectionType.Multiple;
             _logListView.bindItem = (e, i) =>
             {
-                e.userData = i;
-                var filtered = GetFilteredRows();
-                if (i < 0 || i >= filtered.Count) return;
+                var filtered = _currentFilteredRowsForBinding;
+                if (filtered == null || i < 0 || i >= filtered.Count) return;
                 var row = filtered[i];
                 var entry = _entries[row.entryIndex];
-                var img = e.Q<Image>("row-icon");
-                if (img != null)
+                // userData 在 makeItem 时已存 RowChildren；这里若被覆盖就懒重建
+                var rc = e.userData as RowChildren;
+                if (rc == null)
+                {
+                    rc = new RowChildren
+                    {
+                        Icon = e.Q<Image>("row-icon"),
+                        Message = e.Q<VisualElement>("row-content")?.Q<Label>("row-message"),
+                        Tags = e.Q<VisualElement>("row-tags"),
+                        Count = e.Q<Label>("row-count"),
+                        TagLabels = new List<Label>()
+                    };
+                    e.userData = rc;
+                }
+                rc.RowIndex = i;
+                bool collapseShowing = _collapse && row.displayCount > 1;
+                // 早退：若 entry / displayCount / 显示版本 / collapse 状态全相同，跳过整段
+                if (ReferenceEquals(rc.LastEntry, entry)
+                    && rc.LastDisplayCount == row.displayCount
+                    && rc.LastDisplayCacheVersion == _displayCacheVersion
+                    && rc.LastCollapseShowing == collapseShowing)
+                {
+                    return;
+                }
+                rc.LastEntry = entry;
+                rc.LastDisplayCount = row.displayCount;
+                rc.LastDisplayCacheVersion = _displayCacheVersion;
+                rc.LastCollapseShowing = collapseShowing;
+
+                if (rc.Icon != null)
                 {
                     var tex = entry.LogType == LogType.Error || entry.LogType == LogType.Exception ? _iconError : entry.LogType == LogType.Warning ? _iconWarning : _iconLog;
-                    img.image = tex;
+                    rc.Icon.image = tex;
                 }
-                var content = e.Q<VisualElement>("row-content");
-                var msgLabel = content?.Q<Label>("row-message");
-                if (msgLabel != null)
+                if (rc.Message != null)
                 {
-                    var prefixParts = new List<string>();
-                    if (_showMessageNumber) prefixParts.Add("[" + entry.MessageNumber + "]");
-                    if (_showTimestamp && !string.IsNullOrEmpty(entry.TimeStamp)) prefixParts.Add("[" + entry.TimeStamp + "]");
-                    if (_showFrameCount) prefixParts.Add("[" + entry.FrameCount + "]");
-                    string display = entry.Condition ?? "";
-                    if (prefixParts.Count > 0)
-                        display = string.Join(" ", prefixParts) + " " + display;
-                    display = GetFirstLines(display, _entryLines);
-                    msgLabel.text = BuildMessageWithHighlight(display);
+                    string cached = entry.CachedDisplayText;
+                    if (cached == null || entry.CachedDisplayVersion != _displayCacheVersion)
+                    {
+                        string display = entry.Condition ?? "";
+                        if (_showMessageNumber) display = "[" + entry.MessageNumber + "] " + display;
+                        if (_showTimestamp && !string.IsNullOrEmpty(entry.TimeStamp)) display = "[" + entry.TimeStamp + "] " + display;
+                        if (_showFrameCount) display = "[" + entry.FrameCount + "] " + display;
+                        display = GetFirstLines(display, _entryLines);
+                        cached = BuildMessageWithHighlight(display);
+                        entry.CachedDisplayText = cached;
+                        entry.CachedDisplayVersion = _displayCacheVersion;
+                    }
+                    rc.Message.text = cached;
                 }
-                var tagsContainer = e.Q<VisualElement>("row-tags");
-                if (tagsContainer != null)
+                if (rc.Tags != null)
                 {
-                    tagsContainer.Clear();
+                    var existingLabels = rc.TagLabels;
+                    int labelIndex = 0;
                     if (_tagsEnabled)
                     {
-                        foreach (var tag in entry.TagsOrEmpty)
+                        var entryTags = entry.Tags ?? LogEntry.EmptyTags;
+                        for (int ti = 0; ti < entryTags.Length; ti++)
                         {
+                            var tag = entryTags[ti];
                             if (string.IsNullOrEmpty(tag)) continue;
-                            var tagLabel = new Label(tag) { name = "tag-" + tag };
-                            tagLabel.AddToClassList("log-row-tag");
-                            tagLabel.style.backgroundColor = GetTagColor(tag);
-                            tagsContainer.Add(tagLabel);
+                            Label lbl;
+                            if (labelIndex < existingLabels.Count)
+                            {
+                                lbl = existingLabels[labelIndex];
+                                lbl.style.display = DisplayStyle.Flex;
+                            }
+                            else
+                            {
+                                lbl = new Label();
+                                lbl.AddToClassList("log-row-tag");
+                                rc.Tags.Add(lbl);
+                                existingLabels.Add(lbl);
+                            }
+                            lbl.text = tag;
+                            lbl.style.backgroundColor = GetTagColor(tag);
+                            labelIndex++;
                         }
                     }
+                    for (int j = labelIndex; j < existingLabels.Count; j++)
+                        existingLabels[j].style.display = DisplayStyle.None;
                 }
-                var countLabel = e.Q<Label>("row-count");
-                if (countLabel != null)
+                if (rc.Count != null)
                 {
-                    if (_collapse && row.displayCount > 1)
+                    if (collapseShowing)
                     {
-                        countLabel.text = row.displayCount.ToString();
-                        countLabel.style.display = DisplayStyle.Flex;
+                        rc.Count.text = ClampCount(row.displayCount, 999);
+                        rc.Count.style.display = DisplayStyle.Flex;
                     }
                     else
                     {
-                        countLabel.text = "";
-                        countLabel.style.display = DisplayStyle.None;
+                        rc.Count.text = "";
+                        rc.Count.style.display = DisplayStyle.None;
                     }
                 }
             };
@@ -1996,7 +2807,7 @@ namespace UnityEnhancedConsole
             {
                 var selected = _logListView.selectedIndices.ToList();
                 if (selected.Count == 0) { _selectedIndex = -1; UpdateDetailPanel(); return; }
-                var filtered = GetFilteredRows();
+                var filtered = _currentFilteredRowsForBinding ?? GetFilteredRows();
                 int idxRow = selected[selected.Count - 1];
                 if (idxRow >= 0 && idxRow < filtered.Count)
                 {
@@ -2017,9 +2828,12 @@ namespace UnityEnhancedConsole
                         _logListView.SetSelection(idx);
                     }
                     if (!_logListView.selectedIndices.Any()) return;
+                    int selectedCount = _logListView.selectedIndices.Count();
+                    string copyLabel = selectedCount > 1 ? $"Copy ({selectedCount})" : "Copy";
+                    string copyTsLabel = selectedCount > 1 ? $"Copy with Timestamp ({selectedCount})" : "Copy with Timestamp";
                     var menu = new GenericMenu();
-                    menu.AddItem(new GUIContent("Copy"), false, () => CopySelectedMessagesToClipboard(false));
-                    menu.AddItem(new GUIContent("Copy with Timestamp"), false, () => CopySelectedMessagesToClipboard(true));
+                    menu.AddItem(new GUIContent(copyLabel), false, () => CopySelectedMessagesToClipboard(false));
+                    menu.AddItem(new GUIContent(copyTsLabel), false, () => CopySelectedMessagesToClipboard(true));
                     menu.ShowAsContext();
                 });
             }
@@ -2069,6 +2883,19 @@ namespace UnityEnhancedConsole
         {
             if (_isRefreshing) return;
             if (rootVisualElement == null) return;
+            // 兜底：若显示参数被外部窗口（SettingsWindow 等）改动而未走 InvalidateDisplayCache，
+            // 通过参数 hash 比较检测变化。轻量，每次 RefreshUI 一次。
+            int displayParamsHash = (_showMessageNumber ? 1 : 0)
+                | (_showTimestamp ? 2 : 0)
+                | (_showFrameCount ? 4 : 0)
+                | (_searchRegex ? 8 : 0)
+                | (_entryLines << 4)
+                | ((_searchApplied?.GetHashCode() ?? 0) ^ 0x5a5a5a5a);
+            if (displayParamsHash != _lastDisplayParamsHash)
+            {
+                _lastDisplayParamsHash = displayParamsHash;
+                InvalidateDisplayCache();
+            }
             _isRefreshing = true;
             try
             {
@@ -2084,15 +2911,15 @@ namespace UnityEnhancedConsole
             var toggleViewLock = root.Q<Toggle>("toggleViewLock");
             if (toggleViewLock != null) toggleViewLock.SetValueWithoutNotify(_viewLocked);
 
-            /* ????? Toggle ???????????????????? 9999?*/
+            /* ????? Toggle ???????????????????? 99?*/
             var (logCount, warnCount, errCount) = CountByTypeUnfiltered();
-            int cap = 9999;
+            int cap = 99;
             var toggleLog = root.Q<Toggle>("toggleLog");
-            if (toggleLog != null) { toggleLog.SetValueWithoutNotify(_showLog); toggleLog.label = logCount > cap ? cap + "+" : logCount.ToString(); }
+            if (toggleLog != null) { toggleLog.SetValueWithoutNotify(_showLog); toggleLog.label = ClampCount(logCount, cap); }
             var toggleWarning = root.Q<Toggle>("toggleWarning");
-            if (toggleWarning != null) { toggleWarning.SetValueWithoutNotify(_showWarning); toggleWarning.label = warnCount > cap ? cap + "+" : warnCount.ToString(); }
+            if (toggleWarning != null) { toggleWarning.SetValueWithoutNotify(_showWarning); toggleWarning.label = ClampCount(warnCount, cap); }
             var toggleError = root.Q<Toggle>("toggleError");
-            if (toggleError != null) { toggleError.SetValueWithoutNotify(_showError); toggleError.label = errCount > cap ? cap + "+" : errCount.ToString(); }
+            if (toggleError != null) { toggleError.SetValueWithoutNotify(_showError); toggleError.label = ClampCount(errCount, cap); }
 
             var tagBarRow = root.Q<VisualElement>("tagBarRow");
             if (tagBarRow != null) tagBarRow.style.display = _tagsEnabled ? DisplayStyle.Flex : DisplayStyle.None;
@@ -2100,19 +2927,44 @@ namespace UnityEnhancedConsole
             if (btnTagToggle != null) btnTagToggle.text = _tagsEnabled ? "Tags ▾" : "Tags";
             RebuildTagBar();
 
+            TryScheduleBackgroundFilter();
             var filtered = GetFilteredRows();
+            _currentFilteredRowsForBinding = filtered;
             if (_logListView != null)
             {
                 // ???? _entryLines ??????????????Log Entry ?????????????????
                 float lineHeight = 18f;
                 _logListView.fixedItemHeight = lineHeight * Mathf.Clamp(_entryLines, 1, 10) + 4;
 
-                _logListView.itemsSource = filtered;
-                _logListView.Rebuild();
-                int selectedFilteredIndex = -1;
-                for (int i = 0; i < filtered.Count; i++)
+                bool firstSetup = _logListView.itemsSource == null;
+                bool sourceChanged = !ReferenceEquals(_logListView.itemsSource, filtered);
+                if (sourceChanged) _logListView.itemsSource = filtered;
+                if (firstSetup || _listViewNeedsRebuild)
                 {
-                    if (filtered[i].entryIndex == _selectedIndex) { selectedFilteredIndex = i; break; }
+                    _logListView.Rebuild();
+                    _listViewNeedsRebuild = false;
+                }
+                else
+                {
+                    _logListView.RefreshItems();
+                }
+                int selectedFilteredIndex = -1;
+                if (_selectedIndex >= 0)
+                {
+                    // 优先末尾扫描（选中通常在尾部，循环上限可控）
+                    int scanEnd = filtered.Count;
+                    int scanStart = Math.Max(0, scanEnd - 64);
+                    for (int i = scanEnd - 1; i >= scanStart; i--)
+                    {
+                        if (filtered[i].entryIndex == _selectedIndex) { selectedFilteredIndex = i; break; }
+                    }
+                    if (selectedFilteredIndex < 0)
+                    {
+                        for (int i = 0; i < scanStart; i++)
+                        {
+                            if (filtered[i].entryIndex == _selectedIndex) { selectedFilteredIndex = i; break; }
+                        }
+                    }
                 }
                 _logListView.SetSelectionWithoutNotify(selectedFilteredIndex >= 0 ? new[] { selectedFilteredIndex } : new List<int>());
             }
@@ -2185,6 +3037,8 @@ namespace UnityEnhancedConsole
             }
             if (prefixParts.Count > 0)
                 full = string.Join(" ", prefixParts) + " " + full;
+            if (!_showStackTrace)
+                full += "\n\n[Stack Trace recording is disabled. Enable it via the ☰ menu to capture traces.]";
             _detailField.SetValueWithoutNotify(full);
         }
 
@@ -2226,7 +3080,7 @@ namespace UnityEnhancedConsole
                     menu.AddItem(new GUIContent(display), false, () =>
                     {
                         _search = s; _searchApplied = s;
-                        _filterDirty = true; _tagCountsDirty = true;
+                        _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                         PushSearchHistory(s);
                         if (_searchField != null) _searchField.value = s;
                         SavePrefs();
@@ -2242,9 +3096,9 @@ namespace UnityEnhancedConsole
         private void ShowSearchFilterMenu()
         {
             var menu = new GenericMenu();
-            menu.AddItem(new GUIContent("Time Range"), _filterTimeRange, () => { _filterTimeRange = !_filterTimeRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Number Range"), _filterNumberRange, () => { _filterNumberRange = !_filterNumberRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Frame Range"), _filterFrameRange, () => { _filterFrameRange = !_filterFrameRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Time Range"), _filterTimeRange, () => { _filterTimeRange = !_filterTimeRange; _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Number Range"), _filterNumberRange, () => { _filterNumberRange = !_filterNumberRange; _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
+            menu.AddItem(new GUIContent("Frame Range"), _filterFrameRange, () => { _filterFrameRange = !_filterFrameRange; _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Set Time Range..."), false, ShowTimeRangeSettings);
             menu.AddItem(new GUIContent("Set Number Range..."), false, ShowNumberRangeSettings);
@@ -2259,7 +3113,9 @@ namespace UnityEnhancedConsole
             _filterTimeRange = false;
             _filterNumberRange = false;
             _filterFrameRange = false;
+            _filterAppendOnly = false;
             _filterDirty = true;
+            _filterCriteriaVersion++;
             _tagCountsDirty = true;
             SavePrefs();
             RefreshUI();
@@ -2341,7 +3197,7 @@ namespace UnityEnhancedConsole
                 _filterTimeMin = string.IsNullOrWhiteSpace(min) ? "" : (TryParseTime(min, out string n) ? n : min);
                 _filterTimeMax = string.IsNullOrWhiteSpace(max) ? "" : (TryParseTime(max, out string n2) ? n2 : max);
                 _filterTimeRange = true;
-                _filterDirty = true; _tagCountsDirty = true;
+                _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                 SavePrefs(); RefreshUI();
             });
         }
@@ -2364,7 +3220,7 @@ namespace UnityEnhancedConsole
                 int.TryParse(minStr ?? "0", out _filterNumberMin);
                 _filterNumberMax = string.IsNullOrEmpty(maxStr) ? int.MaxValue : (int.TryParse(maxStr, out int m) ? m : int.MaxValue);
                 _filterNumberRange = true;
-                _filterDirty = true; _tagCountsDirty = true;
+                _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                 SavePrefs(); RefreshUI();
             });
         }
@@ -2387,7 +3243,7 @@ namespace UnityEnhancedConsole
                 int.TryParse(minStr ?? "0", out _filterFrameMin);
                 _filterFrameMax = string.IsNullOrEmpty(maxStr) ? int.MaxValue : (int.TryParse(maxStr, out int m) ? m : int.MaxValue);
                 _filterFrameRange = true;
-                _filterDirty = true; _tagCountsDirty = true;
+                _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                 SavePrefs(); RefreshUI();
             });
         }
@@ -2401,7 +3257,9 @@ namespace UnityEnhancedConsole
                 SavePrefs();
                 TrimEntriesToMax();
                 EnhancedConsoleLogFile.RewriteFileWithEntries(_entries);
+                _filterAppendOnly = false;
                 _filterDirty = true;
+                _filterCriteriaVersion++;
                 _tagCountsDirty = true;
                 RefreshUI();
             });
@@ -2414,7 +3272,9 @@ namespace UnityEnhancedConsole
             SavePrefs();
             TrimEntriesToMax();
             EnhancedConsoleLogFile.RewriteFileWithEntries(_entries);
+            _filterAppendOnly = false;
             _filterDirty = true;
+            _filterCriteriaVersion++;
             _tagCountsDirty = true;
             RefreshUI();
         }
@@ -2481,8 +3341,11 @@ namespace UnityEnhancedConsole
             _cachedFilteredRows = null;
             _cachedTagInfo = null;
             _cachedCollapseGroupInfo = null;
+            _filterAppendOnly = false;
             _filterDirty = true;
+            _filterCriteriaVersion++;
             _tagCountsDirty = true;
+            InvalidateDisplayCache();
             ApplyStackTraceSettings();
             SyncSearchField();
             SyncTagBarFields();
@@ -2576,7 +3439,7 @@ namespace UnityEnhancedConsole
                 frameCount = e.FrameCount,
                 condition = e.Condition ?? "",
                 stackTrace = e.StackTrace ?? "",
-                tags = e.TagsOrEmpty.ToArray()
+                tags = e.Tags ?? LogEntry.EmptyTags
             };
         }
 
@@ -2649,21 +3512,21 @@ namespace UnityEnhancedConsole
             menu.AddItem(new GUIContent("Collapse/Off"), !_collapse, () =>
             {
                 _collapse = false;
-                _filterDirty = true; _tagCountsDirty = true;
+                _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                 SavePrefs(); RefreshUI();
             });
             menu.AddItem(new GUIContent("Collapse/Adjacent Only"), _collapse && !_collapseGlobal, () =>
             {
                 _collapse = true;
                 _collapseGlobal = false;
-                _filterDirty = true; _tagCountsDirty = true;
+                _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                 SavePrefs(); RefreshUI();
             });
             menu.AddItem(new GUIContent("Collapse/Global (All)"), _collapse && _collapseGlobal, () =>
             {
                 _collapse = true;
                 _collapseGlobal = true;
-                _filterDirty = true; _tagCountsDirty = true;
+                _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                 SavePrefs(); RefreshUI();
             });
             menu.AddSeparator("");
@@ -2675,8 +3538,7 @@ namespace UnityEnhancedConsole
             });
             menu.AddItem(new GUIContent("Window/Clone"), false, () => CloneWindow());
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Capacity/Set Limits..."), false, ShowCapacitySettings);
-            menu.AddItem(new GUIContent("Capacity/Restore Defaults"), false, RestoreCapacityDefaults);
+            menu.AddItem(new GUIContent("Settings..."), false, () => EnhancedConsoleSettingsWindow.OpenAsUtility());
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Export/Filtered/TXT"), false, () => ExportEntries(ExportFormat.Txt, true));
             menu.AddItem(new GUIContent("Export/Filtered/CSV"), false, () => ExportEntries(ExportFormat.Csv, true));
@@ -2685,17 +3547,6 @@ namespace UnityEnhancedConsole
             menu.AddItem(new GUIContent("Export/All/CSV"), false, () => ExportEntries(ExportFormat.Csv, false));
             menu.AddItem(new GUIContent("Export/All/JSON"), false, () => ExportEntries(ExportFormat.Json, false));
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Show Timestamp"), _showTimestamp, () => { _showTimestamp = !_showTimestamp; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Show Frame Count"), _showFrameCount, () => { _showFrameCount = !_showFrameCount; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Show Message Number"), _showMessageNumber, () => { _showMessageNumber = !_showMessageNumber; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Search/Plain"), !_searchRegex, () => { _searchRegex = false; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Search/Regex"), _searchRegex, () => { _searchRegex = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Filter/Time Range"), _filterTimeRange, () => { _filterTimeRange = !_filterTimeRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Filter/Number Range"), _filterNumberRange, () => { _filterNumberRange = !_filterNumberRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Filter/Frame Range"), _filterFrameRange, () => { _filterFrameRange = !_filterFrameRange; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
-            menu.AddItem(new GUIContent("Filter/Set Time Range..."), false, ShowTimeRangeSettings);
-            menu.AddItem(new GUIContent("Filter/Set Number Range..."), false, ShowNumberRangeSettings);
-            menu.AddItem(new GUIContent("Filter/Set Frame Range..."), false, ShowFrameRangeSettings);
             menu.AddItem(new GUIContent("Filter/Clear All Filters"), false, ClearAllFilters);
             if (_searchHistory.Count > 0)
             {
@@ -2703,33 +3554,15 @@ namespace UnityEnhancedConsole
                 {
                     string s = item;
                     string display = (s.Length > 50 ? s.Substring(0, 47) + "..." : s).Replace("/", "?M");
-                    menu.AddItem(new GUIContent("Search/History/" + display), false, () => { _search = s; _searchApplied = s; _filterDirty = true; _tagCountsDirty = true; PushSearchHistory(s); if (_searchField != null) _searchField.value = s; SavePrefs(); RefreshUI(); });
+                    menu.AddItem(new GUIContent("Search/History/" + display), false, () => { _search = s; _searchApplied = s; _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true; InvalidateDisplayCache(); PushSearchHistory(s); if (_searchField != null) _searchField.value = s; SavePrefs(); RefreshUI(); });
                 }
                 menu.AddItem(new GUIContent("Search/Clear History"), false, () => { _searchHistory.Clear(); SaveSearchHistory(); RefreshUI(); });
             }
-            for (int i = 1; i <= 10; i++)
-            {
-                int n = i;
-                menu.AddItem(new GUIContent($"Log Entry/{n} Lines"), _entryLines == n, () => { _entryLines = n; SavePrefs(); RefreshUI(); });
-            }
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Stack Trace Log/None"), _stackTraceLog == StackTraceLogType.None, () => SetStackTrace(LogType.Log, StackTraceLogType.None));
-            menu.AddItem(new GUIContent("Stack Trace Log/ScriptOnly"), _stackTraceLog == StackTraceLogType.ScriptOnly, () => SetStackTrace(LogType.Log, StackTraceLogType.ScriptOnly));
-            menu.AddItem(new GUIContent("Stack Trace Log/Full"), _stackTraceLog == StackTraceLogType.Full, () => SetStackTrace(LogType.Log, StackTraceLogType.Full));
-            menu.AddItem(new GUIContent("Stack Trace Warning/None"), _stackTraceWarning == StackTraceLogType.None, () => SetStackTrace(LogType.Warning, StackTraceLogType.None));
-            menu.AddItem(new GUIContent("Stack Trace Warning/ScriptOnly"), _stackTraceWarning == StackTraceLogType.ScriptOnly, () => SetStackTrace(LogType.Warning, StackTraceLogType.ScriptOnly));
-            menu.AddItem(new GUIContent("Stack Trace Warning/Full"), _stackTraceWarning == StackTraceLogType.Full, () => SetStackTrace(LogType.Warning, StackTraceLogType.Full));
-            menu.AddItem(new GUIContent("Stack Trace Error/None"), _stackTraceError == StackTraceLogType.None, () => SetStackTrace(LogType.Error, StackTraceLogType.None));
-            menu.AddItem(new GUIContent("Stack Trace Error/ScriptOnly"), _stackTraceError == StackTraceLogType.ScriptOnly, () => SetStackTrace(LogType.Error, StackTraceLogType.ScriptOnly));
-            menu.AddItem(new GUIContent("Stack Trace Error/Full"), _stackTraceError == StackTraceLogType.Full, () => SetStackTrace(LogType.Error, StackTraceLogType.Full));
+            menu.AddItem(new GUIContent("Jump to Line (Ctrl+G)..."), false, () => JumpToLineWindow.Open(this));
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Tags/Enable Tags"), _tagsEnabled, () => { _tagsEnabled = !_tagsEnabled; _filterDirty = true; _tagCountsDirty = true; SavePrefs(); RefreshUI(); });
             menu.AddItem(new GUIContent("Tags/Tag Settings..."), false, () => TagRulesWindow.Open(this));
             menu.AddItem(new GUIContent("Tags/Recompute All Tags"), false, RecomputeAllTags);
-            menu.AddItem(new GUIContent("Tags/Auto Detect Brackets"), EnhancedConsoleTagLogic.AutoTagBracket, () => { EnhancedConsoleTagLogic.AutoTagBracket = !EnhancedConsoleTagLogic.AutoTagBracket; });
-            menu.AddItem(new GUIContent("Tags/Bracket Scope/First Line"), EnhancedConsoleTagLogic.BracketTagFirstLineOnly, () => { EnhancedConsoleTagLogic.BracketTagFirstLineOnly = true; });
-            menu.AddItem(new GUIContent("Tags/Bracket Scope/All Lines"), !EnhancedConsoleTagLogic.BracketTagFirstLineOnly, () => { EnhancedConsoleTagLogic.BracketTagFirstLineOnly = false; });
-            menu.AddItem(new GUIContent("Tags/Auto Detect Stack Class"), EnhancedConsoleTagLogic.AutoTagStack, () => { EnhancedConsoleTagLogic.AutoTagStack = !EnhancedConsoleTagLogic.AutoTagStack; });
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Open Editor Log"), false, OpenEditorLog);
             menu.AddItem(new GUIContent("Open Player Log"), false, OpenPlayerLog);

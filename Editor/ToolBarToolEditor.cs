@@ -33,19 +33,7 @@ namespace AUnityLocal.Editor
 
         static void SelectTarget()
         {
-            targetObject = null;
-            //IGG.Game.Module.KSBattle.BattleLog.BattleDebug.hitGos
-            var hitList = GetStaticFieldValue("IGG.Game.Module.KSBattle.BattleLog+BattleDebug", "hitGos");
-            if (hitList != null)
-            {
-                var hitGos = (System.Collections.Generic.List<UnityEngine.GameObject>)hitList;
-                if (hitGos != null&&hitGos.Count>=1)
-                {
-                    var go = hitGos[0];
-                    targetObject = go;
-                            
-                }
-            }
+            targetObject = HierarchyEditor.ResolveTarget();
 
             if (targetObject == null)
             {
@@ -96,7 +84,7 @@ namespace AUnityLocal.Editor
         /// <summary>
         /// 查找类型
         /// </summary>
-        private static Type FindType(string typeName)
+        public static Type FindType(string typeName)
         {
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {

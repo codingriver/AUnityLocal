@@ -20,11 +20,24 @@ namespace UnityEnhancedConsole
         public string LastTimeStamp;
         public int FrameCount;   // 来自 Time.frameCount（播放时有效）
         public int MessageNumber; // 消息编号，从 1 递增，Clear 后从 1 重新开始
-        public List<string> Tags; // 标签集合（自定义 + 自动识别）
+        // 标签集合（自动识别 + 自定义规则）。为不可变数组，空时复用 EmptyTags 不分配。
+        // 注意：写入端必须整体替换数组（不能 in-place 修改），以保证后台过滤线程读到的是稳定快照。
+        public string[] Tags;
+
+        // 预计算的 hash：用于 LogKey/Collapse 加速；Condition/StackTrace/LogType 任一变化时由写入端置 0 重算。
+        [NonSerialized] public int CachedKeyHash;
+
+        // 渲染层缓存（仅 Editor UI 使用）：cached msg label text（已含前缀 + GetFirstLines + 高亮 rich-text）。
+        // CachedDisplayVersion 与 EnhancedConsoleWindow._displayCacheVersion 一致时即可直接复用。
+        [NonSerialized] public string CachedDisplayText;
+        [NonSerialized] public int CachedDisplayVersion;
+
+        public static readonly string[] EmptyTags = new string[0];
 
         public string FullMessage => string.IsNullOrEmpty(StackTrace) ? Condition : Condition + "\n" + StackTrace;
 
-        public List<string> TagsOrEmpty => Tags ?? (Tags = new List<string>());
+        /// <summary> 仅用于读取：返回非 null 的 Tags 引用。不分配。 </summary>
+        public string[] TagsOrEmpty => Tags ?? EmptyTags;
 
         /// <summary> 仅按日志内容（Condition）匹配，不搜索堆栈。useRegex 为 true 时按正则匹配，否则按普通关键字（忽略大小写）。 </summary>
         public bool MatchesSearch(string search, bool useRegex = false)
@@ -49,13 +62,14 @@ namespace UnityEnhancedConsole
 
         public bool HasAnyTag(IEnumerable<string> selectedTags)
         {
-            if (Tags == null || Tags.Count == 0 || selectedTags == null) return false;
+            var tags = Tags;
+            if (tags == null || tags.Length == 0 || selectedTags == null) return false;
             foreach (var t in selectedTags)
             {
                 if (string.IsNullOrEmpty(t)) continue;
-                for (int i = 0; i < Tags.Count; i++)
+                for (int i = 0; i < tags.Length; i++)
                 {
-                    if (string.Equals(t, Tags[i], StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(t, tags[i], StringComparison.OrdinalIgnoreCase))
                         return true;
                 }
             }
@@ -80,12 +94,13 @@ namespace UnityEnhancedConsole
     public class TagRule
     {
         public string tagName;
-        public int matchType;   // 0=包含 1=正则 2=前缀 3=后缀
+        public int matchType;   // 0=包含 1=正则 2=前缀 3=后缀 4=RegexCapture
         public int matchTarget; // 0=仅消息 1=仅堆栈 2=两者
         public string matchContent;
+        public bool disabled;   // true=禁用此规则；旧数据反序列化默认为 false（启用），兼容旧规则
     }
 
-    public enum TagMatchType { Contains = 0, Regex = 1, Prefix = 2, Suffix = 3 }
+    public enum TagMatchType { Contains = 0, Regex = 1, Prefix = 2, Suffix = 3, RegexCapture = 4 }
     public enum TagMatchTarget { ConditionOnly = 0, StackTraceOnly = 1, Both = 2 }
 
     /// <summary>

@@ -141,10 +141,21 @@ namespace UnityEnhancedConsole
             {
                 var r = _rules[i];
                 EditorGUILayout.BeginHorizontal();
-                r.tagName = EditorGUILayout.TextField(r.tagName ?? "", GUILayout.Width(100));
-                r.matchType = (int)(TagMatchType)EditorGUILayout.EnumPopup((TagMatchType)r.matchType, GUILayout.Width(80));
-                r.matchTarget = (int)(TagMatchTarget)EditorGUILayout.EnumPopup((TagMatchTarget)r.matchTarget, GUILayout.Width(80));
+
+                bool enabled = !r.disabled;
+                enabled = EditorGUILayout.Toggle(new GUIContent("", "启用/禁用此规则"), enabled, GUILayout.Width(18));
+                r.disabled = !enabled;
+
+                var prevColor = GUI.color;
+                if (r.disabled) GUI.color = new Color(0.6f, 0.6f, 0.6f, 1f);
+
+                r.tagName = EditorGUILayout.TextField(r.tagName ?? "", GUILayout.Width(85));
+                r.matchType = (int)(TagMatchType)EditorGUILayout.EnumPopup((TagMatchType)r.matchType, GUILayout.Width(72));
+                r.matchTarget = (int)(TagMatchTarget)EditorGUILayout.EnumPopup((TagMatchTarget)r.matchTarget, GUILayout.Width(72));
                 r.matchContent = EditorGUILayout.TextField(r.matchContent ?? "");
+
+                GUI.color = prevColor;
+
                 if (GUILayout.Button("删除", GUILayout.Width(40)))
                 {
                     _rules.RemoveAt(i);

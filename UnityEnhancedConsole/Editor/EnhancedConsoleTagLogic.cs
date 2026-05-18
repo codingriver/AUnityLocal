@@ -21,6 +21,7 @@ namespace UnityEnhancedConsole
         private static readonly Regex StackClassRegex = new Regex(@"^\s*(at|in)\s+([^\s()]+)", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex PureNumberRegex = new Regex(@"^\d+$", RegexOptions.Compiled);
         private static readonly Regex TimeFormatRegex = new Regex(@"^\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?$", RegexOptions.Compiled);
+        private static readonly char[] NewLineChars = new[] { '\r', '\n' };
 
         // ── 规则缓存 ──
         private static List<TagRule> _cachedRules;
@@ -32,28 +33,48 @@ namespace UnityEnhancedConsole
         private static bool _filterSettingsCacheValid;
         private static readonly List<Regex> _compiledIgnorePatterns = new List<Regex>();
 
-        public static bool AutoTagBracket { get => EditorPrefs.GetBool(PrefAutoBracket, true); set => EditorPrefs.SetBool(PrefAutoBracket, value); }
+        public static bool AutoTagBracket { get => EditorPrefs.GetBool(PrefAutoBracket, true); set { EditorPrefs.SetBool(PrefAutoBracket, value); _flagsCacheValid = false; } }
         /// <summary> true = 只识别首行，false = 识别全部内容 </summary>
-        public static bool BracketTagFirstLineOnly { get => EditorPrefs.GetBool(PrefBracketFirstLineOnly, false); set => EditorPrefs.SetBool(PrefBracketFirstLineOnly, value); }
-        public static bool AutoTagStack { get => EditorPrefs.GetBool(PrefAutoStack, false); set => EditorPrefs.SetBool(PrefAutoStack, value); }
+        public static bool BracketTagFirstLineOnly { get => EditorPrefs.GetBool(PrefBracketFirstLineOnly, false); set { EditorPrefs.SetBool(PrefBracketFirstLineOnly, value); _flagsCacheValid = false; } }
+        public static bool AutoTagStack { get => EditorPrefs.GetBool(PrefAutoStack, false); set { EditorPrefs.SetBool(PrefAutoStack, value); _flagsCacheValid = false; } }
+
+        // ── EditorPrefs 布尔缓存（每条日志多次访问时避免 P/Invoke） ──
+        private static bool _flagsCacheValid;
+        private static bool _cachedAutoBracket;
+        private static bool _cachedBracketFirstLineOnly;
+        private static bool _cachedAutoStack;
+        private static void EnsureFlagsCached()
+        {
+            if (_flagsCacheValid) return;
+            _cachedAutoBracket = EditorPrefs.GetBool(PrefAutoBracket, true);
+            _cachedBracketFirstLineOnly = EditorPrefs.GetBool(PrefBracketFirstLineOnly, false);
+            _cachedAutoStack = EditorPrefs.GetBool(PrefAutoStack, false);
+            _flagsCacheValid = true;
+        }
+
+        // 复用 HashSet 避免每条日志都 new。
+        // 在主线程或后台 ThreadPool 工作线程都可能被调用 → 使用 ThreadStatic。
+        [ThreadStatic] private static HashSet<string> _tlSetCache;
 
         /// <summary>
         /// 为一条日志计算并写入 Tags（自动识别 + 自定义规则，去重）。
+        /// 整体替换 Tags 数组，保证读取端线程安全。
         /// </summary>
         public static void ComputeTags(LogEntry entry)
         {
-            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (entry.Tags == null) entry.Tags = new List<string>();
-            else entry.Tags.Clear();
+            var set = _tlSetCache;
+            if (set == null) { set = new HashSet<string>(StringComparer.OrdinalIgnoreCase); _tlSetCache = set; }
+            else set.Clear();
 
+            EnsureFlagsCached();
             TagFilterSettings filterSettings = LoadFilterSettings();
 
-            if (AutoTagBracket && !string.IsNullOrEmpty(entry.Condition))
+            if (_cachedAutoBracket && !string.IsNullOrEmpty(entry.Condition))
             {
                 string textToScan = entry.Condition;
-                if (BracketTagFirstLineOnly)
+                if (_cachedBracketFirstLineOnly)
                 {
-                    int firstNewLine = entry.Condition.IndexOfAny(new[] { '\r', '\n' });
+                    int firstNewLine = entry.Condition.IndexOfAny(NewLineChars);
                     textToScan = firstNewLine >= 0 ? entry.Condition.Substring(0, firstNewLine) : entry.Condition;
                 }
                 foreach (Match m in BracketRegex.Matches(textToScan))
@@ -67,12 +88,11 @@ namespace UnityEnhancedConsole
                 }
             }
 
-            if (AutoTagStack && !string.IsNullOrEmpty(entry.StackTrace))
+            if (_cachedAutoStack && !string.IsNullOrEmpty(entry.StackTrace))
             {
-                var lines = entry.StackTrace.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var line in lines)
+                // 不再 Split 整段堆栈，直接在原字符串上跨行匹配。
+                foreach (Match m in StackClassRegex.Matches(entry.StackTrace))
                 {
-                    var m = StackClassRegex.Match(line);
                     if (m.Success && m.Groups.Count > 2)
                     {
                         string full = m.Groups[2].Value;
@@ -84,15 +104,59 @@ namespace UnityEnhancedConsole
                 }
             }
 
-            foreach (var rule in LoadRules())
+            var rules = LoadRules();
+            for (int r = 0; r < rules.Count; r++)
             {
-                if (string.IsNullOrEmpty(rule.tagName)) continue;
-                if (MatchesRule(entry, rule))
-                    set.Add(rule.tagName);
+                var rule = rules[r];
+                if (rule.disabled) continue;
+                if (rule.matchType == (int)TagMatchType.RegexCapture)
+                {
+                    string text;
+                    if (rule.matchTarget == (int)TagMatchTarget.StackTraceOnly)
+                        text = entry.StackTrace ?? "";
+                    else if (rule.matchTarget == (int)TagMatchTarget.ConditionOnly)
+                        text = entry.Condition ?? "";
+                    else
+                        text = (entry.Condition ?? "") + "\n" + (entry.StackTrace ?? "");
+
+                    if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(rule.matchContent)) continue;
+                    try
+                    {
+                        if (!_compiledRegexCache.TryGetValue(rule.matchContent, out var rx))
+                        {
+                            rx = new Regex(rule.matchContent, RegexOptions.Compiled);
+                            _compiledRegexCache[rule.matchContent] = rx;
+                        }
+                        foreach (Match m in rx.Matches(text))
+                        {
+                            if (m.Success && m.Groups.Count > 1)
+                            {
+                                string cap = m.Groups[1].Value.Trim();
+                                if (!string.IsNullOrEmpty(cap))
+                                    set.Add(cap);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(rule.tagName)) continue;
+                    if (MatchesRule(entry, rule))
+                        set.Add(rule.tagName);
+                }
             }
 
-            entry.Tags.Clear();
-            entry.Tags.AddRange(set);
+            int n = set.Count;
+            if (n == 0)
+            {
+                entry.Tags = LogEntry.EmptyTags;
+                return;
+            }
+            var arr = new string[n];
+            int i2 = 0;
+            foreach (var s in set) arr[i2++] = s;
+            entry.Tags = arr;
         }
 
         /// <summary>
@@ -266,6 +330,28 @@ namespace UnityEnhancedConsole
             _filterSettingsCacheValid = false;
             _cachedFilterSettings = null;
             _compiledIgnorePatterns.Clear();
+            _flagsCacheValid = false;
+        }
+
+        /// <summary>
+        /// 仅当 entry.Tags 为 null 时计算（用于配合"后台线程预计算"路径，避免重复劳动）。
+        /// 注意：EmptyTags 视为已计算（无 tag）。
+        /// </summary>
+        public static void EnsureTagsComputed(LogEntry entry)
+        {
+            if (entry == null) return;
+            if (entry.Tags != null) return;
+            ComputeTags(entry);
+        }
+
+        /// <summary>
+        /// 主线程预热所有 EditorPrefs 缓存。后台线程在调 ComputeTags 前必须由主线程调用过本方法。
+        /// </summary>
+        public static void PrimeCachesMainThread()
+        {
+            EnsureFlagsCached();
+            LoadRules();
+            LoadFilterSettings();
         }
 
         [Serializable]

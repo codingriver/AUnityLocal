@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -18,12 +19,15 @@ namespace UnityEnhancedConsole
         private static readonly object FileLock = new object();
         private static string _logFilePath;
         private static bool _initialized;
-        private static readonly List<string> _writeBuffer = new List<string>();
+        private static readonly StringBuilder _writeBuffer = new StringBuilder(64 * 1024);
+        private static int _writeBufferLineCount;
         private static DateTime _lastFlushTime = DateTime.UtcNow;
 
         private const string LogFileName = "EnhancedConsole.log";
         private const int WriteBufferFlushCount = 50;
         private const double WriteBufferFlushIntervalSec = 1.5;
+        private const long MaxLogFileSizeBytes = 500L * 1024 * 1024; // 500MB
+        private const long MaxTotalLogSizeBytes = 10L * 1024 * 1024 * 1024; // 10GB
         private  static int mainThreadId = 0;
 
         static EnhancedConsoleLogFile()
@@ -140,11 +144,13 @@ namespace UnityEnhancedConsole
                 string line = SerializeEntry((int)type, timestamp, condition ?? "", stackTrace ?? "", frameCount);
                 lock (FileLock)
                 {
-                    _writeBuffer.Add(line + Environment.NewLine);
-                    if (_writeBuffer.Count == 1)
+                    _writeBuffer.Append(line).Append(Environment.NewLine);
+                    _writeBufferLineCount++;
+                    if (_writeBufferLineCount == 1)
                         _lastFlushTime = DateTime.UtcNow;
-                    if (_writeBuffer.Count >= WriteBufferFlushCount)
+                    if (_writeBufferLineCount >= WriteBufferFlushCount)
                         FlushBufferInternal();
+                    CheckRotateBySize();
                 }
             }
             catch (Exception e)
@@ -158,18 +164,90 @@ namespace UnityEnhancedConsole
         /// </summary>
         private static void FlushBufferInternal()
         {
-            if (_writeBuffer.Count == 0) return;
+            if (_writeBufferLineCount == 0) return;
             try
             {
                 string path = GetLogFilePath();
-                string merged = string.Concat(_writeBuffer);
-                File.AppendAllText(path, merged, Encoding.UTF8);
+                File.AppendAllText(path, _writeBuffer.ToString(), Encoding.UTF8);
                 _writeBuffer.Clear();
+                _writeBufferLineCount = 0;
                 _lastFlushTime = DateTime.UtcNow;
             }
             catch (Exception e)
             {
                 Debug.LogWarning("EnhancedConsole: Failed to flush log buffer: " + e.Message);
+            }
+        }
+
+        /// <summary>
+        /// 获取所有日志文件（当前+历史），按修改时间从新到旧排序。
+        /// </summary>
+        private static List<string> GetLogFilesOrdered()
+        {
+            string dir = Path.GetDirectoryName(GetLogFilePath());
+            if (!Directory.Exists(dir)) return new List<string>();
+            var files = Directory.GetFiles(dir, "EnhancedConsole*.log")
+                .Select(f => new FileInfo(f))
+                .OrderByDescending(f => f.LastWriteTime)
+                .Select(f => f.FullName)
+                .ToList();
+            string current = GetLogFilePath();
+            if (files.Contains(current))
+            {
+                files.Remove(current);
+                files.Insert(0, current);
+            }
+            return files;
+        }
+
+        /// <summary>
+        /// 检查当前日志文件大小，超过阈值时执行轮转（必须在 FileLock 内调用）。
+        /// </summary>
+        private static void CheckRotateBySize()
+        {
+            try
+            {
+                string path = GetLogFilePath();
+                if (!File.Exists(path)) return;
+                var fi = new FileInfo(path);
+                if (fi.Length < MaxLogFileSizeBytes) return;
+                string dir = Path.GetDirectoryName(path);
+                string backupName = "EnhancedConsole_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".log";
+                string backupPath = Path.Combine(dir, backupName);
+                File.Move(path, backupPath);
+                EnforceTotalSizeLimit();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("EnhancedConsole: Failed to rotate log file by size: " + e.Message);
+            }
+        }
+
+        /// <summary>
+        ///  enforcement 总日志大小上限，超出时删除最旧的历史文件（保留当前活跃文件）。
+        /// </summary>
+        private static void EnforceTotalSizeLimit()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(GetLogFilePath());
+                if (!Directory.Exists(dir)) return;
+                var files = Directory.GetFiles(dir, "EnhancedConsole*.log")
+                    .Select(f => new FileInfo(f))
+                    .OrderByDescending(f => f.LastWriteTime)
+                    .ToList();
+                long totalSize = files.Sum(f => f.Length);
+                while (totalSize > MaxTotalLogSizeBytes && files.Count > 1)
+                {
+                    var oldest = files[files.Count - 1];
+                    totalSize -= oldest.Length;
+                    try { File.Delete(oldest.FullName); } catch { }
+                    files.RemoveAt(files.Count - 1);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("EnhancedConsole: Failed to enforce total log size limit: " + e.Message);
             }
         }
 
@@ -180,7 +258,7 @@ namespace UnityEnhancedConsole
         {
             lock (FileLock)
             {
-                if (_writeBuffer.Count == 0) return;
+                if (_writeBufferLineCount == 0) return;
                 if ((DateTime.UtcNow - _lastFlushTime).TotalSeconds < WriteBufferFlushIntervalSec) return;
                 FlushBufferInternal();
             }
@@ -204,27 +282,67 @@ namespace UnityEnhancedConsole
             return type + "|" + timestamp + "|" + c + "|" + s + "|" + frameCount;
         }
 
-        private static bool TryDeserializeEntry(string line, out LogEntry entry)
+        // 解析路径上的复用缓冲（线程局部，避免在加载 5w+ 行时反复分配 char[]）
+        [ThreadStatic] private static char[] _tlDecodeChars;
+
+        private static bool TryDecodeBase64(string source, int start, int length, out string result)
         {
-            entry = null;
-            if (string.IsNullOrWhiteSpace(line)) return false;
-            string[] parts = line.Split(new[] { '|' }, 5, StringSplitOptions.None);
-            if (parts.Length < 4) return false;
-            if (!int.TryParse(parts[0], out int type)) return false;
-            string timestamp = parts[1];
-            string condition;
-            string stackTrace;
+            result = null;
+            if (length == 0) { result = ""; return true; }
             try
             {
-                condition = Encoding.UTF8.GetString(Convert.FromBase64String(parts[2]));
-                stackTrace = Encoding.UTF8.GetString(Convert.FromBase64String(parts[3]));
+                var chars = _tlDecodeChars;
+                if (chars == null || chars.Length < length) { chars = new char[Math.Max(length, 256)]; _tlDecodeChars = chars; }
+                source.CopyTo(start, chars, 0, length);
+                byte[] bytes = Convert.FromBase64CharArray(chars, 0, length);
+                result = Encoding.UTF8.GetString(bytes);
+                return true;
             }
             catch
             {
                 return false;
             }
+        }
+
+        private static bool TryDeserializeEntry(string line, out LogEntry entry)
+        {
+            entry = null;
+            if (string.IsNullOrEmpty(line)) return false;
+            // 手写 IndexOf 切片，避免 string.Split 分配 string[] + 4 次 Substring
+            int p0 = line.IndexOf('|'); if (p0 < 0) return false;
+            int p1 = line.IndexOf('|', p0 + 1); if (p1 < 0) return false;
+            int p2 = line.IndexOf('|', p1 + 1); if (p2 < 0) return false;
+            int p3 = line.IndexOf('|', p2 + 1); // 可选 frameCount
+
+            // type
+            int type = 0;
+            for (int i = 0; i < p0; i++)
+            {
+                char ch = line[i];
+                if (ch < '0' || ch > '9') return false;
+                type = type * 10 + (ch - '0');
+            }
+            // timestamp 直接 substring（短，无法避免）
+            string timestamp = line.Substring(p0 + 1, p1 - p0 - 1);
+
+            int condStart = p1 + 1;
+            int condLen = p2 - condStart;
+            int stackStart = p2 + 1;
+            int stackLen = (p3 < 0 ? line.Length : p3) - stackStart;
+
+            if (!TryDecodeBase64(line, condStart, condLen, out string condition)) return false;
+            if (!TryDecodeBase64(line, stackStart, stackLen, out string stackTrace)) return false;
+
             int frameCount = 0;
-            if (parts.Length >= 5) int.TryParse(parts[4], out frameCount);
+            if (p3 >= 0)
+            {
+                for (int i = p3 + 1; i < line.Length; i++)
+                {
+                    char ch = line[i];
+                    if (ch < '0' || ch > '9') break;
+                    frameCount = frameCount * 10 + (ch - '0');
+                }
+            }
             entry = new LogEntry
             {
                 LogType = (LogType)type,
@@ -238,67 +356,54 @@ namespace UnityEnhancedConsole
         }
 
         /// <summary>
-        /// 从日志文件流式加载条目。若文件不存在或为空则返回空列表。
+        /// 从所有日志文件（当前+历史）中惰性加载条目，按时间从新到旧读取，直到满足 maxEntries。
         /// 对大文件自动使用尾部读取优化，避免读取整个文件。
         /// </summary>
         /// <param name="maxEntries">最多加载条数，超过时只保留最近 N 条；0 表示不限制（大文件可能 OOM）。</param>
         public static List<LogEntry> LoadEntries(int maxEntries = 50000)
         {
             FlushBuffer();
-            string path = GetLogFilePath();
-            if (!File.Exists(path)) return new List<LogEntry>();
-            try
-            {
-                var fileInfo = new FileInfo(path);
-                if (fileInfo.Length == 0) return new List<LogEntry>();
+            if (maxEntries <= 0) maxEntries = int.MaxValue;
+            var allFiles = GetLogFilesOrdered();
+            const int EstAvgLineBytes = 350;
 
-                if (maxEntries > 0)
-                {
-                    // 大文件优化：估算尾部起始位置，跳过前面不需要的内容
-                    const int EstAvgLineBytes = 350;
-                    long estimatedBytes = (long)maxEntries * EstAvgLineBytes;
-                    if (fileInfo.Length > estimatedBytes * 2)
-                    {
-                        var tailResult = TailReadEntries(path, fileInfo.Length, maxEntries, EstAvgLineBytes);
-                        if (tailResult != null && tailResult.Count > 0)
-                            return tailResult;
-                    }
-
-                    // 标准全量读取（小文件或尾读失败时的回退）
-                    var queue = new Queue<LogEntry>(Math.Min(maxEntries, 1024));
-                    using (var sr = new StreamReader(path, Encoding.UTF8))
-                    {
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-                            if (!TryDeserializeEntry(line, out LogEntry entry)) continue;
-                            queue.Enqueue(entry);
-                            if (queue.Count > maxEntries)
-                                queue.Dequeue();
-                        }
-                    }
-                    return new List<LogEntry>(queue);
-                }
-                else
-                {
-                    var list = new List<LogEntry>();
-                    using (var sr = new StreamReader(path, Encoding.UTF8))
-                    {
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-                            if (TryDeserializeEntry(line, out LogEntry entry))
-                                list.Add(entry);
-                        }
-                    }
-                    return list;
-                }
-            }
-            catch (Exception e)
+            // 文件按修改时间从新到旧（当前文件在最前）。从新到旧累计直至够 maxEntries。
+            // 用 List<List<LogEntry>> 暂存各文件的尾部（从早到晚），最后一次性按从旧到新顺序拼接。
+            var perFile = new List<List<LogEntry>>(allFiles.Count);
+            int total = 0;
+            foreach (var filePath in allFiles)
             {
-                Debug.LogWarning("EnhancedConsole: Failed to load log file: " + e.Message);
+                if (!File.Exists(filePath)) continue;
+                var fi = new FileInfo(filePath);
+                if (fi.Length == 0) continue;
+
+                int need = maxEntries - total;
+                if (need <= 0) break;
+
+                var entries = TailReadEntries(filePath, fi.Length, need, EstAvgLineBytes);
+                if (entries == null || entries.Count == 0) continue;
+                perFile.Add(entries);
+                total += entries.Count;
+                if (total >= maxEntries) break;
             }
-            return new List<LogEntry>();
+
+            // perFile 顺序为"从新到旧"。最终按"从旧到新"拼接：倒序遍历。
+            var result = new List<LogEntry>(Math.Min(total, maxEntries));
+            for (int i = perFile.Count - 1; i >= 0; i--)
+                result.AddRange(perFile[i]);
+
+            // 仅保留最后 maxEntries 条（多读到的部分位于头部）
+            if (result.Count > maxEntries)
+            {
+                int keep = maxEntries;
+                int skip = result.Count - keep;
+                // 用尾段构造新 List，避免头部 RemoveRange 的 O(N) 移动 + 后续访问开销
+                var trimmed = new List<LogEntry>(keep);
+                for (int i = skip; i < result.Count; i++) trimmed.Add(result[i]);
+                result = trimmed;
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -311,7 +416,8 @@ namespace UnityEnhancedConsole
             long startPos = Math.Max(0, fileLength - (long)maxEntries * avgLineBytes * 12 / 10);
             try
             {
-                var entries = new List<LogEntry>(maxEntries);
+                // 用环形 Queue 收集尾部 maxEntries 条；避免 List 头部 RemoveRange 的 O(N) 移动
+                var queue = new Queue<LogEntry>(maxEntries);
                 using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     fs.Seek(startPos, SeekOrigin.Begin);
@@ -324,17 +430,15 @@ namespace UnityEnhancedConsole
                         while ((line = sr.ReadLine()) != null)
                         {
                             if (TryDeserializeEntry(line, out LogEntry entry))
-                                entries.Add(entry);
+                            {
+                                if (queue.Count >= maxEntries) queue.Dequeue();
+                                queue.Enqueue(entry);
+                            }
                         }
                     }
                 }
-
-                // 只保留最后 maxEntries 条
-                if (entries.Count > maxEntries)
-                {
-                    int skip = entries.Count - maxEntries;
-                    entries.RemoveRange(0, skip);
-                }
+                var entries = new List<LogEntry>(queue.Count);
+                while (queue.Count > 0) entries.Add(queue.Dequeue());
                 return entries;
             }
             catch

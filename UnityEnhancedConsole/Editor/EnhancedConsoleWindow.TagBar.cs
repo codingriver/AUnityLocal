@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -18,14 +20,14 @@ namespace UnityEnhancedConsole
                     menu.AddItem(new GUIContent("清除包含标签 (Clear+)"), false, () =>
                     {
                         _selectedTags.Clear();
-                        _filterDirty = true; _tagCountsDirty = true;
+                        _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                         SavePrefs();
                         RefreshUI();
                     });
                     menu.AddItem(new GUIContent("清除排除标签 (Clear-)"), false, () =>
                     {
                         _excludedTags.Clear();
-                        _filterDirty = true; _tagCountsDirty = true;
+                        _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                         SavePrefs();
                         RefreshUI();
                     });
@@ -34,7 +36,7 @@ namespace UnityEnhancedConsole
                     {
                         _selectedTags.Clear();
                         _excludedTags.Clear();
-                        _filterDirty = true; _tagCountsDirty = true;
+                        _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                         SavePrefs();
                         RefreshUI();
                     });
@@ -49,7 +51,7 @@ namespace UnityEnhancedConsole
                 toggleTagsEnabled.RegisterValueChangedCallback(ev =>
                 {
                     _tagsEnabled = ev.newValue;
-                    _filterDirty = true; _tagCountsDirty = true;
+                    _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++; _tagCountsDirty = true;
                     SavePrefs();
                     RefreshUI();
                 });
@@ -95,8 +97,6 @@ namespace UnityEnhancedConsole
                 {
                     var menu = new UnityEditor.GenericMenu();
                     AddSortMenuItem(menu, "Name", TagSortMode.Name);
-                    AddSortMenuItem(menu, "Count", TagSortMode.Count);
-                    AddSortMenuItem(menu, "Recent", TagSortMode.Recent);
                     menu.ShowAsContext();
                 };
             }
@@ -105,16 +105,23 @@ namespace UnityEnhancedConsole
             UpdateTagSettingsControls();
         }
 
+        // 排序快照缓存：仅当数据/过滤/排序模式变化时才重排
+        private Dictionary<string, TagInfo> _lastSortedTagSource;
+        private string _lastSortedTagFilter;
+        private TagSortMode _lastSortedTagSortMode = TagSortMode.Name;
+        private bool _lastSortedTagSortDesc;
+        private List<string> _cachedDisplayTagNames;
+        private List<int> _cachedDisplayTagCounts;
+        private List<string> _cachedDisplayTagLastTimes;
+
         private void RebuildTagBar()
         {
             if (_tagBarContainer == null)
                 _tagBarContainer = rootVisualElement?.Q<VisualElement>("tagBarContainer");
             if (_tagBarContainer == null) return;
-            _tagBarContainer.Clear();
             UpdateExcludeIndicator();
             if (!_tagsEnabled) return;
-            // Use full tag set without tag-filter so the bar doesn't hide selected tags.
-            var fullTags = GetAllTagsFromRowsWithoutTagFilter();
+
             var tagBarContainer = rootVisualElement?.Q<VisualElement>("tagBarContainer");
             if (tagBarContainer != null)
             {
@@ -124,50 +131,134 @@ namespace UnityEnhancedConsole
             var btnTagCollapse = rootVisualElement?.Q<Button>("btnTagCollapse");
             if (btnTagCollapse != null) btnTagCollapse.text = _tagsCollapsed ? "More" : "Less";
 
+            if (_tagsCollapsed)
+            {
+                _tagBarContainer.Clear();
+                _lastTagBarOrder.Clear();
+                return;
+            }
+
+            // Use full tag set without tag-filter so the bar doesn't hide selected tags.
+            var fullTags = GetAllTagsFromRowsWithoutTagFilter();
+
             var filter = _tagSearch ?? "";
             var hasFilter = !string.IsNullOrWhiteSpace(filter);
-            var sorted = fullTags.ToList();
-            int dir = _tagSortDesc ? -1 : 1;
-            if (_tagSortMode == TagSortMode.Count)
-                sorted.Sort((a, b) => dir * a.Value.count.CompareTo(b.Value.count));
-            else if (_tagSortMode == TagSortMode.Recent)
-                sorted.Sort((a, b) => dir * string.Compare(a.Value.lastTime ?? "", b.Value.lastTime ?? "", System.StringComparison.Ordinal));
+
+            // 命中快照：复用上一轮排序结果，避免每次 RefreshUI 都重排 + 重建临时 List
+            bool snapshotValid = _cachedDisplayTagNames != null
+                && ReferenceEquals(_lastSortedTagSource, fullTags)
+                && string.Equals(_lastSortedTagFilter, filter, StringComparison.Ordinal)
+                && _lastSortedTagSortMode == _tagSortMode
+                && _lastSortedTagSortDesc == _tagSortDesc;
+
+            List<string> displayTagNames;
+            List<int> displayTagCounts;
+            List<string> displayTagLastTimes;
+            if (snapshotValid)
+            {
+                displayTagNames = _cachedDisplayTagNames;
+                displayTagCounts = _cachedDisplayTagCounts;
+                displayTagLastTimes = _cachedDisplayTagLastTimes;
+            }
             else
+            {
+                var sorted = fullTags.ToList();
+                int dir = _tagSortDesc ? -1 : 1;
+                // 去除 count/recent 排序：tag 元数据已不再统计，统一按名称排序，避免依赖已废弃的 count/lastTime 字段
                 sorted.Sort((a, b) => dir * System.StringComparer.OrdinalIgnoreCase.Compare(a.Key, b.Key));
 
-            foreach (var kv in sorted)
+                displayTagNames = _cachedDisplayTagNames ?? new List<string>(sorted.Count);
+                displayTagCounts = _cachedDisplayTagCounts ?? new List<int>(sorted.Count);
+                displayTagLastTimes = _cachedDisplayTagLastTimes ?? new List<string>(sorted.Count);
+                displayTagNames.Clear();
+                displayTagCounts.Clear();
+                displayTagLastTimes.Clear();
+                foreach (var kv in sorted)
+                {
+                    var tagName = kv.Key;
+                    bool match = !hasFilter || (!string.IsNullOrEmpty(tagName) && tagName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (!match && !_selectedTags.Contains(tagName) && !_excludedTags.Contains(tagName))
+                        continue;
+                    displayTagNames.Add(tagName);
+                    displayTagCounts.Add(0);
+                    displayTagLastTimes.Add(null);
+                }
+                _cachedDisplayTagNames = displayTagNames;
+                _cachedDisplayTagCounts = displayTagCounts;
+                _cachedDisplayTagLastTimes = displayTagLastTimes;
+                _lastSortedTagSource = fullTags;
+                _lastSortedTagFilter = filter;
+                _lastSortedTagSortMode = _tagSortMode;
+                _lastSortedTagSortDesc = _tagSortDesc;
+            }
+
+            // 快速路径：标签集合和排序完全未变，只更新 text / style
+            bool canFastPath = displayTagNames.Count == _lastTagBarOrder.Count;
+            if (canFastPath)
             {
-                var tag = kv.Key;
-                int count = kv.Value.count;
-                string lastTime = kv.Value.lastTime;
-                bool match = !hasFilter || (!string.IsNullOrEmpty(tag) && tag.IndexOf(filter, System.StringComparison.OrdinalIgnoreCase) >= 0);
-                if (!match && !_selectedTags.Contains(tag) && !_excludedTags.Contains(tag))
-                    continue;
+                for (int i = 0; i < displayTagNames.Count; i++)
+                {
+                    if (!string.Equals(displayTagNames[i], _lastTagBarOrder[i], StringComparison.OrdinalIgnoreCase))
+                    {
+                        canFastPath = false;
+                        break;
+                    }
+                }
+            }
+
+            if (canFastPath)
+            {
+                for (int i = 0; i < displayTagNames.Count; i++)
+                {
+                    var tag = displayTagNames[i];
+                    if (!_tagButtonPool.TryGetValue(tag, out var btn)) continue;
+                    btn.text = tag;
+                    btn.tooltip = "Left click: include. Right click/x: exclude.";
+                    if (_excludedTags.Contains(tag))
+                        btn.tooltip = "Excluded (right click to toggle)";
+                    btn.EnableInClassList("selected", _selectedTags.Contains(tag));
+                    btn.EnableInClassList("excluded", _excludedTags.Contains(tag));
+                    btn.style.backgroundColor = GetTagColor(tag);
+                }
+                return;
+            }
+
+            // 完整重建路径：复用已有 Button，避免重复创建 UI 对象
+            _lastTagBarOrder.Clear();
+            _tagBarContainer.Clear();
+            for (int i = 0; i < displayTagNames.Count; i++)
+            {
+                var tag = displayTagNames[i];
+                _lastTagBarOrder.Add(tag);
+                if (!_tagButtonPool.TryGetValue(tag, out var btn))
+                {
+                    string capturedTag = tag; // 避免闭包捕获循环变量
+                    btn = new Button(() => ToggleIncludeTag(capturedTag))
+                    {
+                        text = tag
+                    };
+                    btn.AddToClassList("log-row-tag");
+                    btn.AddToClassList("tag-btn");
+                    btn.RegisterCallback<ContextClickEvent>(evt =>
+                    {
+                        ToggleExcludeTag(capturedTag);
+                        evt.StopPropagation();
+                    });
+                    _tagButtonPool[tag] = btn;
+                }
+                else
+                {
+                    btn.text = tag;
+                }
+                btn.tooltip = "Left click: include. Right click/x: exclude.";
+                btn.style.backgroundColor = GetTagColor(tag);
+                btn.EnableInClassList("selected", _selectedTags.Contains(tag));
+                btn.EnableInClassList("excluded", _excludedTags.Contains(tag));
+                if (_excludedTags.Contains(tag))
+                    btn.tooltip = "Excluded (right click to toggle)";
+
                 var item = new VisualElement();
                 item.AddToClassList("tag-item");
-
-                var btn = new Button(() => ToggleIncludeTag(tag))
-                {
-                    text = tag + "(" + count + ")"
-                };
-                btn.AddToClassList("log-row-tag");
-                btn.AddToClassList("tag-btn");
-                btn.tooltip = string.IsNullOrEmpty(lastTime) ? "Left click: include. Right click/x: exclude." : ("Left click: include. Right click/x: exclude. Last: " + lastTime);
-                btn.style.backgroundColor = GetTagColor(tag);
-                btn.RegisterCallback<ContextClickEvent>(evt =>
-                {
-                    ToggleExcludeTag(tag);
-                    evt.StopPropagation();
-                });
-
-                if (_selectedTags.Contains(tag))
-                    btn.AddToClassList("selected");
-                if (_excludedTags.Contains(tag))
-                {
-                    btn.AddToClassList("excluded");
-                    btn.tooltip = "Excluded (right click to toggle)";
-                }
-
                 item.Add(btn);
                 _tagBarContainer.Add(item);
             }
@@ -182,7 +273,8 @@ namespace UnityEnhancedConsole
                 _selectedTags.Add(tag);
                 _excludedTags.Remove(tag);
             }
-            _filterDirty = true; _tagCountsDirty = true;
+            // 切换标签 include/exclude 不影响 tag bar 计数（计数 without tag filter）
+            _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++;
             SavePrefs();
             RefreshUI();
         }
@@ -196,7 +288,7 @@ namespace UnityEnhancedConsole
                 _excludedTags.Add(tag);
                 _selectedTags.Remove(tag);
             }
-            _filterDirty = true; _tagCountsDirty = true;
+            _filterAppendOnly = false; _filterDirty = true; _filterCriteriaVersion++;
             SavePrefs();
             RefreshUI();
         }
